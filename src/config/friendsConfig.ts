@@ -66,8 +66,7 @@ export const friendsConfig: FriendLink[] = [
 	},
 	{
 		title: "MmzMing的博客2",
-		imgurl:
-			"https://i.stardots.io/784774835/StarDots-2026042803043780900.png",
+		imgurl: "https://i.stardots.io/784774835/StarDots-2026042803043780900.png",
 		desc: "带数据库带后台带图库",
 		siteurl: "https://blog.mmzhiku.xyz/",
 		tags: ["Blog"],
