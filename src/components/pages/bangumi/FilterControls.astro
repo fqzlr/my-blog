@@ -14,14 +14,15 @@ interface Props {
 const { filters, activeFilter, sectionId } = Astro.props;
 ---
 
-<div class="flex flex-wrap gap-1.5 mb-4">
+<div class="bangumi-filter-group flex flex-wrap gap-0 mb-4 p-1 rounded-xl" data-filter-group={sectionId}>
+  <div class="bangumi-filter-indicator" data-filter-indicator={sectionId}></div>
   {filters.map((filter) => (
     <button
       class:list={[
-        "px-3 py-1 rounded-full text-xs font-medium transition-all duration-200",
+        "bangumi-filter-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-200",
         {
-          "bg-(--primary) text-white shadow-md": filter.value === activeFilter,
-          "bg-(--btn-regular-bg) text-(--btn-content) hover:bg-(--btn-regular-bg-hover)": filter.value !== activeFilter
+          "bangumi-filter-btn-active": filter.value === activeFilter,
+          "bangumi-filter-btn-inactive": filter.value !== activeFilter
         }
       ]}
       data-filter={filter.value}
@@ -36,43 +37,127 @@ const { filters, activeFilter, sectionId } = Astro.props;
   ))}
 </div>
 
+<style>
+  .bangumi-filter-group {
+    position: relative;
+    background: white;
+    box-shadow: 0 1px 3px oklch(0.5 0 0 / 0.08);
+  }
+  :root.dark .bangumi-filter-group {
+    background: black;
+    box-shadow: 0 1px 3px oklch(0 0 0 / 0.2);
+  }
+
+  .bangumi-filter-indicator {
+    position: absolute;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    background: black;
+    border-radius: 0.5rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  :root.dark .bangumi-filter-indicator {
+    background: white;
+  }
+
+  .bangumi-filter-btn {
+    position: relative;
+    z-index: 1;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: black;
+  }
+
+  :root.dark .bangumi-filter-btn {
+    color: white;
+  }
+
+  .bangumi-filter-btn:hover {
+    opacity: 0.7;
+  }
+
+  .bangumi-filter-btn-active {
+    color: white;
+  }
+
+  :root.dark .bangumi-filter-btn-active {
+    color: black;
+  }
+
+  .bangumi-filter-btn:active {
+    transform: scale(0.95);
+  }
+</style>
+
 <script is:inline define:vars={{ sectionId }}>
   function initFilterControls() {
+    const filterGroup = document.querySelector(`[data-filter-group="${sectionId}"]`);
+    const indicator = document.querySelector(`[data-filter-indicator="${sectionId}"]`);
     const filterButtons = document.querySelectorAll(`[data-section="${sectionId}"][data-filter]`);
+
+    function updateIndicator(targetBtn) {
+      if (!indicator || !filterGroup) return;
+      const groupRect = filterGroup.getBoundingClientRect();
+      const btnRect = targetBtn.getBoundingClientRect();
+      indicator.style.left = (btnRect.left - groupRect.left) + 'px';
+      indicator.style.width = btnRect.width + 'px';
+      indicator.style.opacity = '1';
+    }
+
+    function activateFilter(button) {
+      const filter = button.dataset.filter;
+      const currentSectionId = button.dataset.section;
+
+      // Update active filter button for this section
+      const sectionButtons = document.querySelectorAll(`[data-section="${currentSectionId}"][data-filter]`);
+      sectionButtons.forEach(btn => {
+        btn.classList.remove('bangumi-filter-btn-active');
+        btn.classList.add('bangumi-filter-btn-inactive');
+      });
+
+      button.classList.remove('bangumi-filter-btn-inactive');
+      button.classList.add('bangumi-filter-btn-active');
+
+      updateIndicator(button);
+
+      // Filter items
+      const items = document.querySelectorAll(`[data-item-section="${currentSectionId}"]`);
+      items.forEach(item => {
+        const itemStatus = item.dataset.itemStatus;
+
+        if (filter === 'all' || itemStatus === filter) {
+          item.classList.remove('hidden');
+          item.style.display = 'block';
+        } else {
+          item.classList.add('hidden');
+          item.style.display = 'none';
+        }
+      });
+
+      // Update pagination
+      updatePagination(currentSectionId);
+    }
 
     filterButtons.forEach(button => {
       button.addEventListener('click', function() {
-        const filter = this.dataset.filter;
-        const currentSectionId = this.dataset.section;
-
-        // Update active filter button for this section
-        const sectionButtons = document.querySelectorAll(`[data-section="${currentSectionId}"][data-filter]`);
-        sectionButtons.forEach(btn => {
-          btn.classList.remove('bg-(--primary)', 'text-white', 'shadow-md');
-          btn.classList.add('bg-(--btn-regular-bg)', 'text-(--btn-content)', 'hover:bg-(--btn-regular-bg-hover)');
-        });
-
-        this.classList.remove('bg-(--btn-regular-bg)', 'text-(--btn-content)', 'hover:bg-(--btn-regular-bg-hover)');
-        this.classList.add('bg-(--primary)', 'text-white', 'shadow-md');
-
-        // Filter items
-        const items = document.querySelectorAll(`[data-item-section="${currentSectionId}"]`);
-        items.forEach(item => {
-          const itemStatus = item.dataset.itemStatus;
-
-          if (filter === 'all' || itemStatus === filter) {
-            item.classList.remove('hidden');
-            item.style.display = 'block';
-          } else {
-            item.classList.add('hidden');
-            item.style.display = 'none';
-          }
-        });
-
-        // Update pagination
-        updatePagination(currentSectionId);
+        activateFilter(this);
       });
     });
+
+    // Initialize indicator position for the active button
+    const activeBtn = document.querySelector(`[data-section="${sectionId}"][data-filter].bangumi-filter-btn-active`);
+    if (activeBtn && indicator) {
+      // Use multiple requestAnimationFrame to ensure DOM is fully rendered
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          updateIndicator(activeBtn);
+        });
+      });
+    }
   }
 
   function updatePagination(sectionId) {
@@ -94,4 +179,19 @@ const { filters, activeFilter, sectionId } = Astro.props;
   } else {
     initFilterControls();
   }
+
+  // Re-initialize when section becomes visible (tab switch)
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) {
+      setTimeout(initFilterControls, 100);
+    }
+  });
+
+  // Listen for tab switch events to re-initialize indicator
+  window.addEventListener('tabSwitched', function(event) {
+    const detail = event.detail;
+    if (detail && detail.sectionId === sectionId) {
+      setTimeout(initFilterControls, 50);
+    }
+  });
 </script>
