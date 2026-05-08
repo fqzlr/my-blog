@@ -72,10 +72,25 @@ jobs:
             }
 
             // 解析为JSON数组（TS对象 → JSON）
-            let raw = match[1]
-              // 先删除行内注释和块注释
+            // 策略：先把所有字符串字面量占位保护起来，再删注释，最后还原字符串
+            const stringPlaceholders = [];
+            let protectedRaw = match[1]
+              // 保护多行/单行字符串字面量（包括引号本身）
+              .replace(/"(?:[^"\\]|\\.)*"/g, (m) => {
+                stringPlaceholders.push(m);
+                return `__STRING_${stringPlaceholders.length - 1}__`;
+              });
+
+            // 删除行内注释和块注释（此时字符串已安全）
+            protectedRaw = protectedRaw
               .replace(/\/\/.*$/gm, '')
-              .replace(/\/\*[\s\S]*?\*\//g, '')
+              .replace(/\/\*[\s\S]*?\*\//g, '');
+
+            // 还原字符串
+            let raw = protectedRaw.replace(/__STRING_(\d+)__/g, (_, i) => stringPlaceholders[+i]);
+
+            // TS 对象属性名加引号，转成合法 JSON
+            raw = raw
               .replace(/\btitle\s*:/g, '"title":')
               .replace(/\bimgurl\s*:/g, '"imgurl":')
               .replace(/\bdesc\s*:/g, '"desc":')

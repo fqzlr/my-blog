@@ -32,8 +32,8 @@ jobs:
 
       - name: Install Playwright
         run: |
-          npm install playwright
-          npx playwright install --with-deps chromium
+          pnpm add -D playwright
+          pnpm exec playwright install --with-deps chromium
 
       - name: Process friend request
         uses: actions/github-script@v7
