@@ -2,19 +2,20 @@
 
 纯个性化，已脱离分支，怕AI自动把分支合并上去
 
-原作者：https://github.com/CuteLeaf/Firefly
+原作者：<https://github.com/CuteLeaf/Firefly>
 
 目前爆改如图，个人博客仓库。如果要fork请务必把我的笔记清除干净哦
+
+live2d设计版权归属库洛，作者是B站木果阿木果大佬的哦，大家感兴趣可以关注一下[木果阿木果的B站](https://space.bilibili.com/886695)
 
 <img alt="Simple-firefly-2" src="./docs/images/2.webp" />
 
 <img alt="Simple-firefly-3" src="./docs/images/3.webp" />
 
-
 # 技术栈
 
-- [Astro](https://astro.build) 
-- [Tailwind CSS](https://tailwindcss.com) 
+- [Astro](https://astro.build)
+- [Tailwind CSS](https://tailwindcss.com)
 - [Iconify](https://iconify.design)
 
 # 灵感项目
@@ -31,7 +32,8 @@
 最初 Fork 自 [saicaca/fuwari](https://github.com/saicaca/fuwari)，感谢原作者的贡献
 
 **版权声明：**
+
 - Copyright (c) 2024 [saicaca](https://github.com/saicaca) - [fuwari](https://github.com/saicaca/fuwari)
-- Copyright (c) 2025 [CuteLeaf](https://github.com/CuteLeaf) - [Firefly](https://github.com/CuteLeaf/Firefly) 
+- Copyright (c) 2025 [CuteLeaf](https://github.com/CuteLeaf) - [Firefly](https://github.com/CuteLeaf/Firefly)
 
 根据 MIT 开源协议，你可以自由使用、修改、分发代码，但需保留上述版权声明。
