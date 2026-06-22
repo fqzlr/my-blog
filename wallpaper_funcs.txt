@@ -1,0 +1,61 @@
+export function applyWallpaperModeToDocument(mode: WALLPAPER_MODE) {
+	// 检查是否允许切换壁纸模式
+	const isSwitchable = backgroundWallpaper.switchable ?? true;
+	if (!isSwitchable) {
+		// 如果不允许切换，直接返回，不执行任何操作
+		return;
+	}
+
+	// 获取当前的壁纸模式
+	const currentMode =
+		(document.documentElement.getAttribute(
+			"data-wallpaper-mode",
+		) as WALLPAPER_MODE) || backgroundWallpaper.mode;
+
+	// 如果模式没有变化，直接返回
+	if (currentMode === mode) {
+		// 即使是相同模式，也要确保UI状态正确
+		ensureWallpaperState(mode);
+		return;
+	}
+
+	// 添加过渡保护类
+	document.documentElement.classList.add("is-wallpaper-transitioning");
+
+	// 更新数据属性
+	document.documentElement.setAttribute("data-wallpaper-mode", mode);
+
+	// 使用 requestAnimationFrame 确保在下一帧执行，避免闪屏
+	requestAnimationFrame(() => {
+		const body = document.body;
+
+		// 移除所有壁纸相关的CSS类
+		body.classList.remove("enable-banner", "wallpaper-transparent");
+
+		// 根据模式添加相应的CSS类
+		switch (mode) {
+			case WALLPAPER_BANNER:
+				body.classList.add("enable-banner");
+				showBannerMode();
+				break;
+			case WALLPAPER_OVERLAY:
+				body.classList.add("wallpaper-transparent");
+				showOverlayMode();
+				break;
+			case WALLPAPER_NONE:
+				hideAllWallpapers();
+				break;
+			default:
+				hideAllWallpapers();
+				break;
+		}
+
+		// 更新导航栏透明模式
+		updateNavbarTransparency(mode);
+
+		// 在下一帧移除过渡保护类
+		requestAnimationFrame(() => {
+			document.documentElement.classList.remove("is-wallpaper-transitioning");
+		});
+	});
+}

@@ -52,6 +52,33 @@ const buildNavBarConfig = (): NavBarConfig => {
 	if (siteConfig.pages.calendar) {
 		myChildren.push(LinkPreset.Calendar);
 	}
+		if (siteConfig.pages.bangumi) {
+		myChildren.push(LinkPreset.Bangumi);
+	}
+	if (siteConfig.pages.books) {
+		myChildren.push(LinkPreset.Books);
+	}
+	if (siteConfig.pages.moviesGames) {
+		myChildren.push(LinkPreset.MoviesGames);
+	}
+	if (siteConfig.pages.musicPage) {
+		myChildren.push(LinkPreset.MusicPage);
+	}
+	if (siteConfig.pages.changelog) {
+		myChildren.push(LinkPreset.Changelog);
+	}
+	if (siteConfig.pages.moments) {
+		myChildren.push(LinkPreset.Moments);
+	}
+	if (siteConfig.pages.lifeRoutines) {
+		myChildren.push(LinkPreset.Routines);
+	}
+	if (siteConfig.pages.lifePlaces) {
+		myChildren.push(LinkPreset.Places);
+	}
+	if (siteConfig.pages.lifeNotebooks) {
+		myChildren.push(LinkPreset.Notebooks);
+	}
 	if (siteConfig.pages.gallery) {
 		myChildren.push(LinkPreset.Gallery);
 	}

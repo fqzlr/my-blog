@@ -364,6 +364,19 @@ export const en: Translation = {
 	[Key.contactMe]: "Contact Me",
 	[Key.qqGroup]: "QQ Group",
 	[Key.navPosts]: "Posts",
+		[Key.bookshelf]: "Bookshelf",
+	[Key.moviesGames]: "Movies & Games",
+	[Key.musicPage]: "Music",
+	[Key.changelog]: "Changelog",
+	[Key.moments]: "Moments",
+	[Key.routines]: "Routines",
+	[Key.places]: "Places",
+	[Key.notebooks]: "Notebooks",
+	[Key.adminPanel]: "Admin Panel",
+
+	[Key.books]: "Books",
+	[Key.admin]: "Admin",
+
 	[Key.navMy]: "My",
 	[Key.calendarDescription]:
 		"Holidays, birthdays, schedules and post updates at a glance",

@@ -87,7 +87,17 @@ export type SiteConfig = {
 		gallery: boolean; // 相册页面开关
 		collections: boolean; // 收藏API页面开关
 		stats: boolean; // 统计页面开关
-		calendar: boolean; // 日历页面开关
+		calendar: boolean;
+		bangumi: boolean;
+		books: boolean;
+		moviesGames: boolean;
+		musicPage: boolean;
+		changelog: boolean;
+		moments: boolean;
+		admin: boolean;
+		lifeRoutines: boolean;
+		lifePlaces: boolean;
+		lifeNotebooks: boolean;
 	};
 
 	// 分类导航栏开关
@@ -215,6 +225,15 @@ export enum LinkPreset {
 	NavPosts = 17,
 	NavMy = 18,
 	Fnote = 19,
+	Books = 20,
+	MoviesGames = 21,
+	MusicPage = 22,
+	Changelog = 23,
+	Moments = 24,
+	Admin = 25,
+	Routines = 26,
+	Places = 27,
+	Notebooks = 28,
 }
 
 export type NavBarLink = {

@@ -52,6 +52,9 @@
 @import './widgets/terrarium-model.css';
 @import './widgets/announcement.css';
 
+/* === 功能特性层 === */
+@import './features/movies-games.css';
+
 /* === 页面层 === */
 @import './pages/sponsor.css';
 @import './pages/friends.css';

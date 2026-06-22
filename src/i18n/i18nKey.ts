@@ -369,6 +369,19 @@ enum I18nKey {
 	qqGroup = "qqGroup",
 	navPosts = "navPosts",
 	navMy = "navMy",
+
+	books = "books",
+	moviesGames = "moviesGames",
+	musicPage = "musicPage",
+	changelog = "changelog",
+	moments = "moments",
+	admin = "admin",
+	routines = "routines",
+	places = "places",
+	notebooks = "notebooks",
+
+	bookshelf = "bookshelf",
+	adminPanel = "adminPanel",
 }
 
 export default I18nKey;
