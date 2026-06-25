@@ -56,7 +56,8 @@ export default defineConfig({
             { text: '音乐播放器', link: '/zh/guide/music-player' },
             { text: '3D音乐可视化', link: '/zh/guide/music-visualizer' },
             { text: '文章写作', link: '/zh/guide/writing-posts' },
-            { text: '评论系统', link: '/zh/guide/comments' }
+            { text: '评论系统', link: '/zh/guide/comments' },
+            { text: 'CMS后台管理', link: '/zh/guide/admin-panel' }
           ]
         }
       ],
@@ -78,6 +79,36 @@ export default defineConfig({
             { text: '音乐播放器配置', link: '/zh/config/music-config' },
             { text: '字体配置', link: '/zh/config/font-config' },
             { text: '封面图片配置', link: '/zh/config/cover-image-config' }
+          ]
+        },
+        {
+          text: '扩展配置',
+          items: [
+            { text: '页脚配置', link: '/zh/config/footer-config' },
+            { text: '许可证配置', link: '/zh/config/license-config' },
+            { text: '赞助配置', link: '/zh/config/sponsor-config' },
+            { text: '广告配置', link: '/zh/config/ad-config' },
+            { text: '公告配置', link: '/zh/config/announcement-config' }
+          ]
+        },
+        {
+          text: '内容管理',
+          items: [
+            { text: '友链配置', link: '/zh/config/friends-config' },
+            { text: '说说动态配置', link: '/zh/config/moments-config' },
+            { text: '笔记配置', link: '/zh/config/notebooks-config' },
+            { text: '影视追番配置', link: '/zh/config/bangumi-config' },
+            { text: '相册配置', link: '/zh/config/gallery-config' }
+          ]
+        },
+        {
+          text: '高级配置',
+          items: [
+            { text: '代码块配置', link: '/zh/config/expressive-code' },
+            { text: '看板娘配置', link: '/zh/config/pio-config' },
+            { text: '技能图标配置', link: '/zh/config/skills-config' },
+            { text: '日历配置', link: '/zh/config/calendar-config' },
+            { text: 'AI搜索配置', link: '/zh/config/ai-search-config' }
           ]
         }
       ],
