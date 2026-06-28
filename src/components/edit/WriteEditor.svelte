@@ -15,6 +15,9 @@
 	} from "@/utils/editMode";
 	import { repoConfig } from "@/config/editConfig";
 
+	// Eagerly import all post markdown files for direct loading in editor
+	const postFiles = import.meta.glob("../../content/posts/**/*.{md,mdx}", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+
 	// ============ State (Svelte 5 runes) ============
 	let title = $state("");
 	let content = $state("");
@@ -118,9 +121,11 @@
 		data: Record<string, any>;
 		body: string;
 	} {
-		const match = raw.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
+		// Normalize line endings to \n
+		const normalized = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+		const match = normalized.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
 		if (!match) {
-			return { data: {}, body: raw };
+			return { data: {}, body: normalized };
 		}
 		const fmBlock = match[1];
 		const body = match[2];
@@ -140,7 +145,7 @@
 				continue;
 			}
 			// Key-value pair
-			const kvMatch = line.match(/^(\w+)\s*:\s*(.*)$/);
+			const kvMatch = line.match(/^([\w-]+)\s*:\s*(.*)$/);
 			if (kvMatch) {
 				const key = kvMatch[1];
 				const val = kvMatch[2].trim();
@@ -148,6 +153,14 @@
 				if (val === "" || val === "[]") {
 					data[key] = [];
 					currentArrayKey = key;
+				} else if (val.startsWith("[") && val.endsWith("]")) {
+					// Flow sequence: [item1, item2, item3]
+					const inner = val.slice(1, -1).trim();
+					if (inner === "") {
+						data[key] = [];
+					} else {
+						data[key] = inner.split(",").map(s => parseYamlValue(s.trim())).filter(v => v !== "");
+					}
 				} else {
 					data[key] = parseYamlValue(val);
 				}
@@ -174,6 +187,56 @@
 			return Number(v);
 		}
 		return v;
+	}
+
+	// ============ Load article from local files (import.meta.glob) ============
+	function loadArticleFromLocal(pathParam: string): boolean {
+		// Convert pathParam to glob key format
+		// pathParam: "posts/blog/img-bed" -> "../../content/posts/blog/img-bed.md" or .mdx
+		const possibleKeys: string[] = [];
+		const baseRelPath = `../../content/${pathParam}`;
+		possibleKeys.push(baseRelPath + ".md");
+		possibleKeys.push(baseRelPath + ".mdx");
+		if (!pathParam.includes("/")) {
+			possibleKeys.push(`../../content/posts/${pathParam}.md`);
+			possibleKeys.push(`../../content/posts/${pathParam}.mdx`);
+			possibleKeys.push(`../../content/posts/blog/${pathParam}.md`);
+			possibleKeys.push(`../../content/posts/blog/${pathParam}.mdx`);
+		}
+
+		for (const key of possibleKeys) {
+			if (postFiles[key]) {
+				const rawContent = postFiles[key];
+				const ext = key.endsWith(".mdx") ? ".mdx" : ".md";
+				const { data: fmData, body } = parseFrontmatter(rawContent);
+
+				existingExt = ext;
+				slug = pathParam.includes("/") ? pathParam.split("/").pop() || "" : pathParam;
+				savePath = `src/content/${pathParam}`;
+				editMode = true;
+
+				title = fmData.title || "";
+				content = body || "";
+				description = fmData.description || "";
+				coverUrl = fmData.image || "";
+				category = fmData.category || "";
+				isDraft = !!fmData.draft;
+				isPinned = !!fmData.pinned;
+
+				if (Array.isArray(fmData.tags)) {
+					tagsInput = fmData.tags.join(", ");
+				}
+
+				if (fmData.published) {
+					const d = fmData.published instanceof Date ? fmData.published : new Date(fmData.published);
+					pubDate = isNaN(d.getTime()) ? today : d.toISOString().slice(0, 10);
+				}
+
+				showToast("文章已加载", "success");
+				return true;
+			}
+		}
+		return false;
 	}
 
 	// ============ Load article from sessionStorage (passed from article page) ============
@@ -250,7 +313,14 @@
 	async function loadArticle(pathParam: string) {
 		loading = true;
 		try {
-			// First try to load from sessionStorage (passed directly from article page)
+			// First priority: load from local files (import.meta.glob) - most reliable
+			if (loadArticleFromLocal(pathParam)) {
+				loading = false;
+				tryGetShaFromGitHub(pathParam);
+				return;
+			}
+
+			// Second priority: try sessionStorage (passed directly from article page click)
 			try {
 				const sessionData = sessionStorage.getItem("write-editor-article");
 				if (sessionData) {
@@ -259,7 +329,6 @@
 					if (parsed.fullPath && pathParam.includes(parsed.slug || "")) {
 						if (loadArticleFromSession(parsed)) {
 							loading = false;
-							// Still try to get SHA from GitHub for saving
 							tryGetShaFromGitHub(pathParam);
 							return;
 						}
@@ -269,7 +338,7 @@
 				console.warn("SessionStorage parse error:", e);
 			}
 
-			// pathParam can be:
+			// Fallback: try GitHub API (requires token + pushed to remote)
 			// - "posts/blog/slug" (full path without extension and src/content/)
 			// - "slug" (just filename, tries multiple locations)
 			let paths: { path: string; ext: ".md" | ".mdx" }[] = [];
