@@ -310,6 +310,7 @@
 		gap: 8px;
 		margin-bottom: 12px;
 		flex-wrap: wrap;
+		vertical-align: middle;
 	}
 
 	.edit-toolbar--mounted {
@@ -319,7 +320,7 @@
 	.edit-main-btn {
 		display: inline-flex;
 		align-items: center;
-		gap: 6px;
+		gap: 8px;
 		padding: 8px 16px;
 		border-radius: 8px;
 		border: 1px solid rgba(0, 0, 0, 0.9);
@@ -330,6 +331,8 @@
 		cursor: pointer;
 		transition: background-color 0.2s, color 0.2s;
 		white-space: nowrap;
+		line-height: 1.5;
+		height: auto;
 	}
 	.edit-main-btn:hover {
 		background: rgba(0, 0, 0, 0.9);

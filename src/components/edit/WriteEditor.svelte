@@ -176,10 +176,99 @@
 		return v;
 	}
 
+	// ============ Load article from sessionStorage (passed from article page) ============
+	function loadArticleFromSession(data: any): boolean {
+		if (!data || !data.rawContent) return false;
+		try {
+			const rawContent: string = data.rawContent;
+			const { data: fmData, body } = parseFrontmatter(rawContent);
+
+			// Determine file extension from fullPath
+			const fullPath: string = data.fullPath || "";
+			existingExt = fullPath.endsWith(".mdx") ? ".mdx" : ".md";
+			slug = data.slug || "";
+			savePath = `src/content/${fullPath.replace(/\.(md|mdx)$/, "")}`;
+			editMode = true;
+
+			title = data.title || fmData.title || "";
+			content = body || "";
+			description = data.description || fmData.description || "";
+			coverUrl = data.image || fmData.image || "";
+			category = data.category || fmData.category || "";
+			isDraft = data.draft !== undefined ? !!data.draft : !!fmData.draft;
+			isPinned = data.pinned !== undefined ? !!data.pinned : !!fmData.pinned;
+
+			const tags = data.tags || fmData.tags;
+			if (Array.isArray(tags)) {
+				tagsInput = tags.join(", ");
+			}
+
+			const pubDateVal = data.published || fmData.published;
+			if (pubDateVal) {
+				pubDate = typeof pubDateVal === "string" ? pubDateVal.slice(0, 10) : today;
+			}
+
+			showToast("文章已加载", "success");
+			return true;
+		} catch (err) {
+			console.error("Failed to parse session article data:", err);
+			return false;
+		}
+	}
+
+	// Try to get file SHA from GitHub for saving (best effort, in background)
+	async function tryGetShaFromGitHub(pathParam: string) {
+		try {
+			let paths: { path: string; ext: ".md" | ".mdx" }[] = [];
+			if (pathParam.includes("/")) {
+				const basePath = `src/content/${pathParam}`;
+				paths.push({ path: basePath + ".md", ext: ".md" });
+				paths.push({ path: basePath + ".mdx", ext: ".mdx" });
+			} else {
+				paths.push({ path: `src/content/posts/${pathParam}.md`, ext: ".md" });
+				paths.push({ path: `src/content/posts/${pathParam}.mdx`, ext: ".mdx" });
+				paths.push({ path: `src/content/posts/blog/${pathParam}.md`, ext: ".md" });
+				paths.push({ path: `src/content/posts/blog/${pathParam}.mdx`, ext: ".mdx" });
+			}
+			for (const p of paths) {
+				const result = await getRepoFile(p.path, repoConfig);
+				if (result) {
+					existingSha = result.sha;
+					if (p.ext !== existingExt) {
+						existingExt = p.ext;
+						savePath = p.path.replace(/\.(md|mdx)$/, "");
+					}
+					break;
+				}
+			}
+		} catch(e) {
+			console.warn("Could not fetch SHA from GitHub:", e);
+		}
+	}
+
 	// ============ Load article for edit mode ============
 	async function loadArticle(pathParam: string) {
 		loading = true;
 		try {
+			// First try to load from sessionStorage (passed directly from article page)
+			try {
+				const sessionData = sessionStorage.getItem("write-editor-article");
+				if (sessionData) {
+					const parsed = JSON.parse(sessionData);
+					sessionStorage.removeItem("write-editor-article");
+					if (parsed.fullPath && pathParam.includes(parsed.slug || "")) {
+						if (loadArticleFromSession(parsed)) {
+							loading = false;
+							// Still try to get SHA from GitHub for saving
+							tryGetShaFromGitHub(pathParam);
+							return;
+						}
+					}
+				}
+			} catch(e) {
+				console.warn("SessionStorage parse error:", e);
+			}
+
 			// pathParam can be:
 			// - "posts/blog/slug" (full path without extension and src/content/)
 			// - "slug" (just filename, tries multiple locations)

@@ -45,6 +45,37 @@ const { Content, headings, remarkPluginFrontmatter } = await render(entry);
 
 const postSlug = removeFileExtension(entry.id);
 
+// 获取文章原始markdown内容用于编辑
+const postFiles = import.meta.glob("/src/content/posts/**/*.{md,mdx}", { query: "?raw", import: "default" });
+let postRawContent = "";
+let postExt = ".md";
+const possiblePaths = [
+	{ path: `/src/content/posts/${postSlug}.md`, ext: ".md" },
+	{ path: `/src/content/posts/${postSlug}.mdx`, ext: ".mdx" },
+];
+for (const p of possiblePaths) {
+	if (postFiles[p.path]) {
+		postRawContent = (await postFiles[p.path]()) as string;
+		postExt = p.ext;
+		break;
+	}
+}
+
+// 准备编辑数据
+const editData = {
+	slug: postSlug,
+	fullPath: `posts/${postSlug}${postExt}`,
+	title: entry.data.title,
+	description: entry.data.description || "",
+	image: entry.data.image || "",
+	tags: entry.data.tags || [],
+	category: entry.data.category || "",
+	published: entry.data.published instanceof Date ? entry.data.published.toISOString().slice(0, 10) : String(entry.data.published).slice(0, 10),
+	draft: !!entry.data.draft,
+	pinned: !!entry.data.pinned,
+	rawContent: postRawContent,
+};
+
 const bannerPostMeta = {
 	title: entry.data.title,
 	published: entry.data.published,
@@ -240,6 +271,7 @@ const relatedPosts = await getRelatedPosts(entry, 5);
             class="edit-post-btn flex-shrink-0 mt-1 inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border border-neutral-900 dark:border-neutral-100 text-neutral-900 dark:text-neutral-100 hover:bg-neutral-900 hover:text-neutral-100 dark:hover:bg-neutral-100 dark:hover:text-neutral-900 transition-colors duration-200 cursor-pointer"
             title="编辑文章"
             data-no-swup
+            data-edit-post
           >
             <Icon name="material-symbols:edit-rounded" class="text-base" />
             <span class="hidden sm:inline">编辑</span>
@@ -432,3 +464,19 @@ const relatedPosts = await getRelatedPosts(entry, 5);
   <!-- 评论 -->
   {entry.data.comment && !entry.data.password && <Comment post={entry} />}
 </MainGridLayout>
+
+<script is:inline>
+  (function() {
+    const editData = {JSON.stringify(editData)};
+    const editBtn = document.querySelector('[data-edit-post]');
+    if (editBtn) {
+      editBtn.addEventListener('click', function() {
+        try {
+          sessionStorage.setItem('write-editor-article', JSON.stringify(editData));
+        } catch(err) {
+          console.warn('Failed to store article data for editing:', err);
+        }
+      });
+    }
+  })();
+</script>
