@@ -470,8 +470,6 @@ ${pagesStr}
 
 <EditToast />
 
-<button onclick={() => { editMode = true; }}>测试编辑模式</button>
-
 <!-- 编辑工具栏 -->
 <div class="config-edit-toolbar">
 	<EditToolbar

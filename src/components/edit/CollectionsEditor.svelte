@@ -101,7 +101,7 @@
 	const allCategories = $derived([...new Set(items.map((i) => i.category).filter(Boolean))]);
 	const enabledCategories = $derived([...new Set(enabledItems.map((i) => i.category).filter(Boolean))]);
 	const categories = $derived(editMode ? allCategories : enabledCategories);
-	const categoryCounts = $derived(() => {
+	const categoryCounts = $derived.by(() => {
 		const counts: Record<string, number> = {};
 		const source = editMode ? items : enabledItems;
 		for (const item of source) {
@@ -111,7 +111,7 @@
 	});
 	const sourceItems = $derived(editMode ? items : enabledItems);
 	const displayItems = $derived(activeTab === "all" ? sourceItems : sourceItems.filter((i) => i.category === activeTab));
-	const groupedItems = $derived(() => {
+	const groupedItems = $derived.by(() => {
 		const groups: Record<string, CollectionItem[]> = {};
 		if (activeTab === "all" && !editMode) {
 			for (const cat of enabledCategories) {

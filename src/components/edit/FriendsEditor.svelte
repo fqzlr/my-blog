@@ -286,8 +286,6 @@
 
 <EditToast />
 
-<button onclick={() => { editMode = true; hideSSRGrid(); editingIndex = -1; }}>测试编辑模式</button>
-
 <!-- 编辑工具栏 -->
 <div class="friends-edit-toolbar">
 	<EditToolbar
