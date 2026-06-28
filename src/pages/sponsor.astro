@@ -1,7 +1,7 @@
 ---
 import Icon from "@components/common/Icon.astro";
 import PageTitle from "@/components/common/PageTitle.astro";
-import FileCodeEditor from "@/components/edit/FileCodeEditor.svelte";
+import SponsorEditor from "@/components/edit/SponsorEditor.svelte";
 import { siteConfig, sponsorConfig } from "@/config";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
@@ -49,11 +49,7 @@ const showSponsorsList = sponsorConfig.showSponsorsList !== false;
       </div>
 
       <div data-no-swup>
-        <FileCodeEditor
-          client:only
-          filePath="src/config/sponsorConfig.ts"
-          pageName="赞助页面"
-        />
+        <SponsorEditor client:only />
       </div>
 
       <!-- 赞助方式 -->

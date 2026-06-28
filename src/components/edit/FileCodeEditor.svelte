@@ -29,42 +29,57 @@
 	let originalContent = $state("");
 	let fileSha = $state("");
 	let textareaEl = $state<HTMLTextAreaElement>();
+	let contentLoaded = $state(false);
 
 	onMount(() => {
 		ensureIconify();
 	});
 
-	async function enterEditMode() {
+	async function loadFile() {
+		if (!hasValidToken()) {
+			showToast("请先导入密钥以加载当前配置", "warning");
+			contentLoaded = true;
+			return;
+		}
 		loading = true;
-		editMode = true;
 		try {
 			const file = await getRepoFile(filePath, repoConfig);
 			if (file) {
 				fileContent = file.content;
 				originalContent = file.content;
 				fileSha = file.sha;
+				contentLoaded = true;
 			} else {
 				showToast("无法获取文件内容，请检查仓库权限", "error");
-				editMode = false;
 			}
 		} catch (e) {
 			showToast("加载文件失败：" + (e as Error).message, "error");
-			editMode = false;
 		}
 		loading = false;
+	}
+
+	async function enterEditMode() {
+		editMode = true;
+		if (!contentLoaded) {
+			await loadFile();
+		}
 	}
 
 	function cancelEdit() {
 		fileContent = originalContent;
 		hasChanges = false;
 		editMode = false;
-		showToast("已取消编辑", "info");
 	}
 
 	function handleContentChange(e: Event) {
 		const target = e.target as HTMLTextAreaElement;
 		fileContent = target.value;
 		hasChanges = fileContent !== originalContent;
+	}
+
+	function handleReload() {
+		contentLoaded = false;
+		loadFile();
 	}
 
 	async function handleSave() {
@@ -181,6 +196,12 @@
 			<div class="editor-info">
 				<iconify-icon icon="material-symbols:code-rounded" class="text-lg"></iconify-icon>
 				<span>正在编辑：{filePath}</span>
+				{#if !fileSha}
+					<button class="reload-btn" onclick={handleReload} title="重新加载文件">
+						<iconify-icon icon="material-symbols:refresh-rounded"></iconify-icon>
+						加载当前配置
+					</button>
+				{/if}
 				<span class="editor-hint">Ctrl+S 保存 | Esc 取消</span>
 			</div>
 			<textarea
@@ -190,7 +211,7 @@
 				oninput={handleContentChange}
 				onkeydown={(e) => { handleKeyDown(e); handleTabKey(e); }}
 				spellcheck="false"
-				placeholder={`编辑 ${pageName} 配置...`}
+				placeholder={`编辑 ${pageName} 配置...\n提示：点击"加载当前配置"从仓库获取最新内容，或直接粘贴/输入配置代码。`}
 			></textarea>
 		{/if}
 	</div>
@@ -224,6 +245,25 @@
 		background: rgba(255, 255, 255, 0.03);
 		border-bottom-color: rgba(255, 255, 255, 0.06);
 		color: #d1d5db;
+	}
+	.reload-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		padding: 3px 10px;
+		border-radius: 6px;
+		border: 1px solid hsl(var(--theme-hue, 165), 70%, 50%);
+		background: transparent;
+		color: hsl(var(--theme-hue, 165), 70%, 45%);
+		font-size: 12px;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.15s;
+		font-family: inherit;
+	}
+	.reload-btn:hover {
+		background: hsl(var(--theme-hue, 165), 70%, 50%);
+		color: white;
 	}
 	.editor-hint {
 		margin-left: auto;
