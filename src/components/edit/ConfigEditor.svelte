@@ -470,6 +470,8 @@ ${pagesStr}
 
 <EditToast />
 
+<button onclick={() => { editMode = true; }}>测试编辑模式</button>
+
 <!-- 编辑工具栏 -->
 <div class="config-edit-toolbar">
 	<EditToolbar
@@ -477,9 +479,9 @@ ${pagesStr}
 		{saving}
 		{hasChanges}
 		showAddButton={false}
-		onmodeChange={handleModeChange}
-		onsave={handleSave}
-		oncancel={handleCancel}
+		on:modeChange={(e) => handleModeChange(e)}
+		on:save={() => handleSave()}
+		on:cancel={() => handleCancel()}
 	/>
 	{#if editMode}
 		<button

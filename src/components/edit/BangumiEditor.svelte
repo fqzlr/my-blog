@@ -432,10 +432,10 @@
 		pageName="番剧"
 		{saving}
 		{hasChanges}
-		onmodeChange={handleModeChange}
-		onadd={handleAdd}
-		onsave={handleSave}
-		oncancel={handleCancel}
+		on:modeChange={(e) => handleModeChange(e)}
+		on:add={() => handleAdd()}
+		on:save={() => handleSave()}
+		on:cancel={() => handleCancel()}
 	/>
 </div>
 
