@@ -436,15 +436,15 @@
 			switch (e.key.toLowerCase()) {
 				case "b":
 					e.preventDefault();
-					wrapSelection(textarea, "**", "**");
+					applyFormat("bold");
 					break;
 				case "i":
 					e.preventDefault();
-					wrapSelection(textarea, "*", "*");
+					applyFormat("italic");
 					break;
 				case "k":
 					e.preventDefault();
-					insertLink(textarea);
+					applyFormat("link");
 					break;
 				case "s":
 					e.preventDefault();
@@ -454,34 +454,115 @@
 		}
 	}
 
-	function wrapSelection(textarea: HTMLTextAreaElement, before: string, after: string) {
+	function applyFormat(format: string) {
+		const textarea = contentTextarea;
+		if (!textarea) return;
 		const start = textarea.selectionStart;
 		const end = textarea.selectionEnd;
 		const selected = content.substring(start, end);
-		const newText = content.substring(0, start) + before + selected + after + content.substring(end);
-		content = newText;
-		tick().then(() => {
-			textarea.focus();
-			textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
-		});
-	}
+		let before = "";
+		let after = "";
+		let placeholder = "";
+		let cursorOffset = 0;
 
-	function insertLink(textarea: HTMLTextAreaElement) {
-		const start = textarea.selectionStart;
-		const end = textarea.selectionEnd;
-		const selected = content.substring(start, end);
-		const url = prompt("请输入链接地址:", "https://");
-		if (url === null) return;
-		const linkText = selected || "链接文本";
-		const markdown = `[${linkText}](${url})`;
-		const newText = content.substring(0, start) + markdown + content.substring(end);
+		switch (format) {
+			case "bold":
+				before = "**";
+				after = "**";
+				placeholder = "加粗文本";
+				break;
+			case "italic":
+				before = "*";
+				after = "*";
+				placeholder = "斜体文本";
+				break;
+			case "strikethrough":
+				before = "~~";
+				after = "~~";
+				placeholder = "删除线文本";
+				break;
+			case "h2":
+				before = "## ";
+				after = "";
+				placeholder = "二级标题";
+				if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n## ";
+				break;
+			case "h3":
+				before = "### ";
+				after = "";
+				placeholder = "三级标题";
+				if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n### ";
+				break;
+			case "quote":
+				before = "> ";
+				after = "";
+				placeholder = "引用文本";
+				if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n> ";
+				break;
+			case "code":
+				before = "`";
+				after = "`";
+				placeholder = "代码";
+				break;
+			case "codeblock":
+				before = "\n```\n";
+				after = "\n```\n";
+				placeholder = "代码块";
+				cursorOffset = -1;
+				break;
+			case "ul":
+				before = "- ";
+				after = "";
+				placeholder = "列表项";
+				if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n- ";
+				break;
+			case "ol":
+				before = "1. ";
+				after = "";
+				placeholder = "列表项";
+				if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n1. ";
+				break;
+			case "link": {
+				const url = prompt("请输入链接地址:", "https://");
+				if (url === null) return;
+				const linkText = selected || "链接文本";
+				const markdown = `[${linkText}](${url})`;
+				const newText = content.substring(0, start) + markdown + content.substring(end);
+				content = newText;
+				tick().then(() => {
+					textarea.focus();
+					textarea.setSelectionRange(start + 1, start + 1 + linkText.length);
+				});
+				return;
+			}
+			case "image": {
+				const url = prompt("请输入图片 URL:", "https://");
+				if (url === null) return;
+				const altText = selected || "图片描述";
+				const markdown = `![${altText}](${url})`;
+				const newText = content.substring(0, start) + markdown + content.substring(end);
+				content = newText;
+				tick().then(() => {
+					textarea.focus();
+					textarea.setSelectionRange(start + 2, start + 2 + altText.length);
+				});
+				return;
+			}
+			case "hr":
+				before = "\n---\n";
+				after = "";
+				placeholder = "";
+				break;
+		}
+
+		const insertText = selected || placeholder;
+		const newText = content.substring(0, start) + before + insertText + after + content.substring(end);
 		content = newText;
 		tick().then(() => {
 			textarea.focus();
-			textarea.setSelectionRange(
-				start + 1,
-				start + 1 + linkText.length,
-			);
+			const selectStart = start + before.length;
+			const selectEnd = selectStart + insertText.length + cursorOffset;
+			textarea.setSelectionRange(selectStart, selectEnd > selectStart ? selectEnd : selectStart);
 		});
 	}
 
@@ -648,6 +729,51 @@
 					placeholder="输入文章标题..."
 					onblur={autoFillSlug}
 				/>
+				<div class="md-toolbar">
+					<button type="button" class="md-toolbar-btn" onclick={() => applyFormat("bold")} title="加粗 (Ctrl+B)">
+						<iconify-icon icon="material-symbols:format-bold-rounded"></iconify-icon>
+					</button>
+					<button type="button" class="md-toolbar-btn" onclick={() => applyFormat("italic")} title="斜体 (Ctrl+I)">
+						<iconify-icon icon="material-symbols:format-italic-rounded"></iconify-icon>
+					</button>
+					<button type="button" class="md-toolbar-btn" onclick={() => applyFormat("strikethrough")} title="删除线">
+						<iconify-icon icon="material-symbols:format-strikethrough-rounded"></iconify-icon>
+					</button>
+					<span class="md-toolbar-divider"></span>
+					<button type="button" class="md-toolbar-btn" onclick={() => applyFormat("h2")} title="二级标题">
+						<iconify-icon icon="material-symbols:format-h2-rounded"></iconify-icon>
+					</button>
+					<button type="button" class="md-toolbar-btn" onclick={() => applyFormat("h3")} title="三级标题">
+						<iconify-icon icon="material-symbols:format-h3-rounded"></iconify-icon>
+					</button>
+					<span class="md-toolbar-divider"></span>
+					<button type="button" class="md-toolbar-btn" onclick={() => applyFormat("quote")} title="引用">
+						<iconify-icon icon="material-symbols:format-quote-rounded"></iconify-icon>
+					</button>
+					<button type="button" class="md-toolbar-btn" onclick={() => applyFormat("code")} title="行内代码">
+						<iconify-icon icon="material-symbols:code-rounded"></iconify-icon>
+					</button>
+					<button type="button" class="md-toolbar-btn" onclick={() => applyFormat("codeblock")} title="代码块">
+						<iconify-icon icon="material-symbols:data-object-rounded"></iconify-icon>
+					</button>
+					<span class="md-toolbar-divider"></span>
+					<button type="button" class="md-toolbar-btn" onclick={() => applyFormat("ul")} title="无序列表">
+						<iconify-icon icon="material-symbols:format-list-bulleted-rounded"></iconify-icon>
+					</button>
+					<button type="button" class="md-toolbar-btn" onclick={() => applyFormat("ol")} title="有序列表">
+						<iconify-icon icon="material-symbols:format-list-numbered-rounded"></iconify-icon>
+					</button>
+					<span class="md-toolbar-divider"></span>
+					<button type="button" class="md-toolbar-btn" onclick={() => applyFormat("link")} title="链接 (Ctrl+K)">
+						<iconify-icon icon="material-symbols:link-rounded"></iconify-icon>
+					</button>
+					<button type="button" class="md-toolbar-btn" onclick={() => applyFormat("image")} title="图片">
+						<iconify-icon icon="material-symbols:image-rounded"></iconify-icon>
+					</button>
+					<button type="button" class="md-toolbar-btn" onclick={() => applyFormat("hr")} title="分割线">
+						<iconify-icon icon="material-symbols:horizontal-rule-rounded"></iconify-icon>
+					</button>
+				</div>
 				<textarea
 					bind:this={contentTextarea}
 					bind:value={content}
@@ -997,6 +1123,66 @@
 	}
 	:global(.dark) .title-input::placeholder {
 		color: #555;
+	}
+
+	.md-toolbar {
+		display: flex;
+		align-items: center;
+		gap: 2px;
+		padding: 8px 20px;
+		border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+		background: rgba(0, 0, 0, 0.02);
+		flex-wrap: wrap;
+	}
+
+	.md-toolbar-btn {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border: none;
+		background: transparent;
+		border-radius: 6px;
+		cursor: pointer;
+		color: #666;
+		font-size: 18px;
+		transition: all 0.15s ease;
+		padding: 0;
+	}
+
+	.md-toolbar-btn:hover {
+		background: rgba(102, 126, 234, 0.1);
+		color: #667eea;
+	}
+
+	.md-toolbar-btn:active {
+		background: rgba(102, 126, 234, 0.2);
+	}
+
+	.md-toolbar-divider {
+		width: 1px;
+		height: 20px;
+		background: rgba(0, 0, 0, 0.1);
+		margin: 0 4px;
+	}
+
+	:global(.dark) .md-toolbar {
+		border-bottom-color: rgba(255, 255, 255, 0.08);
+		background: rgba(255, 255, 255, 0.03);
+	}
+
+	:global(.dark) .md-toolbar-btn {
+		color: #888;
+	}
+
+	:global(.dark) .md-toolbar-btn:hover {
+		background: rgba(102, 126, 234, 0.2);
+		color: #8b9cf7;
+	}
+
+	:global(.dark) .md-toolbar-divider {
+		background: rgba(255, 255, 255, 0.1);
 	}
 
 	.content-textarea {
