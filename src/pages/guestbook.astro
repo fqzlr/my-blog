@@ -1,14 +1,13 @@
 ---
 import { getEntry, render } from "astro:content";
 import Comment from "@components/comment/index.astro";
-import Markdown from "@components/common/Markdown.astro";
 import { Icon } from "astro-icon/components";
+import MarkdownPageEditor from "@/components/edit/MarkdownPageEditor.svelte";
 import { commentConfig, siteConfig } from "@/config";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
 
-// 检查页面是否启用
 if (!siteConfig.pages.guestbook) {
 	return Astro.redirect("/404/");
 }
@@ -19,12 +18,10 @@ if (!guestbookPost) {
 	throw new Error("guestbook page content not found");
 }
 
-const { Content } = await render(guestbookPost);
+const guestbookText = guestbookPost.body ?? "";
 
-// 检查评论系统是否启用
 const isCommentEnabled = commentConfig?.type && commentConfig.type !== "none";
 
-// 页面标题和描述
 const title = i18n(I18nKey.guestbook);
 const description = i18n(I18nKey.guestbookDescription);
 ---
@@ -51,9 +48,14 @@ const description = i18n(I18nKey.guestbookDescription);
         )}
       </div>
       
-      <Markdown class="mt-2">
-        <Content />
-      </Markdown>
+      <div data-no-swup>
+        <MarkdownPageEditor
+          client:only
+          filePath="src/content/spec/guestbook.md"
+          pageName="留言板"
+          initialContent={guestbookText}
+        />
+      </div>
     </div>
   </div>
 
