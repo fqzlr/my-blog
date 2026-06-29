@@ -12,6 +12,8 @@ import { repoConfig } from "@/config/editConfig";
 const PROXY_URL = "/api/github";
 const STORAGE_APP_ID = "gh_app_id";
 const STORAGE_PRIVATE_KEY = "gh_private_key";
+const STORAGE_DRAFTS = "gh_drafts";
+const STORAGE_DRAFT_META = "gh_draft_meta";
 
 let cachedInstallationToken: string | null = null;
 let tokenExpiresAt = 0;
@@ -221,9 +223,11 @@ export function invalidateToken(): void {
 
 export function getStoredAppId(): string {
 	try {
+		const configId = repoConfig.appId;
+		if (configId) return configId;
 		return localStorage.getItem(STORAGE_APP_ID) || "";
 	} catch {
-		return "";
+		return repoConfig.appId || "";
 	}
 }
 
@@ -554,4 +558,137 @@ export function ensureIconify(): void {
 	script.src = "https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js";
 	script.async = true;
 	document.head.appendChild(script);
+}
+
+// ============ 草稿暂存与批量提交 ============
+
+export interface DraftChange {
+	id: string;
+	pageKey: string;
+	pageName: string;
+	description: string;
+	operation: "create" | "update" | "delete";
+	timestamp: number;
+	payload: Record<string, any>;
+}
+
+interface DraftStore {
+	changes: DraftChange[];
+}
+
+function readDraftStore(): DraftStore {
+	try {
+		const raw = localStorage.getItem(STORAGE_DRAFTS);
+		if (!raw) return { changes: [] };
+		return JSON.parse(raw);
+	} catch {
+		return { changes: [] };
+	}
+}
+
+function writeDraftStore(store: DraftStore): void {
+	try {
+		localStorage.setItem(STORAGE_DRAFTS, JSON.stringify(store));
+		dispatchDraftsChanged();
+	} catch {}
+}
+
+function dispatchDraftsChanged(): void {
+	if (typeof window === "undefined") return;
+	const evt = new CustomEvent("edit-mode:drafts-changed", {
+		detail: { count: getDraftCount() },
+	});
+	window.dispatchEvent(evt);
+}
+
+export function getDraftCount(): number {
+	return readDraftStore().changes.length;
+}
+
+export function getAllDrafts(): DraftChange[] {
+	return readDraftStore().changes;
+}
+
+export function getDraftsByPage(pageKey: string): DraftChange[] {
+	return readDraftStore().changes.filter(c => c.pageKey === pageKey);
+}
+
+export function saveDraft(change: Omit<DraftChange, "id" | "timestamp">): DraftChange {
+	const store = readDraftStore();
+	const newChange: DraftChange = {
+		...change,
+		id: `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+		timestamp: Date.now(),
+	};
+	store.changes.push(newChange);
+	writeDraftStore(store);
+	return newChange;
+}
+
+export function removeDraft(id: string): void {
+	const store = readDraftStore();
+	store.changes = store.changes.filter(c => c.id !== id);
+	writeDraftStore(store);
+}
+
+export function clearAllDrafts(): void {
+	writeDraftStore({ changes: [] });
+}
+
+export function clearDraftsByPage(pageKey: string): void {
+	const store = readDraftStore();
+	store.changes = store.changes.filter(c => c.pageKey !== pageKey);
+	writeDraftStore(store);
+}
+
+type SubmitHandler = (change: DraftChange, token: string) => Promise<boolean>;
+
+const submitHandlers = new Map<string, SubmitHandler>();
+
+export function registerSubmitHandler(pageKey: string, handler: SubmitHandler): void {
+	submitHandlers.set(pageKey, handler);
+}
+
+export async function submitAllDrafts(): Promise<{ success: number; failed: number; errors: string[] }> {
+	const token = await getAuthToken();
+	if (!token) {
+		return { success: 0, failed: 0, errors: ["未认证，请先导入私钥"] };
+	}
+	const drafts = getAllDrafts();
+	const success: string[] = [];
+	const errors: string[] = [];
+	const toRemove: string[] = [];
+	for (const draft of drafts) {
+		const handler = submitHandlers.get(draft.pageKey);
+		if (!handler) {
+			errors.push(`${draft.pageName}: 暂不支持提交`);
+			continue;
+		}
+		try {
+			const ok = await handler(draft, token);
+			if (ok) {
+				success.push(draft.id);
+				toRemove.push(draft.id);
+			} else {
+				errors.push(`${draft.description}: 提交失败`);
+			}
+		} catch (e: any) {
+			errors.push(`${draft.description}: ${e?.message || "未知错误"}`);
+		}
+	}
+	if (toRemove.length > 0) {
+		const store = readDraftStore();
+		store.changes = store.changes.filter(c => !toRemove.includes(c.id));
+		writeDraftStore(store);
+	}
+	return { success: success.length, failed: errors.length, errors };
+}
+
+export function onDraftsChanged(callback: (count: number) => void): () => void {
+	const handler = (e: Event) => {
+		const detail = (e as CustomEvent).detail;
+		callback(detail?.count ?? 0);
+	};
+	window.addEventListener("edit-mode:drafts-changed", handler);
+	return () => window.removeEventListener("edit-mode:drafts-changed", handler);
 }

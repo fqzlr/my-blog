@@ -17,6 +17,12 @@
 		clearStoredCredentials,
 		validateCredentials,
 		invalidateToken,
+		saveDraft,
+		getDraftCount,
+		getDraftsByPage,
+		removeDraft,
+		registerSubmitHandler,
+		onDraftsChanged,
 	} from "@/utils/editMode";
 	import { repoConfig } from "@/config/editConfig";
 
@@ -43,6 +49,13 @@
 	let savePath = $state<string>("");
 	let showPreview = $state(false);
 	let saveSuccess = $state(false);
+	let pageDraftCount = $state(0);
+	let totalDraftCount = $state(0);
+	let unsubscribeDrafts: (() => void) | null = null;
+	let showKeyModal = $state(false);
+	let validating = $state(false);
+	let pendingKeyPem = $state("");
+	let selectedFileName = $state("");
 
 	// Refs
 	let mdFileInput: HTMLInputElement | undefined;
