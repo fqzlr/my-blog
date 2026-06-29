@@ -210,7 +210,6 @@
 
 	function handleSaveDraft() {
 		dispatch("saveDraft");
-		dispatch("save");
 	}
 
 	function handleSubmitSingle() {
@@ -224,7 +223,6 @@
 			return;
 		}
 		dispatch("submit");
-		dispatch("save");
 	}
 
 	async function handleBatchSubmit() {

@@ -4,14 +4,12 @@
 	import EditToast from "./EditToast.svelte";
 	import {
 		readGistFile,
-		writeGistFile,
-		createGist,
 		showToast,
-		hasValidToken,
 		genId,
 		deepClone,
 		ensureIconify,
 	} from "@/utils/editMode";
+	import { setupGistDrafts } from "@/utils/draftHelpers";
 	import { bangumiEditConfig } from "@/config/editConfig";
 
 	interface BangumiItem {
@@ -41,12 +39,27 @@
 
 	let editMode = $state(false);
 	let saving = $state(false);
-	let hasChanges = $state(false);
 	let items = $state<BangumiItem[]>([]);
 	let originalItems = $state<BangumiItem[]>([]);
 	let editingIndex = $state(-1);
 	let gistLoaded = $state(false);
 	let activeTab = $state(defaultCategory);
+	let gistConfig = $state({ gistId: bangumiEditConfig.gistId, fileName: bangumiEditConfig.fileName });
+
+	const drafts = setupGistDrafts<BangumiItem[]>({
+		pageKey: "bangumi",
+		pageName: customPageName,
+		getData: () => items,
+		setData: (v) => (items = v),
+		getOriginalData: () => originalItems,
+		setOriginalData: (v) => (originalItems = v),
+		gistConfig,
+		onSubmitted: () => {
+			setTimeout(() => window.location.reload(), 1200);
+		},
+	});
+
+	let hasChanges = $derived(drafts.hasLocalChanges());
 
 	const categoryMap: Record<string, string> = {
 		anime: "动漫",
@@ -154,6 +167,7 @@
 		if (!bangumiEditConfig.gistId) {
 			gistLoaded = true;
 			renderExternalItems();
+			drafts.restoreFromDrafts();
 			return;
 		}
 		try {
@@ -163,7 +177,6 @@
 			);
 			if (content) {
 				const gistItems: BangumiItem[] = JSON.parse(content);
-				// 合并：Gist 条目按 title+category 去重，覆盖本地条目
 				const localKeys = new Set(
 					items.filter((i) => i._local).map((i) => `${i.title}|${i.category}`),
 				);
@@ -173,7 +186,6 @@
 						(i) => `${i.title}|${i.category}` === key,
 					);
 					if (existingIdx >= 0) {
-						// 覆盖本地条目（Gist 可能有更新）
 						items[existingIdx] = { ...g, id: items[existingIdx].id, _local: false };
 					} else {
 						items = [
@@ -183,7 +195,6 @@
 					}
 					localKeys.add(key);
 				}
-				// 按日期倒序排列
 				sortItems();
 				originalItems = deepClone(items);
 			}
@@ -192,6 +203,7 @@
 		}
 		gistLoaded = true;
 		renderExternalItems();
+		drafts.restoreFromDrafts();
 	}
 
 	function sortItems() {
@@ -293,7 +305,7 @@
 
 	function handleCancel() {
 		items = deepClone(originalItems);
-		hasChanges = false;
+		drafts.clearDrafts();
 		editingIndex = -1;
 		showSSRContent();
 	}
@@ -303,7 +315,6 @@
 		editingIndex = index;
 	}
 
-	// 完成内联编辑
 	function finishEdit(index: number) {
 		const item = items[index];
 		if (!item.title.trim()) {
@@ -314,7 +325,6 @@
 		items = [...items];
 		sortItems();
 		editingIndex = -1;
-		hasChanges = true;
 		showToast("已修改，记得点击保存", "info");
 	}
 
@@ -335,18 +345,15 @@
 		editingIndex = -1;
 	}
 
-	// 删除卡片
 	function deleteItem(index: number) {
 		const item = items[index];
 		if (!confirm(`确定要删除「${item.name_cn || item.title || "该条目"}」吗？`)) return;
 		items = items.filter((_, i) => i !== index);
-		hasChanges = true;
 		if (editingIndex === index) editingIndex = -1;
 		else if (editingIndex > index) editingIndex--;
 		showToast("已删除，记得点击保存", "info");
 	}
 
-	// 添加新条目（草稿模式，立即进入编辑态）
 	function handleAdd() {
 		const newItem: BangumiItem = {
 			id: genId("bgm"),
@@ -364,58 +371,33 @@
 		};
 		items = [...items, newItem];
 		editingIndex = items.length - 1;
-		hasChanges = true;
 	}
 
-	// 保存所有更改到 Gist
-	async function handleSave() {
-		if (!hasValidToken()) {
-			showToast("请先导入密钥再保存", "warning");
-			return;
+	function handleSaveDraft() {
+		const cleanData = items.map(({ _draft, _local, ...rest }) => ({
+			...rest,
+			id: rest.id || genId("bgm"),
+		}));
+		items = cleanData;
+		drafts.saveToDrafts();
+	}
+
+	async function handleSubmit() {
+		if (editingIndex >= 0) {
+			finishEdit(editingIndex);
+			if (editingIndex >= 0) return;
 		}
 		saving = true;
 		try {
-			// 清理数据：去除 _draft/_local 标记，确保有 id
 			const cleanData = items.map(({ _draft, _local, ...rest }) => ({
 				...rest,
 				id: rest.id || genId("bgm"),
 			}));
-
-			let gistId = bangumiEditConfig.gistId;
-			if (!gistId) {
-				gistId = await createGist(
-					"Blog Bangumi Data",
-					bangumiEditConfig.fileName,
-					JSON.stringify(cleanData, null, 2),
-				);
-				if (!gistId) {
-					showToast("创建 Gist 失败，请检查 Token 的 gist 权限", "error");
-					saving = false;
-					return;
-				}
-				showToast(
-					"已创建新 Gist，请在 editConfig.ts 中配置此 ID: " + gistId,
-					"info",
-				);
-			}
-			const ok = await writeGistFile(
-				gistId,
-				bangumiEditConfig.fileName,
-				JSON.stringify(cleanData, null, 2),
-			);
-			if (!ok) {
-				showToast("保存失败，请检查 Token 权限", "error");
-				saving = false;
-				return;
-			}
-			showToast("保存成功！页面将刷新以应用更改", "success");
-			hasChanges = false;
-			originalItems = deepClone(items);
-			setTimeout(() => window.location.reload(), 1200);
-		} catch (e) {
-			showToast("保存失败：" + (e as Error).message, "error");
+			items = cleanData;
+			await drafts.submitDrafts();
+		} finally {
+			saving = false;
 		}
-		saving = false;
 	}
 
 	// 更新编辑中的卡片字段
@@ -446,13 +428,15 @@
 <!-- 编辑工具栏 -->
 <div class="bangumi-edit-toolbar">
 	<EditToolbar
+		pageKey="bangumi"
 		pageName={customPageName}
 		mountTo=".page-header-toolbar-slot"
 		{saving}
 		{hasChanges}
 		on:modeChange={(e) => handleModeChange(e)}
 		on:add={() => handleAdd()}
-		on:save={() => handleSave()}
+		on:saveDraft={() => handleSaveDraft()}
+		on:submit={() => handleSubmit()}
 		on:cancel={() => handleCancel()}
 	/>
 </div>

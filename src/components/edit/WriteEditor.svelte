@@ -21,7 +21,9 @@
 		getDraftCount,
 		getDraftsByPage,
 		removeDraft,
+		clearDraftsByPage,
 		registerSubmitHandler,
+		submitAllDrafts,
 		onDraftsChanged,
 	} from "@/utils/editMode";
 	import { repoConfig } from "@/config/editConfig";
@@ -56,6 +58,7 @@
 	let validating = $state(false);
 	let pendingKeyPem = $state("");
 	let selectedFileName = $state("");
+	let originalArticle = $state<Record<string, any>>({});
 
 	// Refs
 	let mdFileInput: HTMLInputElement | undefined;
@@ -88,6 +91,32 @@
 		}
 		return `/posts/blog/${slug}/`;
 	});
+
+	function snapshotArticle(): Record<string, any> {
+		return { title, content, coverUrl, description, tagsInput, category, pubDate, isDraft, isPinned, slug, existingSha, existingExt, savePath, editMode };
+	}
+
+	function applyArticle(snap: Record<string, any>) {
+		if (snap.title !== undefined) title = snap.title;
+		if (snap.content !== undefined) content = snap.content;
+		if (snap.coverUrl !== undefined) coverUrl = snap.coverUrl;
+		if (snap.description !== undefined) description = snap.description;
+		if (snap.tagsInput !== undefined) tagsInput = snap.tagsInput;
+		if (snap.category !== undefined) category = snap.category;
+		if (snap.pubDate !== undefined) pubDate = snap.pubDate;
+		if (snap.isDraft !== undefined) isDraft = snap.isDraft;
+		if (snap.isPinned !== undefined) isPinned = snap.isPinned;
+		if (snap.slug !== undefined) slug = snap.slug;
+		if (snap.existingSha !== undefined) existingSha = snap.existingSha;
+		if (snap.existingExt !== undefined) existingExt = snap.existingExt;
+		if (snap.savePath !== undefined) savePath = snap.savePath;
+		if (snap.editMode !== undefined) editMode = snap.editMode;
+	}
+
+	function hasArticleChanges(): boolean {
+		const cur = snapshotArticle();
+		return JSON.stringify(cur) !== JSON.stringify(originalArticle);
+	}
 
 	// ============ Frontmatter Generation ============
 	function generateFrontmatter(): string {
@@ -251,6 +280,8 @@
 					pubDate = isNaN(d.getTime()) ? today : d.toISOString().slice(0, 10);
 				}
 
+				originalArticle = snapshotArticle();
+				restoreFromDrafts();
 				showToast("文章已加载", "success");
 				return true;
 			}
@@ -289,6 +320,8 @@
 				pubDate = typeof pubDateVal === "string" ? pubDateVal.slice(0, 10) : today;
 			}
 
+			originalArticle = snapshotArticle();
+			restoreFromDrafts();
 			showToast("文章已加载", "success");
 			return true;
 		} catch (err) {
@@ -410,6 +443,8 @@
 				pubDate = typeof data.published === "string" ? data.published.slice(0, 10) : today;
 			}
 
+			originalArticle = snapshotArticle();
+			restoreFromDrafts();
 			showToast("文章已加载", "success");
 		} catch (err) {
 			showToast("加载文章失败", "error");
@@ -418,8 +453,82 @@
 		}
 	}
 
+	// ============ Draft Functions ============
+	function restoreFromDrafts() {
+		const drafts = getDraftsByPage("write");
+		if (drafts.length === 0) return;
+		const latest = drafts[drafts.length - 1];
+		if (latest && latest.payload) {
+			applyArticle(latest.payload);
+			showToast(`已从本地草稿恢复（${new Date(latest.timestamp).toLocaleString()}）`, "info");
+		}
+	}
+
+	function handleSaveDraft() {
+		const payload = snapshotArticle();
+		saveDraft({
+			pageKey: "write",
+			pageName: "文章写作",
+			description: title ? `文章: ${title}` : "未命名文章",
+			operation: editMode ? "update" : "create",
+			payload,
+		});
+		showToast("草稿已保存到本地", "success");
+	}
+
+	async function handleBatchSubmit() {
+		if (!authed) {
+			showToast("请先导入密钥", "warning");
+			triggerKeyImport();
+			return;
+		}
+		saving = true;
+		try {
+			const result = await submitAllDrafts();
+			if (result.failed === 0) showToast(`批量提交成功，共${result.success}项`, "success");
+			else showToast(`提交完成：成功${result.success}，失败${result.failed}`, "warning");
+		} finally {
+			saving = false;
+		}
+	}
+
+	async function publishDraftPayload(payload: Record<string, any>): Promise<boolean> {
+		const fmLines: string[] = ["---"];
+		const dVal = payload.pubDate || new Date().toISOString().slice(0, 10);
+		const esc = (s: any) => String(s ?? "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+		fmLines.push(`title: "${esc(payload.title)}"`);
+		fmLines.push(`published: ${dVal}`);
+		fmLines.push(`updated: ${dVal}`);
+		if (payload.description) fmLines.push(`description: "${esc(payload.description)}"`);
+		if (payload.coverUrl) fmLines.push(`image: "${esc(payload.coverUrl)}"`);
+		const tagList = String(payload.tagsInput || "").split(/[,，]/).map((t: string) => t.trim()).filter(Boolean);
+		if (tagList.length > 0) {
+			fmLines.push("tags:");
+			for (const t of tagList) fmLines.push(`  - ${esc(t)}`);
+		}
+		if (payload.category) fmLines.push(`category: ${esc(payload.category)}`);
+		fmLines.push(`draft: ${!!payload.isDraft}`);
+		fmLines.push(`pinned: ${!!payload.isPinned}`);
+		fmLines.push(`author: fqzlr`);
+		fmLines.push("---");
+		const body = String(payload.content || "").trimStart();
+		const fullContent = `${fmLines.join("\n")}\n\n${body}`;
+		const ext: ".md" | ".mdx" = payload.existingExt || ".md";
+		const filePath = payload.editMode && payload.savePath
+			? `${payload.savePath}${ext}`
+			: `src/content/posts/blog/${payload.slug}${ext}`;
+		const commitMsg = payload.editMode
+			? `chore(posts): update "${esc(payload.title)}"`
+			: `chore(posts): create "${esc(payload.title)}"`;
+		if (payload.editMode && payload.existingSha) {
+			return await updateRepoFile(filePath, fullContent, payload.existingSha, commitMsg, repoConfig);
+		} else {
+			return await createRepoFile(filePath, fullContent, commitMsg, repoConfig);
+		}
+	}
+
 	// ============ Save / Publish ============
-	async function handlePublish() {
+	async function doPublish() {
 		if (!title.trim()) {
 			showToast("请输入标题", "warning");
 			titleInput?.focus();
@@ -438,47 +547,21 @@
 			}
 		}
 
-		if (!hasValidCredentials()) {
-			pendingPublishAfterAuth = true;
-			triggerKeyImport();
-			return;
-		}
-
 		saving = true;
 		try {
-			const fullContent = buildFullContent();
-			let filePath: string;
-			if (editMode && savePath) {
-				filePath = `${savePath}${existingExt}`;
-			} else {
-				filePath = `src/content/posts/blog/${slug}${existingExt}`;
-			}
-			const commitMsg = editMode
-				? `chore(posts): update "${title}"`
-				: `chore(posts): create "${title}"`;
-
-			let ok = false;
-			if (editMode && existingSha) {
-				ok = await updateRepoFile(
-					filePath,
-					fullContent,
-					existingSha,
-					commitMsg,
-					repoConfig,
-				);
-			} else {
-				ok = await createRepoFile(filePath, fullContent, commitMsg, repoConfig);
-			}
-
+			const ok = await publishDraftPayload(snapshotArticle());
 			if (ok) {
 				showToast(editMode ? "文章已更新！" : "文章已发布！", "success");
 				editMode = true;
 				saveSuccess = true;
 				setTimeout(() => (saveSuccess = false), 5000);
-				const result = await getRepoFile(filePath, repoConfig);
+				const fp = editMode && savePath ? `${savePath}${existingExt}` : `src/content/posts/blog/${slug}${existingExt}`;
+				const result = await getRepoFile(fp, repoConfig);
 				if (result) {
 					existingSha = result.sha;
 				}
+				clearDraftsByPage("write");
+				originalArticle = snapshotArticle();
 			} else {
 				showToast("保存失败，请检查 GitHub App 权限配置", "error");
 			}
@@ -487,6 +570,18 @@
 		} finally {
 			saving = false;
 		}
+	}
+
+	async function handleSubmit() {
+		if (!authed) {
+			showToast("请先导入密钥", "warning");
+			return;
+		}
+		await doPublish();
+	}
+
+	function handlePublish() {
+		handleSubmit();
 	}
 
 	// ============ Key Import (RyuChan-style simple flow) ============
@@ -607,7 +702,7 @@
 					break;
 				case "s":
 					e.preventDefault();
-					handlePublish();
+					handleSaveDraft();
 					break;
 			}
 		}
@@ -769,6 +864,17 @@
 		ensureIconify();
 		authed = hasValidCredentials();
 
+		registerSubmitHandler("write", async (draft) => {
+			return await publishDraftPayload(draft.payload || {});
+		});
+
+		totalDraftCount = getDraftCount();
+		pageDraftCount = getDraftsByPage("write").length;
+		unsubscribeDrafts = onDraftsChanged((count) => {
+			totalDraftCount = count;
+			pageDraftCount = getDraftsByPage("write").length;
+		});
+
 		const params = new URLSearchParams(window.location.search);
 		const pathParam = params.get("path");
 		const slugParam = params.get("slug");
@@ -778,7 +884,16 @@
 			loadArticle(slugParam);
 		} else {
 			pubDate = today;
+			originalArticle = snapshotArticle();
+			restoreFromDrafts();
 		}
+
+		return () => {
+			if (unsubscribeDrafts) {
+				unsubscribeDrafts();
+				unsubscribeDrafts = null;
+			}
+		};
 	});
 </script>
 
@@ -814,22 +929,49 @@
 			></iconify-icon>
 			<span class="btn-text">{showPreview ? "编辑" : "预览"}</span>
 		</button>
+
+		<button class="toolbar-btn toolbar-draft" onclick={handleSaveDraft} disabled={saving} title="保存草稿到本地（不会提交到GitHub）">
+			<iconify-icon icon="material-symbols:save-outline-rounded" class="text-lg"></iconify-icon>
+			<span class="btn-text">保存草稿</span>
+			{#if pageDraftCount > 0}<span class="draft-badge-inline">{pageDraftCount}</span>{/if}
+		</button>
+
+		{#if authed}
+			<button class="toolbar-btn toolbar-key-ok" onclick={handleLogout} title="已认证，点击清除私钥">
+				<iconify-icon icon="material-symbols:vpn-key-rounded" class="text-lg"></iconify-icon>
+				<span class="btn-text">已认证</span>
+			</button>
+		{:else}
+			<button class="toolbar-btn toolbar-key-err" onclick={triggerKeyImport} title="点击导入 GitHub App 私钥">
+				<iconify-icon icon="material-symbols:key-rounded" class="text-lg"></iconify-icon>
+				<span class="btn-text">导入密钥</span>
+			</button>
+		{/if}
+
+		{#if totalDraftCount > 0}
+			<button class="toolbar-btn toolbar-batch" onclick={handleBatchSubmit} title={`批量提交所有${totalDraftCount}项更改到GitHub`}>
+				<iconify-icon icon="material-symbols:cloud-upload-rounded" class="text-lg"></iconify-icon>
+				<span class="btn-text">批量提交</span>
+				<span class="batch-badge-inline">{totalDraftCount}</span>
+			</button>
+		{/if}
+
 		<button
 			class="toolbar-btn toolbar-publish"
-			class:toolbar-publish--need-auth={!authed}
-			onclick={handlePublish}
+			class:toolbar-publish--disabled={!authed}
+			onclick={handleSubmit}
 			disabled={saving || loading}
-			title={authed ? (editMode ? "保存文章" : "发布文章") : "点击导入 GitHub App 私钥"}
+			title={authed ? (editMode ? "提交文章到GitHub" : "发布文章到GitHub") : "请先导入密钥"}
 		>
 			{#if saving}
 				<iconify-icon icon="material-symbols:progress-activity-rounded" class="text-lg animate-spin"></iconify-icon>
-				<span class="btn-text">{editMode ? "保存中..." : "发布中..."}</span>
+				<span class="btn-text">{editMode ? "提交中..." : "发布中..."}</span>
 			{:else if !authed}
-				<iconify-icon icon="material-symbols:key-rounded" class="text-lg"></iconify-icon>
-				<span class="btn-text">导入密钥</span>
+				<iconify-icon icon="material-symbols:lock-rounded" class="text-lg"></iconify-icon>
+				<span class="btn-text">需密钥</span>
 			{:else}
-				<iconify-icon icon={editMode ? "material-symbols:save-rounded" : "material-symbols:send-rounded"} class="text-lg"></iconify-icon>
-				<span class="btn-text">{editMode ? "保存" : "发布"}</span>
+				<iconify-icon icon="material-symbols:send-rounded" class="text-lg"></iconify-icon>
+				<span class="btn-text">{editMode ? "提交" : "发布"}</span>
 			{/if}
 		</button>
 
@@ -916,7 +1058,7 @@
 					bind:this={contentTextarea}
 					bind:value={content}
 					class="content-textarea"
-					placeholder="开始写作...&#10;&#10;支持 Markdown 语法&#10;快捷键: Ctrl+B 加粗 / Ctrl+I 斜体 / Ctrl+K 链接 / Ctrl+S 保存"
+					placeholder="开始写作...&#10;&#10;支持 Markdown 语法&#10;快捷键: Ctrl+B 加粗 / Ctrl+I 斜体 / Ctrl+K 链接 / Ctrl+S 保存草稿"
 					onkeydown={(e) => {
 						handleEditorKeydown(e);
 						handleTextareaKeydown(e);
@@ -934,7 +1076,7 @@
 			{/if}
 			<div class="editor-footer">
 				<span class="word-count">{wordCount} 字</span>
-				<span class="shortcuts-hint">Ctrl+B 加粗 | Ctrl+I 斜体 | Ctrl+K 链接 | Ctrl+S 保存</span>
+				<span class="shortcuts-hint">Ctrl+B 加粗 | Ctrl+I 斜体 | Ctrl+K 链接 | Ctrl+S 保存草稿</span>
 			</div>
 		</div>
 
@@ -1054,7 +1196,7 @@
 				{:else}
 					<div class="auth-indicator auth-err">
 						<iconify-icon icon="material-symbols:key-off-rounded" class="text-base"></iconify-icon>
-						<span>点击「{editMode ? "保存" : "发布"}」按钮选择 .pem 文件</span>
+						<span>请先点击工具栏「导入密钥」按钮导入私钥</span>
 					</div>
 				{/if}
 			</div>
@@ -1154,21 +1296,6 @@
 		opacity: 0.6;
 		cursor: not-allowed;
 		transform: none;
-	}
-	.toolbar-publish--need-auth {
-		background: #f59e0b !important;
-		border-color: #f59e0b !important;
-		box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3) !important;
-	}
-	.toolbar-publish--need-auth:hover:not(:disabled) {
-		background: #d97706 !important;
-		border-color: #d97706 !important;
-		box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4) !important;
-	}
-	:global(.dark) .toolbar-publish--need-auth {
-		background: #fbbf24 !important;
-		border-color: #fbbf24 !important;
-		color: #1a1a2e !important;
 	}
 
 	.toolbar-view {
@@ -1583,4 +1710,58 @@
 	}
 	.animate-spin { animation: spin 0.8s linear infinite; }
 	@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+	.toolbar-draft {
+		border-color: rgba(59, 130, 246, 0.4) !important;
+		color: #2563eb !important;
+		background: rgba(59, 130, 246, 0.08) !important;
+	}
+	.toolbar-draft:hover:not(:disabled) {
+		background: rgba(59, 130, 246, 0.15) !important;
+	}
+	:global(.dark) .toolbar-draft { border-color: rgba(96, 165, 250, 0.4) !important; color: #60a5fa !important; background: rgba(96, 165, 250, 0.1) !important; }
+
+	.toolbar-key-ok {
+		border-color: #22c55e !important;
+		color: #16a34a !important;
+		background: rgba(34, 197, 94, 0.1) !important;
+	}
+	:global(.dark) .toolbar-key-ok { border-color: #4ade80 !important; color: #4ade80 !important; background: rgba(74, 222, 128, 0.15) !important; }
+
+	.toolbar-key-err {
+		border-color: #f59e0b !important;
+		color: #d97706 !important;
+		background: rgba(245, 158, 11, 0.12) !important;
+	}
+	:global(.dark) .toolbar-key-err { border-color: #fbbf24 !important; color: #fbbf24 !important; background: rgba(251, 191, 36, 0.15) !important; }
+
+	.toolbar-batch {
+		border-color: rgba(139, 92, 246, 0.4) !important;
+		color: #7c3aed !important;
+		background: rgba(139, 92, 246, 0.08) !important;
+	}
+	.toolbar-batch:hover { background: rgba(139, 92, 246, 0.15) !important; }
+	:global(.dark) .toolbar-batch { border-color: rgba(167, 139, 250, 0.4) !important; color: #a78bfa !important; background: rgba(167, 139, 250, 0.1) !important; }
+
+	.draft-badge-inline, .batch-badge-inline {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 18px;
+		height: 18px;
+		padding: 0 5px;
+		border-radius: 9px;
+		font-size: 11px;
+		font-weight: 700;
+		margin-left: 4px;
+	}
+	.draft-badge-inline { background: #2563eb; color: white; }
+	.batch-badge-inline { background: #7c3aed; color: white; }
+	:global(.dark) .draft-badge-inline { background: #60a5fa; color: #0f172a; }
+	:global(.dark) .batch-badge-inline { background: #a78bfa; color: #1e1b4b; }
+
+	.toolbar-publish--disabled {
+		opacity: 0.7;
+		cursor: not-allowed;
+	}
 </style>

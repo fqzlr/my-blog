@@ -4,14 +4,12 @@
 	import EditToast from "./EditToast.svelte";
 	import {
 		readGistFile,
-		writeGistFile,
-		createGist,
-		hasValidToken,
 		showToast,
 		genId,
 		deepClone,
 		ensureIconify,
 	} from "@/utils/editMode";
+	import { setupGistDrafts } from "@/utils/draftHelpers";
 	import { momentsEditConfig } from "@/config/editConfig";
 
 	const props = $props<{
@@ -36,11 +34,26 @@
 
 	let editMode = $state(false);
 	let saving = $state(false);
-	let hasChanges = $state(false);
 	let moments = $state<MomentItem[]>([]);
 	let originalMoments = $state<MomentItem[]>([]);
 	let editingIndex = $state(-1);
 	let gistLoaded = $state(false);
+	let gistConfig = $state({ gistId: momentsEditConfig.gistId, fileName: momentsEditConfig.fileName });
+
+	const drafts = setupGistDrafts<MomentItem[]>({
+		pageKey: "moments",
+		pageName: "说说",
+		getData: () => moments,
+		setData: (v) => (moments = v),
+		getOriginalData: () => originalMoments,
+		setOriginalData: (v) => (originalMoments = v),
+		gistConfig,
+		onSubmitted: () => {
+			setTimeout(() => window.location.reload(), 1200);
+		},
+	});
+
+	let hasChanges = $derived(drafts.hasLocalChanges());
 
 	onMount(() => {
 		ensureIconify();
@@ -124,6 +137,7 @@
 		if (!momentsEditConfig.gistId) {
 			gistLoaded = true;
 			renderExternalMoments();
+			drafts.restoreFromDrafts();
 			return;
 		}
 		try {
@@ -133,7 +147,6 @@
 			);
 			if (content) {
 				const gistItems: MomentItem[] = JSON.parse(content);
-				// 合并：Gist 数据按 id 覆盖本地数据，Gist 独有的追加
 				const localIds = new Set(moments.map((m) => m.id));
 				const merged = [...moments];
 				for (const g of gistItems) {
@@ -144,7 +157,6 @@
 						merged.push({ ...g, id: g.id || genId("ext") });
 					}
 				}
-				// 按时间排序（置顶优先，然后时间倒序）
 				merged.sort((a, b) => {
 					if (a.pinned && !b.pinned) return -1;
 					if (!a.pinned && b.pinned) return 1;
@@ -158,6 +170,7 @@
 		}
 		gistLoaded = true;
 		renderExternalMoments();
+		drafts.restoreFromDrafts();
 	}
 
 	// ========== 非编辑模式：将外部说说注入 DOM ==========
@@ -276,7 +289,7 @@
 	// ========== 取消编辑：回滚到原始数据 ==========
 	function handleCancel() {
 		moments = deepClone(originalMoments);
-		hasChanges = false;
+		drafts.clearDrafts();
 		editingIndex = -1;
 		showSSRFeed();
 		renderExternalMoments();
@@ -294,7 +307,6 @@
 			showToast("内容不能为空", "warning");
 			return;
 		}
-		// 规范化字段
 		moments[index] = {
 			...m,
 			content: m.content.trim(),
@@ -305,7 +317,6 @@
 		};
 		moments = [...moments];
 		editingIndex = -1;
-		hasChanges = true;
 		showToast("已修改，记得点击保存", "info");
 	}
 
@@ -332,7 +343,6 @@
 		const preview = m.content.slice(0, 30) + (m.content.length > 30 ? "..." : "");
 		if (!confirm(`确定要删除这条说说吗？\n\n"${preview}"`)) return;
 		moments = moments.filter((_, i) => i !== index);
-		hasChanges = true;
 		if (editingIndex === index) editingIndex = -1;
 		else if (editingIndex > index) editingIndex--;
 		showToast("已删除，记得点击保存", "info");
@@ -351,7 +361,6 @@
 			avatar: DEFAULT_AVATAR,
 			_draft: true,
 		};
-		// 按时间排序插入（新的最前面，除非有置顶）
 		const insertIdx = moments.findIndex((m) => !m.pinned);
 		if (insertIdx === -1) {
 			moments = [...moments, newMoment];
@@ -361,7 +370,6 @@
 			moments = arr;
 		}
 		editingIndex = insertIdx === -1 ? moments.length - 1 : insertIdx;
-		hasChanges = true;
 	}
 
 	// ========== 更新字段 ==========
@@ -398,7 +406,6 @@
 		const arr = moments.map((m, i) =>
 			i === index ? { ...m, pinned: !m.pinned } : m
 		);
-		// 重新排序：置顶在前，然后按时间倒序
 		arr.sort((a, b) => {
 			if (a.pinned && !b.pinned) return -1;
 			if (!a.pinned && b.pinned) return 1;
@@ -406,23 +413,31 @@
 		});
 		moments = arr;
 		editingIndex = arr.findIndex((m) => m.id === targetId);
-		hasChanges = true;
 	}
 
-	// ========== 保存所有到 Gist ==========
-	async function handleSave() {
-		if (!hasValidToken()) {
-			showToast("请先导入密钥再保存", "warning");
-			return;
-		}
-		// 如果有正在编辑的项，先完成编辑
+	function handleSaveDraft() {
+		const cleanData: MomentItem[] = moments.map(({ _draft, ...rest }) => ({
+			id: rest.id || genId("wx"),
+			content: rest.content,
+			published: rest.published,
+			images: (rest.images || []).filter((u) => u.trim()),
+			tags: (rest.tags || []).filter((t) => t.trim()),
+			location: rest.location?.trim() || undefined,
+			pinned: rest.pinned || false,
+			author: rest.author?.trim() || DEFAULT_AUTHOR,
+			avatar: rest.avatar?.trim() || DEFAULT_AVATAR,
+		}));
+		moments = cleanData;
+		drafts.saveToDrafts();
+	}
+
+	async function handleSubmit() {
 		if (editingIndex >= 0) {
 			finishEdit(editingIndex);
-			if (editingIndex >= 0) return; // finishEdit 可能因验证失败而未退出
+			if (editingIndex >= 0) return;
 		}
 		saving = true;
 		try {
-			// 清理数据：去除 _draft 标记，确保所有字段合法
 			const cleanData: MomentItem[] = moments.map(({ _draft, ...rest }) => ({
 				id: rest.id || genId("wx"),
 				content: rest.content,
@@ -434,39 +449,11 @@
 				author: rest.author?.trim() || DEFAULT_AUTHOR,
 				avatar: rest.avatar?.trim() || DEFAULT_AVATAR,
 			}));
-
-			let gistId = momentsEditConfig.gistId;
-			if (!gistId) {
-				gistId = await createGist(
-					"Blog Moments Data",
-					momentsEditConfig.fileName,
-					JSON.stringify(cleanData, null, 2),
-				);
-				if (!gistId) {
-					showToast("创建 Gist 失败，请检查 Token 的 gist 权限", "error");
-					saving = false;
-					return;
-				}
-				showToast("已创建新 Gist：" + gistId + "，请在 editConfig.ts 中配置此 ID", "info");
-			}
-			const ok = await writeGistFile(
-				gistId,
-				momentsEditConfig.fileName,
-				JSON.stringify(cleanData, null, 2),
-			);
-			if (!ok) {
-				showToast("保存失败，请检查 Token 权限", "error");
-				saving = false;
-				return;
-			}
-			showToast("保存成功！页面将刷新以应用更改", "success");
-			hasChanges = false;
-			originalMoments = deepClone(moments);
-			setTimeout(() => window.location.reload(), 1200);
-		} catch (e) {
-			showToast("保存失败：" + (e as Error).message, "error");
+			moments = cleanData;
+			await drafts.submitDrafts();
+		} finally {
+			saving = false;
 		}
-		saving = false;
 	}
 </script>
 
@@ -475,6 +462,7 @@
 <!-- 编辑工具栏 -->
 <div class="moments-edit-toolbar">
 	<EditToolbar
+		pageKey="moments"
 		pageName="说说"
 		mountTo=".page-header-toolbar-slot"
 		showAddButton={true}
@@ -482,7 +470,8 @@
 		{hasChanges}
 		on:modeChange={(e) => handleModeChange(e)}
 		on:add={() => handleAdd()}
-		on:save={() => handleSave()}
+		on:saveDraft={() => handleSaveDraft()}
+		on:submit={() => handleSubmit()}
 		on:cancel={() => handleCancel()}
 	/>
 </div>

@@ -4,14 +4,12 @@
 	import EditToast from "./EditToast.svelte";
 	import {
 		readGistFile,
-		writeGistFile,
-		createGist,
 		showToast,
-		hasValidToken,
 		genId,
 		deepClone,
 		ensureIconify,
 	} from "@/utils/editMode";
+	import { setupGistDrafts } from "@/utils/draftHelpers";
 	import { collectionsEditConfig } from "@/config/editConfig";
 
 	interface CollectionItem {
@@ -31,12 +29,27 @@
 
 	let editMode = $state(false);
 	let saving = $state(false);
-	let hasChanges = $state(false);
 	let items = $state<CollectionItem[]>([]);
 	let originalItems = $state<CollectionItem[]>([]);
 	let editingIndex = $state(-1);
 	let gistLoaded = $state(false);
 	let activeTab = $state("all");
+	let gistConfig = $state({ gistId: collectionsEditConfig.gistId, fileName: collectionsEditConfig.fileName });
+
+	const drafts = setupGistDrafts<CollectionItem[]>({
+		pageKey: "collections",
+		pageName: "收藏",
+		getData: () => items,
+		setData: (v) => (items = v),
+		getOriginalData: () => originalItems,
+		setOriginalData: (v) => (originalItems = v),
+		gistConfig,
+		onSubmitted: () => {
+			setTimeout(() => window.location.reload(), 1200);
+		},
+	});
+
+	let hasChanges = $derived(drafts.hasLocalChanges());
 
 	onMount(() => {
 		ensureIconify();
@@ -66,6 +79,7 @@
 	async function loadGistData() {
 		if (!collectionsEditConfig.gistId) {
 			gistLoaded = true;
+			drafts.restoreFromDrafts();
 			return;
 		}
 		try {
@@ -75,7 +89,6 @@
 			);
 			if (content) {
 				const gistItems: CollectionItem[] = JSON.parse(content);
-				// 合并：Gist 收藏追加到本地收藏后面，URL 去重
 				const existingUrls = new Set(
 					items.map((i) => i.url.replace(/\/$/, "")),
 				);
@@ -95,6 +108,7 @@
 			console.error("Failed to load Gist collections:", e);
 		}
 		gistLoaded = true;
+		drafts.restoreFromDrafts();
 	}
 
 	const enabledItems = $derived(items.filter((i) => i.enabled !== false));
@@ -133,7 +147,7 @@
 	// 取消编辑：回滚到原始数据
 	function handleCancel() {
 		items = deepClone(originalItems);
-		hasChanges = false;
+		drafts.clearDrafts();
 		editingIndex = -1;
 		activeTab = "all";
 	}
@@ -154,8 +168,6 @@
 		const arr = [...items];
 		[arr[prevGlobalIdx], arr[globalIdx]] = [arr[globalIdx], arr[prevGlobalIdx]];
 		items = arr;
-		hasChanges = true;
-		// 调整 editingIndex
 		if (editingIndex === globalIdx) editingIndex = prevGlobalIdx;
 		else if (editingIndex === prevGlobalIdx) editingIndex = globalIdx;
 	}
@@ -170,7 +182,6 @@
 		const arr = [...items];
 		[arr[globalIdx], arr[nextGlobalIdx]] = [arr[nextGlobalIdx], arr[globalIdx]];
 		items = arr;
-		hasChanges = true;
 		if (editingIndex === globalIdx) editingIndex = nextGlobalIdx;
 		else if (editingIndex === nextGlobalIdx) editingIndex = globalIdx;
 	}
@@ -181,7 +192,6 @@
 		editingIndex = items.indexOf(item);
 	}
 
-	// 完成内联编辑
 	function finishEdit(index: number) {
 		const item = items[index];
 		if (!item.name.trim()) {
@@ -192,18 +202,15 @@
 			showToast("链接不能为空", "warning");
 			return;
 		}
-		// 自动补全 icon
 		if (!item.icon && item.url) {
 			try {
 				const hostname = new URL(item.url).hostname;
 				items[index] = { ...item, icon: `https://favicon.im/${hostname}` };
 				items = [...items];
 			} catch {
-				// URL 无效，跳过
 			}
 		}
 		editingIndex = -1;
-		hasChanges = true;
 		showToast("已修改，记得点击保存", "info");
 	}
 
@@ -226,19 +233,16 @@
 		editingIndex = -1;
 	}
 
-	// 删除卡片
 	function deleteItem(index: number) {
 		const item = displayItems[index];
 		const globalIdx = items.indexOf(item);
 		if (!confirm(`确定要删除「${item.name || "该条目"}」吗？`)) return;
 		items = items.filter((_, i) => i !== globalIdx);
-		hasChanges = true;
 		if (editingIndex === globalIdx) editingIndex = -1;
 		else if (editingIndex > globalIdx) editingIndex--;
 		showToast("已删除，记得点击保存", "info");
 	}
 
-	// 添加新收藏（草稿模式，立即进入编辑态）
 	function handleAdd() {
 		const defaultCategory = categories[0] || "";
 		const newItem: CollectionItem = {
@@ -253,66 +257,38 @@
 		};
 		items = [...items, newItem];
 		editingIndex = items.length - 1;
-		hasChanges = true;
-		// 切换到 "all" 以确保新卡片可见
 		activeTab = "all";
 	}
 
-	// 保存所有更改到 Gist
-	async function handleSave() {
-		if (!hasValidToken()) {
-			showToast("请先导入密钥再保存", "warning");
-			return;
+	function handleSaveDraft() {
+		const cleanData = items.map(({ _draft, ...rest }) => ({
+			...rest,
+			id: rest.id || genId("col"),
+			icon: rest.icon || (rest.url ? `https://favicon.im/${new URL(rest.url).hostname}` : ""),
+			enabled: rest.enabled !== false,
+		}));
+		items = cleanData;
+		drafts.saveToDrafts();
+	}
+
+	async function handleSubmit() {
+		if (editingIndex >= 0) {
+			finishEdit(editingIndex);
+			if (editingIndex >= 0) return;
 		}
 		saving = true;
 		try {
-			// 清理数据：去除 _draft 标记，确保 id 和 icon 存在
 			const cleanData = items.map(({ _draft, ...rest }) => ({
 				...rest,
 				id: rest.id || genId("col"),
-				icon:
-					rest.icon ||
-					(rest.url
-						? `https://favicon.im/${new URL(rest.url).hostname}`
-						: ""),
+				icon: rest.icon || (rest.url ? `https://favicon.im/${new URL(rest.url).hostname}` : ""),
 				enabled: rest.enabled !== false,
 			}));
-
-			let gistId = collectionsEditConfig.gistId;
-			if (!gistId) {
-				gistId = await createGist(
-					"firefly-collections-data",
-					collectionsEditConfig.fileName,
-					JSON.stringify(cleanData, null, 2),
-				);
-				if (!gistId) {
-					showToast("创建 Gist 失败，请检查 Token 的 gist 权限", "error");
-					saving = false;
-					return;
-				}
-				showToast(
-					"已创建新 Gist，请在 editConfig.ts 中配置此 ID: " + gistId,
-					"info",
-				);
-			}
-			const ok = await writeGistFile(
-				gistId,
-				collectionsEditConfig.fileName,
-				JSON.stringify(cleanData, null, 2),
-			);
-			if (!ok) {
-				showToast("保存失败，请检查 Token 权限", "error");
-				saving = false;
-				return;
-			}
-			showToast("保存成功！页面将刷新以应用更改", "success");
-			hasChanges = false;
-			originalItems = deepClone(items);
-			setTimeout(() => window.location.reload(), 1200);
-		} catch (e) {
-			showToast("保存失败：" + (e as Error).message, "error");
+			items = cleanData;
+			await drafts.submitDrafts();
+		} finally {
+			saving = false;
 		}
-		saving = false;
 	}
 
 	// 更新编辑中的卡片字段
@@ -341,13 +317,15 @@
 <!-- 编辑工具栏 -->
 <div class="collections-edit-toolbar">
 	<EditToolbar
+		pageKey="collections"
 		pageName="收藏"
 		mountTo=".page-header-toolbar-slot"
 		{saving}
 		{hasChanges}
 		on:modeChange={(e) => handleModeChange(e)}
 		on:add={() => handleAdd()}
-		on:save={() => handleSave()}
+		on:saveDraft={() => handleSaveDraft()}
+		on:submit={() => handleSubmit()}
 		on:cancel={() => handleCancel()}
 	/>
 </div>

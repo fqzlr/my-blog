@@ -692,3 +692,5 @@ export function onDraftsChanged(callback: (count: number) => void): () => void {
 	window.addEventListener("edit-mode:drafts-changed", handler);
 	return () => window.removeEventListener("edit-mode:drafts-changed", handler);
 }
+
+// ============ Gist ÀàĞÍ±à¼­Æ÷²İ¸å¸¨Öú ============

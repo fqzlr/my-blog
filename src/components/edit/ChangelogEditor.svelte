@@ -13,7 +13,9 @@
     deleteRepoFile,
     genId,
     deepClone,
+    registerSubmitHandler,
   } from "@/utils/editMode";
+  import { setupRepoDrafts } from "@/utils/draftHelpers";
   import { repoConfig } from "@/config/editConfig";
 
   interface ChangelogEntry {
@@ -39,11 +41,59 @@
 
   let editMode = $state(false);
   let saving = $state(false);
-  let hasChanges = $state(false);
   let entries = $state<ChangelogEntry[]>([]);
   let originalEntries = $state<ChangelogEntry[]>([]);
+  let originalEntriesJson = $state("");
   let editingIndex = $state(-1);
   let editPreview = $state("");
+
+  const pageKey = "changelog";
+  const pageName = "更新日志";
+
+  function serializeEntries(): string {
+    return JSON.stringify(entries.map(e => ({
+      id: e.id, slug: e.slug, version: e.version, date: e.date,
+      type: e.type, description: e.description, body: e.body,
+      _draft: e._draft, _deleted: e._deleted,
+    })));
+  }
+
+  function deserializeEntries(json: string) {
+    try {
+      const parsed = JSON.parse(json);
+      if (Array.isArray(parsed)) {
+        entries = parsed.map((e: any) => ({
+          id: e.id || genId("cl"),
+          slug: e.slug || "",
+          version: e.version || "",
+          date: e.date || new Date().toISOString().slice(0, 10),
+          type: e.type || "improvement",
+          description: e.description || "",
+          body: e.body || "",
+          sha: e.sha,
+          _draft: !!e._draft,
+          _deleted: !!e._deleted,
+        }));
+      }
+    } catch {}
+  }
+
+  const drafts = setupRepoDrafts({
+    pageKey,
+    pageName,
+    getContent: () => serializeEntries(),
+    setContent: (v) => deserializeEntries(v),
+    getPath: () => "changelog-entries",
+    getSha: () => null,
+    setSha: () => {},
+    getOriginalContent: () => originalEntriesJson,
+    setOriginalContent: () => {},
+    getCommitMsg: () => "chore(changelog): 更新日志",
+    onSubmitted: () => {
+      setTimeout(() => window.location.reload(), 1200);
+    },
+  });
+  let hasChanges = $derived(drafts.hasLocalChanges());
 
   function getTypeInfo(type: string) {
     return typeOptions.find(t => t.value === type) || typeOptions[1];
@@ -52,6 +102,8 @@
   onMount(() => {
     ensureIconify();
     collectFromDOM();
+    originalEntriesJson = serializeEntries();
+    drafts.restoreFromDrafts();
   });
 
   function htmlToMarkdown(html: string): string {
@@ -137,8 +189,8 @@
 
   function handleCancel() {
     entries = deepClone(originalEntries);
-    hasChanges = false;
     editingIndex = -1;
+    drafts.clearDrafts();
     showSSRContent();
   }
 
@@ -176,7 +228,7 @@
       return;
     }
     editingIndex = -1;
-    hasChanges = true;
+
     showToast("已修改，记得点击保存", "info");
   }
 
@@ -203,7 +255,7 @@
       entries[index] = { ...entries[index], _deleted: true };
       entries = [...entries];
     }
-    hasChanges = true;
+
     if (editingIndex === index) editingIndex = -1;
     else if (editingIndex > index) editingIndex--;
     showToast("已标记删除，记得点击保存", "info");
@@ -214,7 +266,7 @@
     const arr = [...entries];
     [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
     entries = arr;
-    hasChanges = true;
+
     if (editingIndex === index) editingIndex = index - 1;
     else if (editingIndex === index - 1) editingIndex = index;
   }
@@ -224,7 +276,7 @@
     const arr = [...entries];
     [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
     entries = arr;
-    hasChanges = true;
+
     if (editingIndex === index) editingIndex = index + 1;
     else if (editingIndex === index + 1) editingIndex = index;
   }
@@ -232,7 +284,7 @@
   function restoreItem(index: number) {
     entries[index] = { ...entries[index], _deleted: false };
     entries = [...entries];
-    hasChanges = true;
+
   }
 
   function handleAdd() {
@@ -249,7 +301,7 @@
     };
     entries = [newEntry, ...entries];
     editingIndex = 0;
-    hasChanges = true;
+
     editPreview = "";
   }
 
@@ -278,57 +330,68 @@
     return lines.join("\n");
   }
 
-  async function handleSave() {
+  async function submitEntries(entriesToSubmit: ChangelogEntry[]): Promise<boolean> {
+    let allOk = true;
+
+    for (let i = 0; i < entriesToSubmit.length; i++) {
+      const entry = entriesToSubmit[i];
+      if (entry._deleted) {
+        if (entry.slug && !entry._draft) {
+          const filePath = `src/content/changelog/${entry.slug}.md`;
+          const file = await getRepoFile(filePath, repoConfig);
+          if (file && file.sha) {
+            const ok = await deleteRepoFile(filePath, file.sha, `chore(changelog): remove ${entry.slug}`, repoConfig);
+            if (!ok) allOk = false;
+          }
+        }
+        continue;
+      }
+
+      const md = buildChangelogMd(entry);
+      let slug = entry.slug;
+
+      if (entry._draft || !slug) {
+        slug = `${entry.date}-${slugify(entry.version + " " + entry.description).slice(0, 30)}`;
+        const filePath = `src/content/changelog/${slug}.md`;
+        const ok = await createRepoFile(filePath, md, `chore(changelog): add ${slug}`, repoConfig);
+        if (!ok) allOk = false;
+      } else {
+        const filePath = `src/content/changelog/${slug}.md`;
+        let sha = entry.sha;
+        if (!sha) {
+          const file = await getRepoFile(filePath, repoConfig);
+          if (file) sha = file.sha;
+        }
+        if (sha) {
+          const ok = await updateRepoFile(filePath, md, sha, `chore(changelog): update ${slug}`, repoConfig);
+          if (!ok) allOk = false;
+        } else {
+          const ok = await createRepoFile(filePath, md, `chore(changelog): create ${slug}`, repoConfig);
+          if (!ok) allOk = false;
+        }
+      }
+    }
+
+    return allOk;
+  }
+
+  function handleSaveDraft() {
+    drafts.saveToDrafts();
+  }
+
+  async function handleSubmit() {
     if (!hasValidToken()) {
       showToast("GitHub 代理未配置，请联系管理员", "warning");
       return;
     }
     saving = true;
     try {
-      let allOk = true;
-
-      for (let i = 0; i < entries.length; i++) {
-        const entry = entries[i];
-        if (entry._deleted) {
-          if (entry.slug && !entry._draft) {
-            const filePath = `src/content/changelog/${entry.slug}.md`;
-            const file = await getRepoFile(filePath, repoConfig);
-            if (file && file.sha) {
-              const ok = await deleteRepoFile(filePath, file.sha, `chore(changelog): remove ${entry.slug}`, repoConfig);
-              if (!ok) allOk = false;
-            }
-          }
-          continue;
-        }
-
-        const md = buildChangelogMd(entry);
-        let slug = entry.slug;
-
-        if (entry._draft || !slug) {
-          slug = `${entry.date}-${slugify(entry.version + " " + entry.description).slice(0, 30)}`;
-          const filePath = `src/content/changelog/${slug}.md`;
-          const ok = await createRepoFile(filePath, md, `chore(changelog): add ${slug}`, repoConfig);
-          if (!ok) allOk = false;
-        } else {
-          const filePath = `src/content/changelog/${slug}.md`;
-          let sha = entry.sha;
-          if (!sha) {
-            const file = await getRepoFile(filePath, repoConfig);
-            if (file) sha = file.sha;
-          }
-          if (sha) {
-            const ok = await updateRepoFile(filePath, md, sha, `chore(changelog): update ${slug}`, repoConfig);
-            if (!ok) allOk = false;
-          } else {
-            const ok = await createRepoFile(filePath, md, `chore(changelog): create ${slug}`, repoConfig);
-            if (!ok) allOk = false;
-          }
-        }
-      }
-
-      if (allOk) {
+      const ok = await submitEntries(entries);
+      if (ok) {
         showToast("保存成功！页面将刷新以应用更改", "success");
-        hasChanges = false;
+        drafts.clearDrafts();
+        originalEntries = deepClone(entries);
+        originalEntriesJson = serializeEntries();
         setTimeout(() => window.location.reload(), 1200);
       } else {
         showToast("部分操作失败，请检查 GitHub App 权限配置", "error");
@@ -336,22 +399,51 @@
     } catch (err) {
       showToast("保存出错：" + (err as Error).message, "error");
       console.error(err);
+    } finally {
+      saving = false;
     }
-    saving = false;
   }
+
+  registerSubmitHandler(pageKey, async (draft) => {
+    if (draft.payload?.type === "repo" && draft.payload.content !== undefined) {
+      let parsedEntries: ChangelogEntry[] = [];
+      try {
+        const parsed = JSON.parse(String(draft.payload.content));
+        if (Array.isArray(parsed)) {
+          parsedEntries = parsed.map((e: any) => ({
+            id: e.id || genId("cl"),
+            slug: e.slug || "",
+            version: e.version || "",
+            date: e.date || new Date().toISOString().slice(0, 10),
+            type: e.type || "improvement",
+            description: e.description || "",
+            body: e.body || "",
+            _draft: !!e._draft,
+            _deleted: !!e._deleted,
+          }));
+        }
+      } catch {
+        return false;
+      }
+      return await submitEntries(parsedEntries);
+    }
+    return false;
+  });
 </script>
 
 <EditToast />
 
 <div class="cl-edit-toolbar">
   <EditToolbar
+    pageKey="changelog"
     pageName="更新日志"
     mountTo=".page-header-toolbar-slot"
     {saving}
     {hasChanges}
     on:modeChange={(e) => handleModeChange(e)}
     on:add={handleAdd}
-    on:save={handleSave}
+    on:saveDraft={() => handleSaveDraft()}
+    on:submit={() => handleSubmit()}
     on:cancel={handleCancel}
   />
 </div>

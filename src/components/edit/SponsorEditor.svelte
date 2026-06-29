@@ -3,15 +3,13 @@
   import EditToolbar from "./EditToolbar.svelte";
   import EditToast from "./EditToast.svelte";
   import {
-    hasValidToken,
     showToast,
     ensureIconify,
     getRepoFile,
-    updateRepoFile,
-    createRepoFile,
     genId,
     deepClone,
   } from "@/utils/editMode";
+  import { setupRepoDrafts } from "@/utils/draftHelpers";
   import { repoConfig } from "@/config/editConfig";
 
   interface SponsorMethod {
@@ -47,7 +45,6 @@
 
   let editMode = $state(false);
   let saving = $state(false);
-  let hasChanges = $state(false);
   let editingMethod = $state(-1);
   let editingSponsor = $state(-1);
   let state = $state<SponsorState>({
@@ -60,12 +57,32 @@
   });
   let originalState = $state<SponsorState | null>(null);
   let activeTab = $state<"methods" | "sponsors">("methods");
+  let fileSha = $state<string | null>(null);
+  let originalCodeContent = $state("");
 
   const filePath = "src/config/sponsorConfig.ts";
+
+  const drafts = setupRepoDrafts({
+    pageKey: "sponsor",
+    pageName: "赞助页面",
+    getContent: () => generateConfigTs(),
+    setContent: () => {},
+    getPath: () => filePath,
+    getSha: () => fileSha,
+    setSha: (v) => (fileSha = v),
+    getOriginalContent: () => originalCodeContent,
+    setOriginalContent: (v) => { originalCodeContent = v; originalState = deepClone(state); },
+    getCommitMsg: (isEdit) => isEdit ? "chore(sponsor): 更新赞助配置" : "chore(sponsor): 创建赞助配置",
+    onSubmitted: () => {
+      setTimeout(() => window.location.reload(), 1200);
+    },
+  });
+  let hasChanges = $derived(drafts.hasLocalChanges());
 
   onMount(() => {
     ensureIconify();
     collectFromDOM();
+    initRepoState();
   });
 
   function collectFromDOM() {
@@ -138,6 +155,17 @@
       sponsors,
     };
     originalState = deepClone(state);
+    originalCodeContent = generateConfigTs();
+  }
+
+  async function initRepoState() {
+    try {
+      const file = await getRepoFile(filePath, repoConfig);
+      if (file) {
+        fileSha = file.sha;
+      }
+    } catch {}
+    drafts.restoreFromDrafts();
   }
 
   function hideSSRContent() {
@@ -175,9 +203,9 @@
     if (originalState) {
       state = deepClone(originalState);
     }
-    hasChanges = false;
     editingMethod = -1;
     editingSponsor = -1;
+    drafts.clearDrafts();
     showSSRContent();
   }
 
@@ -190,7 +218,7 @@
   function updateMethodField(index: number, field: keyof SponsorMethod, value: string | boolean) {
     state.methods[index] = { ...state.methods[index], [field]: value };
     state = { ...state };
-    hasChanges = true;
+
   }
 
   function finishEditMethod(index: number) {
@@ -200,7 +228,7 @@
       return;
     }
     editingMethod = -1;
-    hasChanges = true;
+
     showToast("已修改，记得点击保存", "info");
   }
 
@@ -229,7 +257,7 @@
       state.methods[index] = { ...state.methods[index], _deleted: true };
       state = { ...state };
     }
-    hasChanges = true;
+
     if (editingMethod === index) editingMethod = -1;
     else if (editingMethod > index) editingMethod--;
     showToast("已标记删除，记得点击保存", "info");
@@ -241,7 +269,7 @@
     [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
     state.methods = arr;
     state = { ...state };
-    hasChanges = true;
+
   }
 
   function moveMethodDown(index: number) {
@@ -250,13 +278,13 @@
     [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
     state.methods = arr;
     state = { ...state };
-    hasChanges = true;
+
   }
 
   function restoreMethod(index: number) {
     state.methods[index] = { ...state.methods[index], _deleted: false };
     state = { ...state };
-    hasChanges = true;
+
   }
 
   function addMethod() {
@@ -276,7 +304,7 @@
     state = { ...state };
     editingMethod = state.methods.length - 1;
     editingSponsor = -1;
-    hasChanges = true;
+
   }
 
   // ===== Sponsors 操作 =====
@@ -288,7 +316,7 @@
   function updateSponsorField(index: number, field: keyof SponsorItem, value: string) {
     state.sponsors[index] = { ...state.sponsors[index], [field]: value };
     state = { ...state };
-    hasChanges = true;
+
   }
 
   function finishEditSponsor(index: number) {
@@ -298,7 +326,7 @@
       return;
     }
     editingSponsor = -1;
-    hasChanges = true;
+
     showToast("已修改，记得点击保存", "info");
   }
 
@@ -327,7 +355,7 @@
       state.sponsors[index] = { ...state.sponsors[index], _deleted: true };
       state = { ...state };
     }
-    hasChanges = true;
+
     if (editingSponsor === index) editingSponsor = -1;
     else if (editingSponsor > index) editingSponsor--;
     showToast("已标记删除，记得点击保存", "info");
@@ -339,7 +367,7 @@
     [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
     state.sponsors = arr;
     state = { ...state };
-    hasChanges = true;
+
   }
 
   function moveSponsorDown(index: number) {
@@ -348,13 +376,13 @@
     [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
     state.sponsors = arr;
     state = { ...state };
-    hasChanges = true;
+
   }
 
   function restoreSponsor(index: number) {
     state.sponsors[index] = { ...state.sponsors[index], _deleted: false };
     state = { ...state };
-    hasChanges = true;
+
   }
 
   function addSponsor() {
@@ -372,12 +400,12 @@
     state = { ...state };
     editingSponsor = state.sponsors.length - 1;
     editingMethod = -1;
-    hasChanges = true;
+
   }
 
   function updateStateField<K extends keyof SponsorState>(field: K, value: SponsorState[K]) {
     state = { ...state, [field]: value };
-    hasChanges = true;
+
   }
 
   function generateConfigTs(): string {
@@ -430,38 +458,13 @@
     return lines.join("\n");
   }
 
-  async function handleSave() {
-    if (!hasValidToken()) {
-      showToast("请先导入密钥再保存", "warning");
-      return;
-    }
+  function handleSaveDraft() {
+    drafts.saveToDrafts();
+  }
+
+  async function handleSubmit() {
     saving = true;
-    try {
-      const content = generateConfigTs();
-      let sha = "";
-      const file = await getRepoFile(filePath, repoConfig);
-      if (file) sha = file.sha;
-
-      let ok: boolean;
-      if (sha) {
-        ok = await updateRepoFile(filePath, content, sha, "chore(sponsor): 更新赞助配置", repoConfig);
-      } else {
-        ok = await createRepoFile(filePath, content, "chore(sponsor): 创建赞助配置", repoConfig);
-      }
-
-      if (ok) {
-        showToast("保存成功！页面将刷新以应用更改", "success");
-        hasChanges = false;
-        originalState = deepClone(state);
-        setTimeout(() => window.location.reload(), 1200);
-      } else {
-        showToast("保存失败，请检查Token权限（需要repo权限）", "error");
-      }
-    } catch (err) {
-      showToast("保存出错：" + (err as Error).message, "error");
-      console.error(err);
-    }
-    saving = false;
+    try { await drafts.submitDrafts(); } finally { saving = false; }
   }
 </script>
 
@@ -469,6 +472,7 @@
 
 <div class="sp-edit-toolbar">
   <EditToolbar
+    pageKey="sponsor"
     pageName="赞助页面"
     mountTo=".page-header-toolbar-slot"
     {saving}
@@ -477,7 +481,8 @@
     on:add={() => {
       activeTab === "methods" ? addMethod() : addSponsor();
     }}
-    on:save={handleSave}
+    on:saveDraft={() => handleSaveDraft()}
+    on:submit={() => handleSubmit()}
     on:cancel={handleCancel}
   />
 </div>

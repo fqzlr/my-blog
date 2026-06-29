@@ -5,10 +5,10 @@
 	import {
 		hasValidToken,
 		getRepoFile,
-		updateRepoFile,
 		showToast,
 		ensureIconify,
 	} from "@/utils/editMode";
+	import { setupRepoDrafts } from "@/utils/draftHelpers";
 	import { repoConfig } from "@/config/editConfig";
 
 	let {
@@ -23,13 +23,26 @@
 
 	let editMode = $state(false);
 	let saving = $state(false);
-	let hasChanges = $state(false);
 	let loading = $state(false);
 	let fileContent = $state("");
 	let originalContent = $state("");
-	let fileSha = $state("");
+	let fileSha = $state<string | null>(null);
 	let textareaEl = $state<HTMLTextAreaElement>();
 	let contentLoaded = $state(false);
+
+	const drafts = setupRepoDrafts({
+		pageKey: "filecode",
+		pageName: pageName,
+		getContent: () => fileContent,
+		setContent: (v) => (fileContent = v),
+		getPath: () => filePath,
+		getSha: () => fileSha,
+		setSha: (v) => (fileSha = v),
+		getOriginalContent: () => originalContent,
+		setOriginalContent: (v) => (originalContent = v),
+		getCommitMsg: (isEdit) => isEdit ? `chore: 更新${pageName}配置` : `chore: 创建${pageName}配置`,
+	});
+	let hasChanges = $derived(drafts.hasLocalChanges());
 
 	onMount(() => {
 		ensureIconify();
@@ -39,6 +52,7 @@
 		if (!hasValidToken()) {
 			showToast("请先导入密钥以加载当前配置", "warning");
 			contentLoaded = true;
+			drafts.restoreFromDrafts();
 			return;
 		}
 		loading = true;
@@ -56,6 +70,7 @@
 			showToast("加载文件失败：" + (e as Error).message, "error");
 		}
 		loading = false;
+		drafts.restoreFromDrafts();
 	}
 
 	async function enterEditMode() {
@@ -67,14 +82,13 @@
 
 	function cancelEdit() {
 		fileContent = originalContent;
-		hasChanges = false;
 		editMode = false;
+		drafts.clearDrafts();
 	}
 
 	function handleContentChange(e: Event) {
 		const target = e.target as HTMLTextAreaElement;
 		fileContent = target.value;
-		hasChanges = fileContent !== originalContent;
 	}
 
 	function handleReload() {
@@ -82,58 +96,20 @@
 		loadFile();
 	}
 
-	async function handleSave() {
-		if (!hasValidToken()) {
-			showToast("请先导入密钥再保存", "warning");
-			return;
-		}
-		if (!fileContent.trim()) {
-			showToast("内容不能为空", "warning");
-			return;
-		}
+	function handleSaveDraft() {
+		drafts.saveToDrafts();
+	}
+
+	async function handleSubmit() {
 		saving = true;
-		try {
-			let sha = fileSha;
-			if (!sha) {
-				const file = await getRepoFile(filePath, repoConfig);
-				if (file) {
-					sha = file.sha;
-				}
-			}
-			if (!sha) {
-				showToast("无法获取文件信息，请检查仓库权限", "error");
-				saving = false;
-				return;
-			}
-			const ok = await updateRepoFile(
-				filePath,
-				fileContent,
-				sha,
-				`chore: 更新${pageName}配置`,
-				repoConfig,
-			);
-			if (ok) {
-				showToast("保存成功！配置将在部署后生效", "success");
-				hasChanges = false;
-				originalContent = fileContent;
-				const file = await getRepoFile(filePath, repoConfig);
-				if (file) {
-					fileSha = file.sha;
-				}
-			} else {
-				showToast("保存失败，请检查 Token 权限（需要 repo 权限）", "error");
-			}
-		} catch (e) {
-			showToast("保存失败：" + (e as Error).message, "error");
-		}
-		saving = false;
+		try { await drafts.submitDrafts(); } finally { saving = false; }
 	}
 
 	function handleKeyDown(e: KeyboardEvent) {
 		if ((e.ctrlKey || e.metaKey) && e.key === "s") {
 			e.preventDefault();
 			if (hasChanges && !saving) {
-				handleSave();
+				handleSubmit();
 			}
 		}
 		if (e.key === "Escape") {
@@ -154,7 +130,6 @@
 			const start = textarea.selectionStart;
 			const end = textarea.selectionEnd;
 			fileContent = fileContent.substring(0, start) + "\t" + fileContent.substring(end);
-			hasChanges = fileContent !== originalContent;
 			setTimeout(() => {
 				if (textareaEl) {
 					textareaEl.selectionStart = textareaEl.selectionEnd = start + 1;
@@ -169,6 +144,7 @@
 <div class="file-edit-toolbar-slot">
 	<EditToolbar
 		pageName={pageName}
+		pageKey="filecode"
 		mountTo=".page-header-toolbar-slot"
 		{saving}
 		{hasChanges}
@@ -181,7 +157,8 @@
 			}
 		}}
 		on:cancel={cancelEdit}
-		on:save={handleSave}
+		on:saveDraft={() => handleSaveDraft()}
+		on:submit={() => handleSubmit()}
 	/>
 </div>
 
