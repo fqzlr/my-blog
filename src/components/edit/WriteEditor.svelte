@@ -3,25 +3,19 @@
 	import EditToast from "./EditToast.svelte";
 	import { marked } from "marked";
 	import {
-		getStoredAppId,
-		setStoredAppId,
-		setStoredPrivateKey,
-		clearStoredCredentials,
-		hasValidCredentials,
-		readFileAsText,
-		validateCredentials,
+		checkProxyConfigured,
 		showToast,
 		ensureIconify,
 		getRepoFile,
 		createRepoFile,
 		updateRepoFile,
+		readFileAsText,
 	} from "@/utils/editMode";
 	import { repoConfig } from "@/config/editConfig";
 
-	// Eagerly import all post markdown files for direct loading in editor
 	const postFiles = import.meta.glob("../../content/posts/**/*.{md,mdx}", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 
-	// ============ State (Svelte 5 runes) ============
+	// ============ State ============
 	let title = $state("");
 	let content = $state("");
 	let coverUrl = $state("");
@@ -33,7 +27,8 @@
 	let isPinned = $state(false);
 	let slug = $state("");
 
-	let hasToken = $state(false);
+	let proxyReady = $state(false);
+	let checkingProxy = $state(false);
 	let saving = $state(false);
 	let loading = $state(false);
 	let editMode = $state(false);
@@ -41,16 +36,11 @@
 	let existingExt = $state<".md" | ".mdx">(".md");
 	let savePath = $state<string>("");
 	let showPreview = $state(false);
-	let showTokenModal = $state(false);
-	let appIdInput = $state("");
-	let importedPem = $state("");
-	let pemFileName = $state("");
-	let validatingToken = $state(false);
+	let showConfigHint = $state(false);
 	let saveSuccess = $state(false);
 
 	// Refs
 	let mdFileInput: HTMLInputElement | undefined;
-	let keyFileInput: HTMLInputElement | undefined;
 	let contentTextarea: HTMLTextAreaElement | undefined;
 	let titleInput: HTMLInputElement | undefined;
 
@@ -138,7 +128,6 @@
 		data: Record<string, any>;
 		body: string;
 	} {
-		// Normalize line endings to \n
 		const normalized = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 		const match = normalized.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
 		if (!match) {
@@ -148,11 +137,9 @@
 		const body = match[2];
 		const data: Record<string, any> = {};
 
-		// Simple YAML frontmatter parser (handles the fields we need)
 		const lines = fmBlock.split("\n");
 		let currentArrayKey: string | null = null;
 		for (const line of lines) {
-			// Array item (starts with "  - ")
 			const arrMatch = line.match(/^\s*-\s+(.+)$/);
 			if (arrMatch && currentArrayKey) {
 				if (!Array.isArray(data[currentArrayKey])) {
@@ -161,7 +148,6 @@
 				data[currentArrayKey].push(parseYamlValue(arrMatch[1]));
 				continue;
 			}
-			// Key-value pair
 			const kvMatch = line.match(/^([\w-]+)\s*:\s*(.*)$/);
 			if (kvMatch) {
 				const key = kvMatch[1];
@@ -171,7 +157,6 @@
 					data[key] = [];
 					currentArrayKey = key;
 				} else if (val.startsWith("[") && val.endsWith("]")) {
-					// Flow sequence: [item1, item2, item3]
 					const inner = val.slice(1, -1).trim();
 					if (inner === "") {
 						data[key] = [];
@@ -191,25 +176,20 @@
 		if (v === "true") return true;
 		if (v === "false") return false;
 		if (v === "null" || v === "~") return null;
-		// Quoted string
 		if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
 			return v.slice(1, -1);
 		}
-		// Date (YYYY-MM-DD)
 		if (/^\d{4}-\d{2}-\d{2}/.test(v)) {
 			return v;
 		}
-		// Number
 		if (/^-?\d+(\.\d+)?$/.test(v)) {
 			return Number(v);
 		}
 		return v;
 	}
 
-	// ============ Load article from local files (import.meta.glob) ============
+	// ============ Load article from local files ============
 	function loadArticleFromLocal(pathParam: string): boolean {
-		// Convert pathParam to glob key format
-		// pathParam: "posts/blog/img-bed" -> "../../content/posts/blog/img-bed.md" or .mdx
 		const possibleKeys: string[] = [];
 		const baseRelPath = `../../content/${pathParam}`;
 		possibleKeys.push(baseRelPath + ".md");
@@ -256,14 +236,13 @@
 		return false;
 	}
 
-	// ============ Load article from sessionStorage (passed from article page) ============
+	// ============ Load article from sessionStorage ============
 	function loadArticleFromSession(data: any): boolean {
 		if (!data || !data.rawContent) return false;
 		try {
 			const rawContent: string = data.rawContent;
 			const { data: fmData, body } = parseFrontmatter(rawContent);
 
-			// Determine file extension from fullPath
 			const fullPath: string = data.fullPath || "";
 			existingExt = fullPath.endsWith(".mdx") ? ".mdx" : ".md";
 			slug = data.slug || "";
@@ -278,9 +257,9 @@
 			isDraft = data.draft !== undefined ? !!data.draft : !!fmData.draft;
 			isPinned = data.pinned !== undefined ? !!data.pinned : !!fmData.pinned;
 
-			const tags = data.tags || fmData.tags;
-			if (Array.isArray(tags)) {
-				tagsInput = tags.join(", ");
+			const tagList = data.tags || fmData.tags;
+			if (Array.isArray(tagList)) {
+				tagsInput = tagList.join(", ");
 			}
 
 			const pubDateVal = data.published || fmData.published;
@@ -296,7 +275,6 @@
 		}
 	}
 
-	// Try to get file SHA from GitHub for saving (best effort, in background)
 	async function tryGetShaFromGitHub(pathParam: string) {
 		try {
 			let paths: { path: string; ext: ".md" | ".mdx" }[] = [];
@@ -330,14 +308,12 @@
 	async function loadArticle(pathParam: string) {
 		loading = true;
 		try {
-			// First priority: load from local files (import.meta.glob) - most reliable
 			if (loadArticleFromLocal(pathParam)) {
 				loading = false;
 				tryGetShaFromGitHub(pathParam);
 				return;
 			}
 
-			// Second priority: try sessionStorage (passed directly from article page click)
 			try {
 				const sessionData = sessionStorage.getItem("write-editor-article");
 				if (sessionData) {
@@ -355,18 +331,13 @@
 				console.warn("SessionStorage parse error:", e);
 			}
 
-			// Fallback: try GitHub API (requires token + pushed to remote)
-			// - "posts/blog/slug" (full path without extension and src/content/)
-			// - "slug" (just filename, tries multiple locations)
 			let paths: { path: string; ext: ".md" | ".mdx" }[] = [];
 
 			if (pathParam.includes("/")) {
-				// Full path provided
 				const basePath = `src/content/${pathParam}`;
 				paths.push({ path: basePath + ".md", ext: ".md" });
 				paths.push({ path: basePath + ".mdx", ext: ".mdx" });
 			} else {
-				// Just slug, try common locations
 				paths.push({ path: `src/content/posts/${pathParam}.md`, ext: ".md" });
 				paths.push({ path: `src/content/posts/${pathParam}.mdx`, ext: ".mdx" });
 				paths.push({ path: `src/content/posts/blog/${pathParam}.md`, ext: ".md" });
@@ -394,11 +365,9 @@
 
 			existingSha = result.sha;
 			existingExt = ext;
-			// Extract slug from path (filename without extension)
 			const pathParts = foundPath.split("/");
 			const fileName = pathParts[pathParts.length - 1];
 			slug = fileName.replace(/\.(md|mdx)$/, "");
-			// Store the full relative path for saving
 			savePath = foundPath.replace(/\.(md|mdx)$/, "");
 			editMode = true;
 
@@ -447,16 +416,19 @@
 			}
 		}
 
-		if (!hasValidCredentials()) {
-			showToast("请先导入 GitHub App 私钥", "warning");
-			showTokenModal = true;
+		checkingProxy = true;
+		proxyReady = await checkProxyConfigured();
+		checkingProxy = false;
+
+		if (!proxyReady) {
+			showToast("GitHub 代理未配置，请联系管理员设置环境变量", "error");
+			showConfigHint = true;
 			return;
 		}
 
 		saving = true;
 		try {
 			const fullContent = buildFullContent();
-			// Use savePath if editing existing article, otherwise default to posts/blog/
 			let filePath: string;
 			if (editMode && savePath) {
 				filePath = `${savePath}${existingExt}`;
@@ -485,88 +457,18 @@
 				editMode = true;
 				saveSuccess = true;
 				setTimeout(() => (saveSuccess = false), 5000);
-				// Reload to get new SHA
 				const result = await getRepoFile(filePath, repoConfig);
 				if (result) {
 					existingSha = result.sha;
 				}
 			} else {
-				showToast("保存失败，请检查Token权限（需要repo权限）", "error");
+				showToast("保存失败，请检查 GitHub App 权限配置", "error");
 			}
 		} catch (err) {
 			showToast("保存出错，请检查网络连接", "error");
 		} finally {
 			saving = false;
 		}
-	}
-
-	// ============ GitHub App 密钥处理 ============
-	function handleImportKey() {
-		appIdInput = getStoredAppId();
-		importedPem = "";
-		pemFileName = "";
-		showTokenModal = true;
-	}
-
-	function triggerPemSelect() {
-		keyFileInput?.click();
-	}
-
-	async function handleKeyFileSelect(e: Event) {
-		const input = e.target as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) {
-			input.value = "";
-			return;
-		}
-		try {
-			const text = await readFileAsText(file);
-			pemFileName = file.name;
-			importedPem = text;
-			if (!text.includes("BEGIN") || !text.includes("PRIVATE KEY")) {
-				showToast("请选择有效的 GitHub App 私钥文件（.pem 格式）", "warning");
-			}
-		} catch {
-			showToast("读取文件失败", "error");
-		}
-		input.value = "";
-	}
-
-	async function handleSaveKey() {
-		const trimmedAppId = appIdInput.trim();
-		if (!trimmedAppId) {
-			showToast("请输入 GitHub App ID", "warning");
-			return;
-		}
-		if (!importedPem) {
-			showToast("请选择 .pem 私钥文件", "warning");
-			return;
-		}
-		if (!importedPem.includes("BEGIN") || !importedPem.includes("PRIVATE KEY")) {
-			showToast("私钥格式不正确，请导入有效的 .pem 文件", "error");
-			return;
-		}
-		validatingToken = true;
-		const result = await validateCredentials(trimmedAppId, importedPem);
-		validatingToken = false;
-		if (!result.ok) {
-			showToast(`验证失败：${result.error}`, "error");
-			return;
-		}
-		setStoredAppId(trimmedAppId);
-		setStoredPrivateKey(importedPem);
-		hasToken = true;
-		showTokenModal = false;
-		showToast("GitHub App 私钥导入成功！", "success");
-	}
-
-	function clearKey() {
-		clearStoredCredentials();
-		hasToken = false;
-		appIdInput = "";
-		importedPem = "";
-		pemFileName = "";
-		showToast("已清除密钥", "info");
 	}
 
 	// ============ Import MD file ============
@@ -597,7 +499,6 @@
 				pubDate = typeof data.published === "string" ? data.published.slice(0, 10) : "";
 			}
 
-			// Auto-generate slug from filename if empty
 			if (!slug) {
 				const name = file.name.replace(/\.(md|markdown|mdx)$/i, "");
 				slug = generateSlugFromTitle(name);
@@ -761,7 +662,6 @@
 		}
 	}
 
-	// ============ Preview (full markdown rendering with marked) ============
 	function renderMarkdown(md: string): string {
 		if (!md) return "";
 		try {
@@ -775,7 +675,6 @@
 		}
 	}
 
-	// ============ Tab key support ============
 	function handleTextareaKeydown(e: KeyboardEvent) {
 		if (e.key === "Tab") {
 			e.preventDefault();
@@ -791,11 +690,12 @@
 	}
 
 	// ============ Init ============
-	onMount(() => {
+	onMount(async () => {
 		ensureIconify();
-		hasToken = hasValidCredentials();
+		checkingProxy = true;
+		proxyReady = await checkProxyConfigured();
+		checkingProxy = false;
 
-		// Check URL params for edit mode (?path=xxx or ?slug=xxx)
 		const params = new URLSearchParams(window.location.search);
 		const pathParam = params.get("path");
 		const slugParam = params.get("slug");
@@ -804,7 +704,6 @@
 		} else if (slugParam) {
 			loadArticle(slugParam);
 		} else {
-			// New article: set default date
 			pubDate = today;
 		}
 	});
@@ -812,7 +711,6 @@
 
 <EditToast />
 
-<!-- 顶部工具栏 -->
 <div class="write-toolbar">
 	<div class="toolbar-left">
 		<a href="/list/" class="toolbar-btn toolbar-back" title="返回文章列表" data-no-swup>
@@ -821,7 +719,7 @@
 		</a>
 	</div>
 	<div class="toolbar-right">
-		{#if saveSuccess && hasToken && editMode}
+		{#if saveSuccess && proxyReady && editMode}
 			<a href={articleUrl} class="toolbar-btn toolbar-view" target="_blank" title="在新窗口预览文章">
 				<iconify-icon icon="material-symbols:open-in-new-rounded" class="text-lg"></iconify-icon>
 				<span class="btn-text">查看文章</span>
@@ -845,26 +743,19 @@
 		</button>
 		<button
 			class="toolbar-btn toolbar-publish"
-			onclick={() => {
-				if (!hasToken) {
-					handleImportKey();
-				} else {
-					handlePublish();
-				}
-			}}
+			onclick={handlePublish}
 			disabled={saving || loading}
-			title={hasToken ? (editMode ? "保存文章" : "发布文章") : "配置GitHub App"}
+			title={editMode ? "保存文章" : "发布文章"}
 		>
 			{#if saving}
 				<iconify-icon icon="material-symbols:progress-activity-rounded" class="text-lg animate-spin"></iconify-icon>
 				<span class="btn-text">{editMode ? "保存中..." : "发布中..."}</span>
 			{:else}
-				<iconify-icon icon={hasToken ? (editMode ? "material-symbols:save-rounded" : "material-symbols:send-rounded") : "material-symbols:key-rounded"} class="text-lg"></iconify-icon>
-				<span class="btn-text">{hasToken ? (editMode ? "保存" : "发布") : "配置密钥"}</span>
+				<iconify-icon icon={editMode ? "material-symbols:save-rounded" : "material-symbols:send-rounded"} class="text-lg"></iconify-icon>
+				<span class="btn-text">{editMode ? "保存" : "发布"}</span>
 			{/if}
 		</button>
 
-		<!-- 隐藏的MD文件选择器 -->
 		<input
 			bind:this={mdFileInput}
 			type="file"
@@ -872,18 +763,9 @@
 			style="display:none"
 			onchange={handleMdFileSelect}
 		/>
-		<!-- 隐藏的私钥文件选择器 -->
-		<input
-			bind:this={keyFileInput}
-			type="file"
-			accept=".pem,.key,application/x-pem-file"
-			style="display:none"
-			onchange={handleKeyFileSelect}
-		/>
 	</div>
 </div>
 
-<!-- 主体区域 -->
 {#if loading}
 	<div class="loading-state">
 		<iconify-icon icon="material-symbols:progress-activity-rounded" class="text-4xl animate-spin"></iconify-icon>
@@ -891,7 +773,6 @@
 	</div>
 {:else}
 	<div class="write-container" class:preview-mode={showPreview}>
-		<!-- 左侧：主编辑区 -->
 		<div class="editor-panel">
 			{#if !showPreview}
 				<input
@@ -973,7 +854,6 @@
 			</div>
 		</div>
 
-		<!-- 右侧：边栏 -->
 		<div class="sidebar-panel">
 			<div class="sidebar-section">
 				<label class="sidebar-label">
@@ -1080,101 +960,73 @@
 				</label>
 			</div>
 
-			<div class="sidebar-section token-status">
-				<div class="token-indicator">
-					<span class="status-dot" class:ok={hasToken}></span>
-					<span>{hasToken ? "已连接GitHub" : "未配置GitHub App"}</span>
+			<div class="sidebar-section proxy-status" onclick={() => (showConfigHint = !showConfigHint)} role="button" tabindex="0">
+				<div class="proxy-indicator">
+					{#if checkingProxy}
+						<iconify-icon icon="material-symbols:progress-activity-rounded" class="text-base animate-spin"></iconify-icon>
+						<span>检测中...</span>
+					{:else if proxyReady}
+						<iconify-icon icon="material-symbols:cloud-done-rounded" class="text-base" style="color:#22c55e"></iconify-icon>
+						<span>GitHub 代理已连接</span>
+					{:else}
+						<iconify-icon icon="material-symbols:cloud-off-rounded" class="text-base" style="color:#f59e0b"></iconify-icon>
+						<span>代理未配置 - 点击查看帮助</span>
+					{/if}
 				</div>
 			</div>
 		</div>
 	</div>
 {/if}
 
-<!-- GitHub App 密钥配置弹窗 -->
-{#if showTokenModal}
-	<div class="modal-overlay" onclick={() => (showTokenModal = false)}>
-		<div class="modal-content" onclick={(e) => e.stopPropagation()}>
-			<div class="modal-header">
+{#if showConfigHint}
+	<div class="hint-overlay" onclick={() => (showConfigHint = false)}>
+		<div class="hint-card" onclick={(e) => e.stopPropagation()}>
+			<div class="hint-header">
 				<h3>
-					<iconify-icon icon="material-symbols:vpn-key-rounded" class="text-lg"></iconify-icon>
-					GitHub App 私钥配置
+					<iconify-icon icon="material-symbols:info-outline-rounded" class="text-lg mr-2"></iconify-icon>
+					GitHub 代理配置说明
 				</h3>
-				<button class="modal-close" onclick={() => (showTokenModal = false)}>
+				<button class="hint-close" onclick={() => (showConfigHint = false)}>
 					<iconify-icon icon="material-symbols:close-rounded" class="text-xl"></iconify-icon>
 				</button>
 			</div>
-			<div class="modal-body">
-				<p class="modal-desc">
-					请输入您的 GitHub App ID 并导入私钥文件（.pem）。需要授予 <strong>Contents: Read &amp; Write</strong> 权限。
+			<div class="hint-body">
+				<p>
+					在线编辑功能使用 <strong>服务端 GitHub App 代理</strong> 进行认证，无需在浏览器导入密钥。
+					站点管理员需在部署平台添加以下环境变量：
 				</p>
-				<label class="modal-label">
-					<iconify-icon icon="material-symbols:apps-rounded" class="text-sm"></iconify-icon>
-					App ID
-				</label>
-				<input
-					type="text"
-					bind:value={appIdInput}
-					placeholder="例如：123456"
-					class="modal-input"
-				/>
-				<label class="modal-label">
-					<iconify-icon icon="material-symbols:description-rounded" class="text-sm"></iconify-icon>
-					私钥文件（.pem）
-				</label>
-				<div class="pem-file-area">
-					<button type="button" class="pem-file-btn" onclick={triggerPemSelect}>
-						<iconify-icon icon="material-symbols:upload-file-rounded" class="text-base"></iconify-icon>
-						{pemFileName ? "重新选择文件" : "选择 .pem 文件"}
-					</button>
-					{pemFileName && (
-						<span class="pem-file-name">
-							<iconify-icon icon="material-symbols:check-circle-rounded" class="text-sm" style="color:#22c55e"></iconify-icon>
-							{pemFileName}
-						</span>
-					)}
+				<div class="env-table">
+					<div class="env-row env-row-head">
+						<span>变量名</span><span>说明</span>
+					</div>
+					<div class="env-row">
+						<code>GH_APP_ID</code>
+						<span>GitHub App 的数字 ID</span>
+					</div>
+					<div class="env-row">
+						<code>GH_PRIVATE_KEY</code>
+						<span>GitHub App 私钥（PEM 格式完整文本，含换行符）</span>
+					</div>
+					<div class="env-row">
+						<code>GH_USER</code>
+						<span>仓库所有者用户名（默认 fqzlr）</span>
+					</div>
+					<div class="env-row">
+						<code>GH_REPO</code>
+						<span>仓库名（默认 my-blog）</span>
+					</div>
 				</div>
-				<div class="modal-help">
-					<details>
-						<summary>
-							<iconify-icon icon="material-symbols:help-outline-rounded" class="text-sm"></iconify-icon>
-							如何创建 GitHub App？
-						</summary>
-						<div class="modal-help-content">
-							<ol>
-								<li>前往 GitHub <strong>Settings → Developer settings → GitHub Apps</strong></li>
-								<li>点击 <strong>New GitHub App</strong></li>
-								<li>填写名称、Homepage URL，Webhook URL 可留空</li>
-								<li><strong>Repository permissions</strong> → Contents: Read &amp; write</li>
-								<li>创建后记录 <strong>App ID</strong>，生成并下载 .pem 私钥</li>
-								<li>点击 <strong>Install App</strong> 安装到您的博客仓库</li>
-							</ol>
-						</div>
-					</details>
-				</div>
-				{#if hasToken && !validatingToken}
-					<button class="modal-clear-btn" onclick={clearKey}>
-						<iconify-icon icon="material-symbols:delete-outline-rounded" class="text-sm"></iconify-icon>
-						清除已保存的密钥
-					</button>
-				{/if}
-			</div>
-			<div class="modal-footer">
-				<button class="modal-btn modal-btn-cancel" onclick={() => (showTokenModal = false)}>取消</button>
-				<button class="modal-btn modal-btn-confirm" onclick={handleSaveKey} disabled={validatingToken}>
-					{#if validatingToken}
-						<iconify-icon icon="material-symbols:progress-activity-rounded" class="text-sm animate-spin"></iconify-icon>
-						验证中...
-					{:else}
-						确认导入
-					{/if}
-				</button>
+				<p class="hint-note">
+					<iconify-icon icon="material-symbols:lightbulb-outline-rounded" class="text-sm"></iconify-icon>
+					在 Vercel 中：Settings → Environment Variables；在 Cloudflare Pages 中：Settings → Environment Variables。
+					私钥包含换行符，在 Vercel/Cloudflare 环境变量中直接粘贴完整 PEM 文本即可。配置后需重新部署生效。
+				</p>
 			</div>
 		</div>
 	</div>
 {/if}
 
 <style>
-	/* ===== 基础布局 ===== */
 	:global(.write-editor-wrapper) {
 		--theme-hue: var(--editor-theme-hue, 165);
 		--bg-color: var(--card-bg, #ffffff);
@@ -1211,10 +1063,6 @@
 		display: flex;
 		align-items: center;
 		gap: 8px;
-	}
-
-	.toolbar-title {
-		white-space: nowrap;
 	}
 
 	.toolbar-btn {
@@ -1289,13 +1137,11 @@
 		to { box-shadow: 0 2px 16px rgba(34, 197, 94, 0.6); }
 	}
 
-	/* ===== 主体容器 ===== */
 	.write-container {
 		display: flex;
 		min-height: 500px;
 	}
 
-	/* ===== 左侧编辑面板 ===== */
 	.editor-panel {
 		flex: 1;
 		display: flex;
@@ -1359,37 +1205,30 @@
 		transition: all 0.15s ease;
 		padding: 0;
 	}
-
 	.md-toolbar-btn:hover {
 		background: rgba(102, 126, 234, 0.1);
 		color: #667eea;
 	}
-
 	.md-toolbar-btn:active {
 		background: rgba(102, 126, 234, 0.2);
 	}
-
 	.md-toolbar-divider {
 		width: 1px;
 		height: 20px;
 		background: rgba(0, 0, 0, 0.1);
 		margin: 0 4px;
 	}
-
 	:global(.dark) .md-toolbar {
 		border-bottom-color: rgba(255, 255, 255, 0.08);
 		background: rgba(255, 255, 255, 0.03);
 	}
-
 	:global(.dark) .md-toolbar-btn {
 		color: #888;
 	}
-
 	:global(.dark) .md-toolbar-btn:hover {
 		background: rgba(102, 126, 234, 0.2);
 		color: #8b9cf7;
 	}
-
 	:global(.dark) .md-toolbar-divider {
 		background: rgba(255, 255, 255, 0.1);
 	}
@@ -1435,13 +1274,11 @@
 		background: #141420;
 		color: #666;
 	}
-
 	.shortcuts-hint {
 		font-family: monospace;
 		font-size: 11px;
 	}
 
-	/* ===== 预览面板 ===== */
 	.preview-panel {
 		flex: 1;
 		padding: 28px 40px;
@@ -1453,7 +1290,6 @@
 	:global(.dark) .preview-panel {
 		color: #e0e0e0;
 	}
-
 	.preview-title {
 		font-size: 28px;
 		font-weight: 700;
@@ -1464,13 +1300,9 @@
 	:global(.dark) .preview-title {
 		border-bottom-color: rgba(255, 255, 255, 0.1);
 	}
-
 	.preview-panel :global(h1),
 	.preview-panel :global(h2),
-	.preview-panel :global(h3) {
-		margin-top: 1.5em;
-		margin-bottom: 0.5em;
-	}
+	.preview-panel :global(h3) { margin-top: 1.5em; margin-bottom: 0.5em; }
 	.preview-panel :global(h1) { font-size: 1.8em; }
 	.preview-panel :global(h2) { font-size: 1.5em; }
 	.preview-panel :global(h3) { font-size: 1.25em; }
@@ -1481,36 +1313,13 @@
 		font-family: "JetBrains Mono", Consolas, monospace;
 		font-size: 0.9em;
 	}
-	:global(.dark) .preview-panel :global(code) {
-		background: rgba(255, 255, 255, 0.1);
-	}
-	.preview-panel :global(a) {
-		color: hsl(var(--theme-hue, 165), 70%, 45%);
-		text-decoration: none;
-	}
-	.preview-panel :global(a:hover) {
-		text-decoration: underline;
-	}
-	.preview-panel :global(img) {
-		max-width: 100%;
-		border-radius: 8px;
-		margin: 12px 0;
-	}
-
-	.preview-panel :global(p) {
-		margin: 1em 0;
-	}
-
-	.preview-panel :global(ul),
-	.preview-panel :global(ol) {
-		margin: 1em 0;
-		padding-left: 2em;
-	}
-
-	.preview-panel :global(li) {
-		margin: 0.3em 0;
-	}
-
+	:global(.dark) .preview-panel :global(code) { background: rgba(255, 255, 255, 0.1); }
+	.preview-panel :global(a) { color: hsl(var(--theme-hue, 165), 70%, 45%); text-decoration: none; }
+	.preview-panel :global(a:hover) { text-decoration: underline; }
+	.preview-panel :global(img) { max-width: 100%; border-radius: 8px; margin: 12px 0; }
+	.preview-panel :global(p) { margin: 1em 0; }
+	.preview-panel :global(ul), .preview-panel :global(ol) { margin: 1em 0; padding-left: 2em; }
+	.preview-panel :global(li) { margin: 0.3em 0; }
 	.preview-panel :global(blockquote) {
 		margin: 1em 0;
 		padding: 0.5em 1em;
@@ -1519,43 +1328,7 @@
 		border-radius: 0 8px 8px 0;
 		color: var(--text-secondary, #6b7280);
 	}
-	:global(.dark) .preview-panel :global(blockquote) {
-		background: hsla(var(--theme-hue, 165), 70%, 50%, 0.1);
-	}
-
-	.preview-panel :global(table) {
-		width: 100%;
-		border-collapse: collapse;
-		margin: 1em 0;
-		font-size: 0.95em;
-	}
-
-	.preview-panel :global(th),
-	.preview-panel :global(td) {
-		padding: 10px 14px;
-		border: 1px solid var(--border, #e5e7eb);
-		text-align: left;
-	}
-	:global(.dark) .preview-panel :global(th),
-	:global(.dark) .preview-panel :global(td) {
-		border-color: #374151;
-	}
-
-	.preview-panel :global(th) {
-		background: var(--bg-secondary, #f9fafb);
-		font-weight: 600;
-	}
-	:global(.dark) .preview-panel :global(th) {
-		background: #1f2937;
-	}
-
-	.preview-panel :global(tr:nth-child(even)) {
-		background: rgba(0, 0, 0, 0.02);
-	}
-	:global(.dark) .preview-panel :global(tr:nth-child(even)) {
-		background: rgba(255, 255, 255, 0.02);
-	}
-
+	:global(.dark) .preview-panel :global(blockquote) { background: hsla(var(--theme-hue, 165), 70%, 50%, 0.1); }
 	.preview-panel :global(pre) {
 		margin: 1em 0;
 		padding: 16px 20px;
@@ -1566,24 +1339,10 @@
 		font-size: 0.9em;
 		line-height: 1.6;
 	}
+	.preview-panel :global(pre code) { padding: 0; background: transparent; color: #e0e0e0; font-size: inherit; }
+	.preview-panel :global(hr) { margin: 2em 0; border: none; border-top: 1px solid var(--border, #e5e7eb); }
+	:global(.dark) .preview-panel :global(hr) { border-top-color: #374151; }
 
-	.preview-panel :global(pre code) {
-		padding: 0;
-		background: transparent;
-		color: #e0e0e0;
-		font-size: inherit;
-	}
-
-	.preview-panel :global(hr) {
-		margin: 2em 0;
-		border: none;
-		border-top: 1px solid var(--border, #e5e7eb);
-	}
-	:global(.dark) .preview-panel :global(hr) {
-		border-top-color: #374151;
-	}
-
-	/* ===== 右侧边栏 ===== */
 	.sidebar-panel {
 		width: 320px;
 		flex-shrink: 0;
@@ -1592,14 +1351,8 @@
 		background: var(--card-bg, white);
 		box-sizing: border-box;
 	}
-	:global(.dark) .sidebar-panel {
-		background: #141420;
-	}
-
-	.sidebar-section {
-		margin-bottom: 20px;
-	}
-
+	:global(.dark) .sidebar-panel { background: #141420; }
+	.sidebar-section { margin-bottom: 20px; }
 	.sidebar-label {
 		display: flex;
 		align-items: center;
@@ -1609,10 +1362,7 @@
 		color: var(--text-color, #1a1a2e);
 		margin-bottom: 8px;
 	}
-	:global(.dark) .sidebar-label {
-		color: #d0d0d0;
-	}
-
+	:global(.dark) .sidebar-label { color: #d0d0d0; }
 	.sidebar-input {
 		width: 100%;
 		padding: 8px 12px;
@@ -1630,12 +1380,7 @@
 		border-color: hsl(var(--theme-hue, 165), 70%, 50%);
 		box-shadow: 0 0 0 3px hsla(var(--theme-hue, 165), 70%, 50%, 0.1);
 	}
-	:global(.dark) .sidebar-input {
-		background: #0f0f1a;
-		border-color: #374151;
-		color: #e5e7eb;
-	}
-
+	:global(.dark) .sidebar-input { background: #0f0f1a; border-color: #374151; color: #e5e7eb; }
 	.sidebar-textarea {
 		width: 100%;
 		padding: 8px 12px;
@@ -1655,43 +1400,13 @@
 		border-color: hsl(var(--theme-hue, 165), 70%, 50%);
 		box-shadow: 0 0 0 3px hsla(var(--theme-hue, 165), 70%, 50%, 0.1);
 	}
-	:global(.dark) .sidebar-textarea {
-		background: #0f0f1a;
-		border-color: #374151;
-		color: #e5e7eb;
-	}
-
-	.sidebar-hint {
-		margin: 4px 0 0;
-		font-size: 11px;
-		color: #999;
-	}
-	:global(.dark) .sidebar-hint {
-		color: #666;
-	}
-
-	.cover-preview {
-		margin-top: 8px;
-		border-radius: 8px;
-		overflow: hidden;
-		border: 1px solid var(--border, #e5e7eb);
-	}
-	.cover-preview img {
-		width: 100%;
-		height: 120px;
-		object-fit: cover;
-		display: block;
-	}
-	:global(.dark) .cover-preview {
-		border-color: #374151;
-	}
-
-	.tag-list {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 6px;
-		margin-top: 8px;
-	}
+	:global(.dark) .sidebar-textarea { background: #0f0f1a; border-color: #374151; color: #e5e7eb; }
+	.sidebar-hint { margin: 4px 0 0; font-size: 11px; color: #999; }
+	:global(.dark) .sidebar-hint { color: #666; }
+	.cover-preview { margin-top: 8px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border, #e5e7eb); }
+	.cover-preview img { width: 100%; height: 120px; object-fit: cover; display: block; }
+	:global(.dark) .cover-preview { border-color: #374151; }
+	.tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 	.tag-chip {
 		display: inline-flex;
 		align-items: center;
@@ -1706,13 +1421,7 @@
 		background: hsla(var(--theme-hue, 165), 70%, 50%, 0.15);
 		color: hsl(var(--theme-hue, 165), 70%, 60%);
 	}
-
-	.checkbox-section {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-	}
-
+	.checkbox-section { display: flex; flex-direction: column; gap: 10px; }
 	.checkbox-label {
 		display: flex;
 		align-items: center;
@@ -1722,14 +1431,8 @@
 		cursor: pointer;
 		user-select: none;
 	}
-	:global(.dark) .checkbox-label {
-		color: #d0d0d0;
-	}
-
-	.checkbox-label input[type="checkbox"] {
-		display: none;
-	}
-
+	:global(.dark) .checkbox-label { color: #d0d0d0; }
+	.checkbox-label input[type="checkbox"] { display: none; }
 	.checkbox-custom {
 		width: 18px;
 		height: 18px;
@@ -1742,11 +1445,7 @@
 		transition: all 0.15s;
 		flex-shrink: 0;
 	}
-	:global(.dark) .checkbox-custom {
-		background: #0f0f1a;
-		border-color: #4b5563;
-	}
-
+	:global(.dark) .checkbox-custom { background: #0f0f1a; border-color: #4b5563; }
 	.checkbox-label input[type="checkbox"]:checked + .checkbox-custom {
 		background: hsl(var(--theme-hue, 165), 70%, 50%);
 		border-color: hsl(var(--theme-hue, 165), 70%, 50%);
@@ -1761,61 +1460,30 @@
 		margin-top: -2px;
 	}
 
-	/* Token status */
-	.token-status {
+	.proxy-status {
 		padding: 12px;
 		border-radius: 10px;
 		background: var(--bg-secondary, #f9fafb);
 		border: 1px solid var(--border, #e5e7eb);
+		cursor: pointer;
+		transition: all 0.15s;
 	}
-	:global(.dark) .token-status {
+	.proxy-status:hover {
+		border-color: hsl(var(--theme-hue, 165), 70%, 50%);
+	}
+	:global(.dark) .proxy-status {
 		background: rgba(255, 255, 255, 0.03);
 		border-color: rgba(255, 255, 255, 0.1);
 	}
-
-	.token-indicator {
+	.proxy-indicator {
 		display: flex;
 		align-items: center;
 		gap: 8px;
 		font-size: 13px;
 		color: var(--text-secondary, #6b7280);
-		margin-bottom: 8px;
 	}
-	:global(.dark) .token-indicator {
-		color: #9ca3af;
-	}
+	:global(.dark) .proxy-indicator { color: #9ca3af; }
 
-	.status-dot {
-		width: 8px;
-		height: 8px;
-		border-radius: 50%;
-		background: #ef4444;
-		flex-shrink: 0;
-	}
-	.status-dot.ok {
-		background: #22c55e;
-	}
-
-	.sidebar-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		padding: 6px 14px;
-		border-radius: 8px;
-		font-size: 12px;
-		font-weight: 500;
-		cursor: pointer;
-		background: hsl(var(--theme-hue, 165), 70%, 50%);
-		color: white;
-		border: none;
-		transition: all 0.15s;
-		font-family: inherit;
-	}
-	.sidebar-btn:hover {
-		background: hsl(var(--theme-hue, 165), 75%, 45%);
-	}
-
-	/* ===== Loading ===== */
 	.loading-state {
 		display: flex;
 		flex-direction: column;
@@ -1828,8 +1496,8 @@
 		font-size: 14px;
 	}
 
-	/* ===== Modal ===== */
-	.modal-overlay {
+	/* ===== Config hint modal ===== */
+	.hint-overlay {
 		position: fixed;
 		inset: 0;
 		background: rgba(0, 0, 0, 0.5);
@@ -1841,325 +1509,84 @@
 		padding: 20px;
 		animation: fadeIn 0.2s ease;
 	}
-	@keyframes fadeIn {
-		from { opacity: 0; }
-		to { opacity: 1; }
-	}
-
-	.modal-content {
+	@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+	.hint-card {
 		background: var(--card-bg, white);
 		border-radius: 16px;
 		width: 100%;
-		max-width: 420px;
+		max-width: 520px;
 		box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
 		animation: slideUp 0.25s ease;
 		overflow: hidden;
-		border: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+		border: 1px solid var(--border, rgba(0,0,0,0.08));
 	}
-	@keyframes slideUp {
-		from { transform: translateY(20px); opacity: 0; }
-		to { transform: translateY(0); opacity: 1; }
-	}
-	:global(.dark) .modal-content {
-		background: #1a1a2e;
-		border-color: rgba(255, 255, 255, 0.1);
-	}
-
-	.modal-header {
+	@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+	:global(.dark) .hint-card { background: #1a1a2e; border-color: rgba(255,255,255,0.1); }
+	.hint-header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		padding: 16px 20px 12px;
-		border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.08));
+		border-bottom: 1px solid var(--border, rgba(0,0,0,0.08));
 	}
-	:global(.dark) .modal-header {
-		border-bottom-color: rgba(255, 255, 255, 0.1);
+	:global(.dark) .hint-header { border-bottom-color: rgba(255,255,255,0.1); }
+	.hint-header h3 {
+		margin: 0; font-size: 16px; font-weight: 700;
+		display: flex; align-items: center; color: var(--text-color, #1a1a2e);
 	}
-	.modal-header h3 {
-		margin: 0;
-		font-size: 16px;
-		font-weight: 700;
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		color: var(--text-color, #1a1a2e);
+	:global(.dark) .hint-header h3 { color: #f0f0f0; }
+	.hint-close {
+		width: 30px; height: 30px; border-radius: 8px; border: none; background: transparent;
+		cursor: pointer; display: flex; align-items: center; justify-content: center;
+		color: #888; transition: all 0.15s;
 	}
-	:global(.dark) .modal-header h3 {
-		color: #f0f0f0;
+	.hint-close:hover { background: rgba(0,0,0,0.06); color: #333; }
+	:global(.dark) .hint-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+	.hint-body { padding: 16px 20px; font-size: 13px; line-height: 1.7; color: var(--text-secondary, #555); }
+	:global(.dark) .hint-body { color: #bbb; }
+	.hint-body p { margin: 0 0 12px; }
+	.hint-body strong { color: hsl(var(--theme-hue,165),70%,45%); }
+	.env-table {
+		border: 1px solid var(--border, rgba(0,0,0,0.1));
+		border-radius: 10px; overflow: hidden; margin: 12px 0;
 	}
-	.modal-close {
-		width: 30px;
-		height: 30px;
-		border-radius: 8px;
-		border: none;
-		background: transparent;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		color: #888;
-		transition: all 0.15s;
+	:global(.dark) .env-table { border-color: rgba(255,255,255,0.1); }
+	.env-row {
+		display: grid; grid-template-columns: 160px 1fr; gap: 12px;
+		padding: 10px 14px; align-items: center;
 	}
-	.modal-close:hover {
-		background: rgba(0, 0, 0, 0.06);
-		color: #333;
+	.env-row + .env-row { border-top: 1px solid var(--border, rgba(0,0,0,0.06)); }
+	:global(.dark) .env-row + .env-row { border-top-color: rgba(255,255,255,0.06); }
+	.env-row-head {
+		font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+		background: var(--bg-secondary, rgba(0,0,0,0.03)); color: var(--text-color,#333);
 	}
-	:global(.dark) .modal-close:hover {
-		background: rgba(255, 255, 255, 0.1);
-		color: #fff;
+	:global(.dark) .env-row-head { background: rgba(255,255,255,0.04); color: #ddd; }
+	.env-row code {
+		font-family: "SF Mono","Fira Code",monospace; font-size: 12px; padding: 3px 8px;
+		border-radius: 5px; background: hsla(var(--theme-hue,165),70%,50%,0.08);
+		color: hsl(var(--theme-hue,165),70%,40%); font-weight: 600;
 	}
+	:global(.dark) .env-row code { color: hsl(var(--theme-hue,165),70%,60%); background: hsla(var(--theme-hue,165),70%,50%,0.12); }
+	.hint-note {
+		display: flex; align-items: flex-start; gap: 6px; margin: 12px 0 0 !important;
+		padding: 10px 12px; border-radius: 8px;
+		background: rgba(245,158,11,0.08); color: #92400e; font-size: 12px;
+	}
+	:global(.dark) .hint-note { background: rgba(251,191,36,0.1); color: #fbbf24; }
 
-	.modal-body {
-		padding: 16px 20px;
-	}
-	.modal-desc {
-		margin: 0 0 12px;
-		font-size: 13px;
-		color: var(--text-secondary, #666);
-		line-height: 1.6;
-	}
-	:global(.dark) .modal-desc {
-		color: #aaa;
-	}
-	.modal-desc strong {
-		color: hsl(var(--theme-hue, 165), 70%, 45%);
-	}
-	.modal-input {
-		width: 100%;
-		padding: 10px 14px;
-		border: 1.5px solid var(--border, #d1d5db);
-		border-radius: 10px;
-		font-size: 13px;
-		font-family: monospace;
-		background: var(--bg-color, white);
-		color: var(--text-color, #1f2937);
-		outline: none;
-		transition: border-color 0.2s;
-		box-sizing: border-box;
-	}
-	.modal-input:focus {
-		border-color: hsl(var(--theme-hue, 165), 70%, 50%);
-		box-shadow: 0 0 0 3px hsla(var(--theme-hue, 165), 70%, 50%, 0.1);
-	}
-	:global(.dark) .modal-input {
-		background: #0f0f1a;
-		border-color: #374151;
-		color: #e5e7eb;
-	}
-	.modal-help {
-		margin-top: 10px;
-	}
-	.modal-help a {
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-		font-size: 12px;
-		color: hsl(var(--theme-hue, 165), 70%, 45%);
-		text-decoration: none;
-	}
-	.modal-help a:hover {
-		text-decoration: underline;
-	}
-	.modal-label {
-		display: flex;
-		align-items: center;
-		gap: 6px;
-		font-size: 13px;
-		font-weight: 600;
-		color: var(--text-color, #1f2937);
-		margin-bottom: 6px;
-		margin-top: 12px;
-	}
-	:global(.dark) .modal-label {
-		color: #d1d5db;
-	}
-	.pem-file-area {
-		display: flex;
-		align-items: center;
-		gap: 10px;
-		flex-wrap: wrap;
-	}
-	.pem-file-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 6px;
-		padding: 9px 16px;
-		border-radius: 10px;
-		border: 1.5px dashed hsl(var(--theme-hue, 165), 70%, 50%);
-		background: hsla(var(--theme-hue, 165), 70%, 50%, 0.05);
-		color: hsl(var(--theme-hue, 165), 70%, 45%);
-		font-size: 13px;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.2s;
-	}
-	.pem-file-btn:hover {
-		background: hsla(var(--theme-hue, 165), 70%, 50%, 0.12);
-	}
-	:global(.dark) .pem-file-btn {
-		color: hsl(var(--theme-hue, 165), 70%, 60%);
-		background: hsla(var(--theme-hue, 165), 70%, 50%, 0.1);
-	}
-	.pem-file-name {
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-		font-size: 13px;
-		color: #16a34a;
-		font-weight: 500;
-	}
-	.modal-help summary {
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		gap: 4px;
-		font-weight: 500;
-		color: hsl(var(--theme-hue, 165), 70%, 45%);
-		user-select: none;
-		font-size: 12px;
-	}
-	.modal-help summary:hover {
-		text-decoration: underline;
-	}
-	.modal-help-content {
-		margin-top: 10px;
-		padding: 12px;
-		background: var(--bg-secondary, rgba(0,0,0,0.02));
-		border-radius: 8px;
-		line-height: 1.8;
-		font-size: 12px;
-		color: var(--text-secondary, #666);
-	}
-	:global(.dark) .modal-help-content {
-		background: rgba(255,255,255,0.04);
-		color: #999;
-	}
-	.modal-help-content ol {
-		margin: 0;
-		padding-left: 18px;
-	}
-	.modal-help-content ul {
-		margin: 4px 0;
-		padding-left: 18px;
-	}
-	.modal-clear-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-		margin-top: 16px;
-		padding: 6px 12px;
-		border-radius: 8px;
-		border: 1px solid rgba(239, 68, 68, 0.3);
-		background: rgba(239, 68, 68, 0.05);
-		color: #ef4444;
-		font-size: 12px;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.15s;
-	}
-	.modal-clear-btn:hover {
-		background: rgba(239, 68, 68, 0.1);
-		border-color: #ef4444;
-	}
-	:global(.dark) .modal-clear-btn {
-		color: #f87171;
-		border-color: rgba(248, 113, 113, 0.3);
-		background: rgba(248, 113, 113, 0.08);
-	}
-
-	.modal-footer {
-		display: flex;
-		justify-content: flex-end;
-		gap: 10px;
-		padding: 14px 20px;
-		border-top: 1px solid var(--border, rgba(0, 0, 0, 0.08));
-	}
-	:global(.dark) .modal-footer {
-		border-top-color: rgba(255, 255, 255, 0.1);
-	}
-	.modal-btn {
-		padding: 8px 18px;
-		border-radius: 10px;
-		font-size: 13px;
-		font-weight: 600;
-		cursor: pointer;
-		transition: all 0.15s;
-		border: none;
-		display: inline-flex;
-		align-items: center;
-		gap: 4px;
-		font-family: inherit;
-	}
-	.modal-btn-cancel {
-		background: var(--bg-secondary, #f3f4f6);
-		color: var(--text-color, #374151);
-	}
-	.modal-btn-cancel:hover {
-		background: var(--border, #e5e7eb);
-	}
-	:global(.dark) .modal-btn-cancel {
-		background: #2d2d44;
-		color: #d1d5db;
-	}
-	:global(.dark) .modal-btn-cancel:hover {
-		background: #3d3d55;
-	}
-	.modal-btn-confirm {
-		background: hsl(var(--theme-hue, 165), 70%, 50%);
-		color: white;
-	}
-	.modal-btn-confirm:hover:not(:disabled) {
-		background: hsl(var(--theme-hue, 165), 75%, 45%);
-	}
-	.modal-btn-confirm:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
-	}
-
-	/* ===== 响应式 ===== */
 	@media (max-width: 768px) {
-		.write-container {
-			flex-direction: column;
-			min-height: 50vh;
-		}
-		.editor-panel {
-			border-right: none;
-			border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-			min-height: 50vh;
-		}
-		:global(.dark) .editor-panel {
-			border-bottom-color: rgba(255, 255, 255, 0.08);
-		}
-		.sidebar-panel {
-			width: 100%;
-		}
-		.title-input {
-			padding: 20px 20px 12px;
-			font-size: 22px;
-		}
-		.content-textarea {
-			padding: 16px 20px;
-		}
-		.editor-footer {
-			padding: 8px 20px;
-		}
-		.preview-panel {
-			padding: 20px;
-		}
-		.btn-text {
-			display: none;
-		}
-		.toolbar-btn {
-			padding: 7px 10px;
-		}
+		.write-container { flex-direction: column; min-height: 50vh; }
+		.editor-panel { border-right: none; border-bottom: 1px solid rgba(0,0,0,0.06); min-height: 50vh; }
+		:global(.dark) .editor-panel { border-bottom-color: rgba(255,255,255,0.08); }
+		.sidebar-panel { width: 100%; }
+		.title-input { padding: 20px 20px 12px; font-size: 22px; }
+		.content-textarea { padding: 16px 20px; }
+		.editor-footer { padding: 8px 20px; }
+		.preview-panel { padding: 20px; }
+		.btn-text { display: none; }
+		.toolbar-btn { padding: 7px 10px; }
 	}
-
-	/* ===== 动画 ===== */
-	.animate-spin {
-		animation: spin 0.8s linear infinite;
-	}
-	@keyframes spin {
-		from { transform: rotate(0deg); }
-		to { transform: rotate(360deg); }
-	}
+	.animate-spin { animation: spin 0.8s linear infinite; }
+	@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 </style>

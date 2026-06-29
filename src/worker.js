@@ -1,5 +1,6 @@
 import { handleAIChat } from "./workers/ai-chat.js";
 import { handleGuestbook } from "./workers/guestbook.js";
+import { handleGithubProxy } from "./workers/github-proxy.js";
 
 export default {
 	async fetch(request, env) {
@@ -11,6 +12,10 @@ export default {
 
 		if (url.pathname === "/api/ai-chat") {
 			return handleAIChat(request, env);
+		}
+
+		if (url.pathname === "/api/github" || url.pathname.startsWith("/api/github/")) {
+			return handleGithubProxy(request, env);
 		}
 
 		if (env.ASSETS) {

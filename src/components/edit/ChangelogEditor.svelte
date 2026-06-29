@@ -10,7 +10,7 @@
     getRepoFile,
     updateRepoFile,
     createRepoFile,
-    authHeaders,
+    deleteRepoFile,
     genId,
     deepClone,
   } from "@/utils/editMode";
@@ -280,7 +280,7 @@
 
   async function handleSave() {
     if (!hasValidToken()) {
-      showToast("请先导入密钥再保存", "warning");
+      showToast("GitHub 代理未配置，请联系管理员", "warning");
       return;
     }
     saving = true;
@@ -294,19 +294,8 @@
             const filePath = `src/content/changelog/${entry.slug}.md`;
             const file = await getRepoFile(filePath, repoConfig);
             if (file && file.sha) {
-              const resp = await fetch(
-                `https://api.github.com/repos/${repoConfig.owner}/${repoConfig.repo}/contents/${filePath}`,
-                {
-                  method: "DELETE",
-                  headers: { ...(await authHeaders()), "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    message: `chore(changelog): remove ${entry.slug}`,
-                    sha: file.sha,
-                    branch: repoConfig.branch,
-                  }),
-                },
-              );
-              if (!resp.ok) allOk = false;
+              const ok = await deleteRepoFile(filePath, file.sha, `chore(changelog): remove ${entry.slug}`, repoConfig);
+              if (!ok) allOk = false;
             }
           }
           continue;
@@ -342,7 +331,7 @@
         hasChanges = false;
         setTimeout(() => window.location.reload(), 1200);
       } else {
-        showToast("部分操作失败，请检查Token权限（需要repo权限）", "error");
+        showToast("部分操作失败，请检查 GitHub App 权限配置", "error");
       }
     } catch (err) {
       showToast("保存出错：" + (err as Error).message, "error");

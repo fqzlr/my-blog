@@ -15,7 +15,12 @@ UMAMI_WEBSITE_ID = "4f4d87b0-bf0f-403a-a7c1-71962537673a"
 # 你的 Worker → Settings → Variables and Secrets 中添加 Secret：
 # AI_API_KEY
 # UMAMI_TOKEN
+# GitHub App 认证（在线编辑功能必需）：
+# GH_APP_ID = "你的GitHub App数字ID"
+# GH_PRIVATE_KEY = "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----"（完整PEM私钥文本）
 # 可选变量：
+# GH_USER = "fqzlr"（仓库所有者，默认fqzlr）
+# GH_REPO = "my-blog"（仓库名，默认my-blog）
 # ALLOWED_ORIGINS = "https://your-domain.example"
 
 [[kv_namespaces]]
