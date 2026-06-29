@@ -10,6 +10,13 @@
 		createRepoFile,
 		updateRepoFile,
 		readFileAsText,
+		getStoredAppId,
+		setStoredAppId,
+		getStoredPrivateKey,
+		setStoredPrivateKey,
+		clearStoredCredentials,
+		validateCredentials,
+		invalidateToken,
 	} from "@/utils/editMode";
 	import { repoConfig } from "@/config/editConfig";
 
@@ -41,6 +48,10 @@
 	let mdFileInput: HTMLInputElement | undefined;
 	let contentTextarea: HTMLTextAreaElement | undefined;
 	let titleInput: HTMLInputElement | undefined;
+	let keyFileInput: HTMLInputElement | undefined;
+
+	// When set to true, after key is verified we should auto-publish
+	let pendingPublishAfterAuth = $state(false);
 
 	// ============ Derived ============
 	let tags = $derived(
@@ -415,7 +426,8 @@
 		}
 
 		if (!hasValidCredentials()) {
-			showToast("请先点击工具栏「导入密钥」按钮导入 GitHub App 私钥", "warning");
+			pendingPublishAfterAuth = true;
+			triggerKeyImport();
 			return;
 		}
 
@@ -462,6 +474,63 @@
 		} finally {
 			saving = false;
 		}
+	}
+
+	// ============ Key Import (RyuChan-style simple flow) ============
+	function triggerKeyImport() {
+		keyFileInput?.click();
+	}
+
+	async function handleKeyFileSelect(e: Event) {
+		const input = e.target as HTMLInputElement;
+		const file = input.files?.[0];
+		if (!file) {
+			input.value = "";
+			return;
+		}
+		try {
+			const pem = await readFileAsText(file);
+			let appId = repoConfig.appId;
+			if (!appId) {
+				appId = getStoredAppId();
+			}
+			if (!appId) {
+				const inputId = prompt("请输入你的 GitHub App ID（数字）：", "");
+				if (!inputId) {
+					showToast("需要 App ID 才能完成认证", "error");
+					input.value = "";
+					return;
+				}
+				appId = inputId.trim();
+			}
+			showToast("正在验证私钥...", "info");
+			const result = await validateCredentials(appId, pem);
+			if (result.ok) {
+				setStoredAppId(appId);
+				setStoredPrivateKey(pem);
+				authed = true;
+				showToast("私钥导入成功！", "success");
+				if (pendingPublishAfterAuth) {
+					pendingPublishAfterAuth = false;
+					await tick();
+					handlePublish();
+				}
+			} else {
+				showToast(result.error || "私钥验证失败", "error");
+			}
+		} catch (err) {
+			showToast("读取私钥文件失败", "error");
+		} finally {
+			input.value = "";
+		}
+	}
+
+	function handleLogout() {
+		if (!confirm("确定要清除已保存的私钥吗？清除后需要重新导入才能编辑。")) return;
+		clearStoredCredentials();
+		invalidateToken();
+		authed = false;
+		showToast("已清除私钥", "info");
 	}
 
 	// ============ Import MD file ============
@@ -734,13 +803,17 @@
 		</button>
 		<button
 			class="toolbar-btn toolbar-publish"
+			class:toolbar-publish--need-auth={!authed}
 			onclick={handlePublish}
 			disabled={saving || loading}
-			title={editMode ? "保存文章" : "发布文章"}
+			title={authed ? (editMode ? "保存文章" : "发布文章") : "点击导入 GitHub App 私钥"}
 		>
 			{#if saving}
 				<iconify-icon icon="material-symbols:progress-activity-rounded" class="text-lg animate-spin"></iconify-icon>
 				<span class="btn-text">{editMode ? "保存中..." : "发布中..."}</span>
+			{:else if !authed}
+				<iconify-icon icon="material-symbols:key-rounded" class="text-lg"></iconify-icon>
+				<span class="btn-text">导入密钥</span>
 			{:else}
 				<iconify-icon icon={editMode ? "material-symbols:save-rounded" : "material-symbols:send-rounded"} class="text-lg"></iconify-icon>
 				<span class="btn-text">{editMode ? "保存" : "发布"}</span>
@@ -753,6 +826,13 @@
 			accept=".md,.markdown,.mdx"
 			style="display:none"
 			onchange={handleMdFileSelect}
+		/>
+		<input
+			bind:this={keyFileInput}
+			type="file"
+			accept=".pem,application/x-pem-file,text/plain"
+			style="display:none"
+			onchange={handleKeyFileSelect}
 		/>
 	</div>
 </div>
@@ -955,12 +1035,13 @@
 				{#if authed}
 					<div class="auth-indicator auth-ok">
 						<iconify-icon icon="material-symbols:vpn-key-rounded" class="text-base"></iconify-icon>
-						<span>已导入私钥，可以发布</span>
+						<span>已导入私钥</span>
+						<button class="auth-logout-btn" onclick={handleLogout} title="清除私钥">清除</button>
 					</div>
 				{:else}
 					<div class="auth-indicator auth-err">
 						<iconify-icon icon="material-symbols:key-off-rounded" class="text-base"></iconify-icon>
-						<span>请在上方工具栏点击「导入密钥」</span>
+						<span>点击「{editMode ? "保存" : "发布"}」按钮选择 .pem 文件</span>
 					</div>
 				{/if}
 			</div>
@@ -1060,6 +1141,21 @@
 		opacity: 0.6;
 		cursor: not-allowed;
 		transform: none;
+	}
+	.toolbar-publish--need-auth {
+		background: #f59e0b !important;
+		border-color: #f59e0b !important;
+		box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3) !important;
+	}
+	.toolbar-publish--need-auth:hover:not(:disabled) {
+		background: #d97706 !important;
+		border-color: #d97706 !important;
+		box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4) !important;
+	}
+	:global(.dark) .toolbar-publish--need-auth {
+		background: #fbbf24 !important;
+		border-color: #fbbf24 !important;
+		color: #1a1a2e !important;
 	}
 
 	.toolbar-view {
@@ -1434,6 +1530,19 @@
 		color: #fbbf24;
 		border-color: rgba(251, 191, 36, 0.2);
 	}
+	.auth-logout-btn {
+		margin-left: auto;
+		background: none;
+		border: 1px solid currentColor;
+		border-radius: 6px;
+		color: inherit;
+		font-size: 12px;
+		padding: 3px 10px;
+		cursor: pointer;
+		opacity: 0.7;
+		transition: opacity 0.15s;
+	}
+	.auth-logout-btn:hover { opacity: 1; }
 
 	.loading-state {
 		display: flex;

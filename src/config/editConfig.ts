@@ -38,8 +38,10 @@ export const momentsEditConfig: EditGistConfig = {
 };
 
 // GitHub 仓库配置（用于直接修改仓库文件）
+const envAppId = (import.meta as any).env?.PUBLIC_GITHUB_APP_ID || "";
 export const repoConfig = {
 	owner: "fqzlr",
 	repo: "my-blog",
 	branch: "main",
+	appId: envAppId || "",
 };
