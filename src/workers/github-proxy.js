@@ -182,12 +182,20 @@ export async function handleGithubProxy(request, env) {
 						: "GitHub proxy is running. Import your .pem key to authenticate.",
 			});
 		}
-		// 服务端认证
-		let serverToken = null;
-		if (env && env.GH_APP_ID) {
-			serverToken = await getInstallationTokenServer(env);
+		// GET with path → 转发 API 请求
+		// 如果客户端已提供 Authorization，直接透传；否则尝试服务端认证
+		const clientAuth = request.headers.get("Authorization") || request.headers.get("authorization");
+		const clientAuthObj = {};
+		if (clientAuth) {
+			clientAuthObj.Authorization = clientAuth;
 		}
-		const extraHeaders = serverToken ? { Authorization: `Bearer ${serverToken}` } : {};
+		let extraHeaders = { ...clientAuthObj };
+		if (!clientAuth && env && env.GH_APP_ID && env.GH_PRIVATE_KEY) {
+			const serverToken = await getInstallationTokenServer(env);
+			if (serverToken) {
+				extraHeaders = { Authorization: `Bearer ${serverToken}` };
+			}
+		}
 		return forwardRequest("GET", path, null, extraHeaders);
 	}
 
@@ -202,9 +210,9 @@ export async function handleGithubProxy(request, env) {
 		}
 		const httpMethod = (method || request.method).toUpperCase();
 
-		// 如果客户端没有 Authorization，使用服务端认证
+		// 如果客户端没有 Authorization，且服务端有完整凭据，使用服务端认证
 		const hasClientAuth = headers.Authorization || headers.authorization;
-		if (!hasClientAuth && env && env.GH_APP_ID) {
+		if (!hasClientAuth && env && env.GH_APP_ID && env.GH_PRIVATE_KEY) {
 			const serverToken = await getInstallationTokenServer(env);
 			if (serverToken) {
 				headers.Authorization = `Bearer ${serverToken}`;
