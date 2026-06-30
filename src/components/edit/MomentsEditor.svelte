@@ -3,14 +3,16 @@
 	import EditToolbar from "./EditToolbar.svelte";
 	import EditToast from "./EditToast.svelte";
 	import {
-		readGistFile,
+		getRepoFile,
+		updateRepoFile,
+		createRepoFile,
 		showToast,
 		genId,
 		deepClone,
 		ensureIconify,
 	} from "@/utils/editMode";
-	import { setupGistDrafts } from "@/utils/draftHelpers";
-	import { momentsEditConfig } from "@/config/editConfig";
+	import { setupRepoDrafts } from "@/utils/draftHelpers";
+	import { repoConfig } from "@/config/editConfig";
 
 	const props = $props<{
 		initialLocalCount?: number;
@@ -29,6 +31,7 @@
 		_draft?: boolean;
 	}
 
+	const MOMENTS_FILE_PATH = "public/moments.json"; // 仓库中的文件路径
 	const DEFAULT_AVATAR = "https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640";
 	const DEFAULT_AUTHOR = "fqzlr";
 
@@ -38,16 +41,19 @@
 	let originalMoments = $state<MomentItem[]>([]);
 	let editingIndex = $state(-1);
 	let gistLoaded = $state(false);
-	let gistConfig = $state({ gistId: momentsEditConfig.gistId, fileName: momentsEditConfig.fileName });
+	let fileSha = $state<string | null>(null);
 
-	const drafts = setupGistDrafts<MomentItem[]>({
+	const drafts = setupRepoDrafts({
 		pageKey: "moments",
 		pageName: "说说",
-		getData: () => moments,
-		setData: (v) => (moments = v),
-		getOriginalData: () => originalMoments,
-		setOriginalData: (v) => (originalMoments = v),
-		gistConfig,
+		getContent: () => JSON.stringify(moments, null, 2),
+		setContent: (v) => (moments = JSON.parse(v)),
+		getPath: () => MOMENTS_FILE_PATH,
+		getSha: () => fileSha,
+		setSha: (v) => (fileSha = v),
+		getOriginalContent: () => JSON.stringify(originalMoments, null, 2),
+		setOriginalContent: (v) => (originalMoments = JSON.parse(v)),
+		getCommitMsg: (isEdit) => isEdit ? `chore: update moments` : `chore: create moments`,
 		onSubmitted: () => {
 			setTimeout(() => window.location.reload(), 1200);
 		},
@@ -58,7 +64,7 @@
 	onMount(() => {
 		ensureIconify();
 		collectFromDOM();
-		loadGistData();
+		loadMomentsData();
 	});
 
 	// ========== 从 DOM 收集 SSR 渲染的本地说说 ==========
@@ -132,21 +138,12 @@
 		originalMoments = deepClone(items);
 	}
 
-	// ========== 从 Gist 加载外部说说 ==========
-	async function loadGistData() {
-		if (!momentsEditConfig.gistId) {
-			gistLoaded = true;
-			renderExternalMoments();
-			drafts.restoreFromDrafts();
-			return;
-		}
+	// ========== 从仓库加载说说数据 ==========
+	async function loadMomentsData() {
 		try {
-			const content = await readGistFile(
-				momentsEditConfig.gistId,
-				momentsEditConfig.fileName,
-			);
-			if (content) {
-				const gistItems: MomentItem[] = JSON.parse(content);
+			const fileData = await getRepoFile(MOMENTS_FILE_PATH, repoConfig);
+			if (fileData) {
+				const gistItems: MomentItem[] = JSON.parse(fileData.content);
 				const localIds = new Set(moments.map((m) => m.id));
 				const merged = [...moments];
 				for (const g of gistItems) {
@@ -164,9 +161,10 @@
 				});
 				moments = merged;
 				originalMoments = deepClone(merged);
+				fileSha = fileData.sha;
 			}
 		} catch (e) {
-			console.error("Failed to load Gist moments:", e);
+			console.error("Failed to load moments from repo:", e);
 		}
 		gistLoaded = true;
 		renderExternalMoments();
