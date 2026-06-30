@@ -226,6 +226,8 @@
 			: "";
 
 		return `
+		<div class="moment-card group">
+			<div class="card-accent-bar"></div>
 			<div class="wx-feed-header">
 				<img class="wx-avatar" src="${avatar}" alt="avatar" />
 				<div class="wx-feed-user">
@@ -238,7 +240,8 @@
 				${imgsHTML}
 				${tagsHTML}
 			</div>
-		`;
+		</div>
+	`;
 	}
 
 	function escapeHtml(text: string): string {
