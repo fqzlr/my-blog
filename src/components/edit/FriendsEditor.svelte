@@ -31,6 +31,11 @@
 	let repoLoaded = $state(false);
 	let fileSha = $state<string | null>(null);
 
+	const typeColors: Record<string, { bg: string; text: string }> = {
+		Blog: { bg: "#3b82f6", text: "#ffffff" },
+		Docs: { bg: "#f59e0b", text: "#ffffff" },
+	};
+
 	const drafts = setupRepoDrafts({
 		pageKey: "friends",
 		pageName: "友链",
@@ -73,6 +78,7 @@
 				console.error("Failed to parse repo friends:", e);
 			}
 		}
+		repoLoaded = true;
 		drafts.restoreFromDrafts();
 	}
 
