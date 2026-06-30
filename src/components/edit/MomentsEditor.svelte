@@ -778,15 +778,15 @@
 	}
 
 	/* ============================================
-	 * wx- 前缀：朋友圈风格卡片
+	 * wx- 前缀：朋友圈风格卡片（:global 用于动态注入的 DOM）
 	 * ============================================ */
-	.wx-feed-header {
+	:global(.wx-feed-header) {
 		display: flex;
 		align-items: flex-start;
 		gap: 10px;
 		margin-bottom: 10px;
 	}
-	.wx-avatar {
+	:global(.wx-avatar) {
 		width: 40px;
 		height: 40px;
 		border-radius: 8px;
@@ -794,11 +794,11 @@
 		flex-shrink: 0;
 		background: var(--btn-regular-bg, #f3f4f6);
 	}
-	.wx-feed-user {
+	:global(.wx-feed-user) {
 		flex: 1;
 		min-width: 0;
 	}
-	.wx-username {
+	:global(.wx-username) {
 		font-size: 14px;
 		font-weight: 600;
 		color: hsl(var(--theme-hue, 165), 70%, 40%);
@@ -807,10 +807,10 @@
 		gap: 6px;
 		flex-wrap: wrap;
 	}
-	:global(.dark) .wx-username {
+	:global(.dark .wx-username) {
 		color: hsl(var(--theme-hue, 165), 70%, 60%);
 	}
-	.wx-pinned-badge {
+	:global(.wx-pinned-badge) {
 		display: inline-flex;
 		align-items: center;
 		gap: 2px;
@@ -821,10 +821,10 @@
 		font-size: 11px;
 		font-weight: 500;
 	}
-	:global(.dark) .wx-pinned-badge {
+	:global(.dark .wx-pinned-badge) {
 		color: hsl(var(--theme-hue, 165), 70%, 60%);
 	}
-	.wx-feed-time {
+	:global(.wx-feed-time) {
 		font-size: 12px;
 		color: var(--content-meta, #9ca3af);
 		margin-top: 2px;
@@ -832,14 +832,14 @@
 		align-items: center;
 		gap: 4px;
 	}
-	.wx-location-dot {
+	:global(.wx-location-dot) {
 		opacity: 0.5;
 	}
 
-	.wx-feed-content {
+	:global(.wx-feed-content) {
 		padding-left: 50px;
 	}
-	.wx-content-text {
+	:global(.wx-content-text) {
 		margin: 0 0 10px;
 		font-size: 14px;
 		line-height: 1.7;
@@ -847,56 +847,56 @@
 		word-break: break-word;
 		white-space: pre-wrap;
 	}
-	:global(.dark) .wx-content-text {
+	:global(.dark .wx-content-text) {
 		color: #e5e7eb;
 	}
 
 	/* 图片网格 */
-	.wx-imgs {
+	:global(.wx-imgs) {
 		display: grid;
 		grid-template-columns: repeat(3, 1fr);
 		gap: 4px;
 		margin-bottom: 10px;
 		max-width: 330px;
 	}
-	.wx-img-wrap {
+	:global(.wx-img-wrap) {
 		position: relative;
 		aspect-ratio: 1;
 		border-radius: 4px;
 		overflow: hidden;
 		background: var(--btn-regular-bg, #f3f4f6);
 	}
-	.wx-img {
+	:global(.wx-img) {
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
 		display: block;
 	}
 	/* 单张图片时较大显示 */
-	.wx-imgs-1 {
+	:global(.wx-imgs-1) {
 		grid-template-columns: 180px;
 		max-width: 180px;
 	}
-	.wx-imgs-1 .wx-img-wrap {
+	:global(.wx-imgs-1 .wx-img-wrap) {
 		aspect-ratio: auto;
 		max-height: 240px;
 	}
-	.wx-imgs-1 .wx-img {
+	:global(.wx-imgs-1 .wx-img) {
 		object-fit: contain;
 	}
 
 	/* 标签 */
-	.wx-feed-tags {
+	:global(.wx-feed-tags) {
 		display: flex;
 		flex-wrap: wrap;
 		gap: 6px;
 		padding-top: 8px;
 		border-top: 1px solid var(--border, rgba(0, 0, 0, 0.06));
 	}
-	:global(.dark) .wx-feed-tags {
+	:global(.dark .wx-feed-tags) {
 		border-top-color: rgba(255, 255, 255, 0.06);
 	}
-	.wx-tag {
+	:global(.wx-tag) {
 		padding: 2px 10px;
 		border: 1px solid hsl(var(--theme-hue, 165), 60%, 60%);
 		border-radius: 999px;
@@ -905,7 +905,7 @@
 		background: color-mix(in srgb, hsl(var(--theme-hue, 165), 70%, 50%) 6%, transparent);
 		cursor: default;
 	}
-	:global(.dark) .wx-tag {
+	:global(.dark .wx-tag) {
 		color: hsl(var(--theme-hue, 165), 70%, 60%);
 		border-color: hsla(var(--theme-hue, 165), 70%, 50%, 0.4);
 	}
@@ -1078,7 +1078,7 @@
 
 	/* 响应式 */
 	@media (max-width: 480px) {
-		.wx-feed-content {
+		:global(.wx-feed-content) {
 			padding-left: 0;
 			margin-top: 10px;
 		}
@@ -1086,7 +1086,7 @@
 			flex-direction: column;
 			gap: 0;
 		}
-		.wx-imgs {
+		:global(.wx-imgs) {
 			max-width: 100%;
 		}
 	}
