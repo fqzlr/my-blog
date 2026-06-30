@@ -1,14 +1,17 @@
 ---
-title: "Git 使用教程"
+title: "Git 使用教程  测试"
 published: 2026-04-28
 updated: 2026-04-28
-description: git 使用教程及常用命令，自用
-image: /src/assets/images/cover.avif
-tags: [Git]
+description: "git 使用教程及常用命令，自用"
+image: "/src/assets/images/cover.avif"
+tags:
+  - Git
 category: Git
 draft: false
+pinned: false
 author: fqzlr
 ---
+
 # Git 详细使用教程（命令行版，附命令作用解释）
 
   
