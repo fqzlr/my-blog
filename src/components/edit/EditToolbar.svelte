@@ -186,7 +186,8 @@
 		const result = await validateCredentials(appIdToUse, pemToUse);
 		validating = false;
 		if (result.ok) {
-			if (!repoConfigHasAppId()) setStoredAppId(appIdToUse);
+			// 始终保存验证成功的 App ID
+			setStoredAppId(appIdToUse);
 			if (pendingKeyPem) setStoredPrivateKey(pemToUse);
 			authed = true;
 			showKeyModal = false;

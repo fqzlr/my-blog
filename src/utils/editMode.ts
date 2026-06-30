@@ -358,10 +358,8 @@ export async function checkProxyConfigured(): Promise<boolean> {
 		// 服务端有 App ID 但没有 PEM，客户端只需导入 PEM
 		if (data.hasAppId && data.appId) {
 			proxyAppIdAvailable = true;
-			// 将服务端 App ID 存入 localStorage，供客户端 JWT 签名使用
-			if (!getStoredAppId()) {
-				setStoredAppId(data.appId);
-			}
+			// 始终用服务端 App ID 更新存储值，避免使用过期的旧值
+			setStoredAppId(data.appId);
 		}
 		return hasValidCredentials();
 	} catch {
