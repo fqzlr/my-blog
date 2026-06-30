@@ -11,6 +11,7 @@ export default async function handler(request) {
 		GH_PRIVATE_KEY: process.env.GH_PRIVATE_KEY || "",
 		GH_USER: process.env.GH_USER || "",
 		GH_REPO: process.env.GH_REPO || "",
+		GH_TOKEN: process.env.GH_TOKEN || "",
 	};
 	return handleGithubProxy(request, env);
 }

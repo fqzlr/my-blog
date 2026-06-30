@@ -179,6 +179,7 @@ export async function handleGithubProxy(request, env) {
 		const path = url.searchParams.get("path");
 		const hasServerAuth = !!(env && env.GH_APP_ID && env.GH_PRIVATE_KEY);
 		const hasAppId = !!(env && env.GH_APP_ID);
+		const hasPat = !!(env && env.GH_TOKEN);
 		if (!path) {
 			return jsonResponse({
 				ok: true,
@@ -186,6 +187,7 @@ export async function handleGithubProxy(request, env) {
 				serverAuth: hasServerAuth,
 				hasAppId,
 				appId: hasAppId ? env.GH_APP_ID : "",
+				hasPat,
 				message: hasServerAuth
 					? "GitHub proxy with server-side auth is running."
 					: hasAppId
@@ -194,14 +196,15 @@ export async function handleGithubProxy(request, env) {
 			});
 		}
 		// GET with path → 转发 API 请求
-		// 如果客户端已提供 Authorization，直接透传；否则尝试服务端认证
 		const clientAuth = request.headers.get("Authorization") || request.headers.get("authorization");
-		const clientAuthObj = {};
-		if (clientAuth) {
-			clientAuthObj.Authorization = clientAuth;
-		}
-		let extraHeaders = { ...clientAuthObj };
-		if (!clientAuth && env && env.GH_APP_ID && env.GH_PRIVATE_KEY) {
+		let extraHeaders = {};
+		const isGistGet = path.replace(/^\//, "").startsWith("gists");
+		if (isGistGet && env && env.GH_TOKEN) {
+			// Gist 读取使用 PAT
+			extraHeaders = { Authorization: `Bearer ${env.GH_TOKEN}` };
+		} else if (clientAuth) {
+			extraHeaders = { Authorization: clientAuth };
+		} else if (env && env.GH_APP_ID && env.GH_PRIVATE_KEY) {
 			const serverToken = await getInstallationTokenServer(env);
 			if (serverToken) {
 				extraHeaders = { Authorization: `Bearer ${serverToken}` };
@@ -220,13 +223,20 @@ export async function handleGithubProxy(request, env) {
 			return jsonResponse({ error: "Missing 'path' field in request body" }, 400);
 		}
 		const httpMethod = (method || request.method).toUpperCase();
+		const isGistOp = path.replace(/^\//, "").startsWith("gists");
 
-		// 如果客户端没有 Authorization，且服务端有完整凭据，使用服务端认证
-		const hasClientAuth = headers.Authorization || headers.authorization;
-		if (!hasClientAuth && env && env.GH_APP_ID && env.GH_PRIVATE_KEY) {
-			const serverToken = await getInstallationTokenServer(env);
-			if (serverToken) {
-				headers.Authorization = `Bearer ${serverToken}`;
+		// Gist 操作使用 GH_TOKEN (PAT)，因为 Installation Token 不包含 Gists 权限
+		// (Gists 是 User-level 权限，需要 User-to-Server Token 或 PAT)
+		if (isGistOp && env && env.GH_TOKEN) {
+			headers.Authorization = `Bearer ${env.GH_TOKEN}`;
+		} else {
+			// 其他操作：如果客户端没有 Authorization，且服务端有完整凭据，使用服务端认证
+			const hasClientAuth = headers.Authorization || headers.authorization;
+			if (!hasClientAuth && env && env.GH_APP_ID && env.GH_PRIVATE_KEY) {
+				const serverToken = await getInstallationTokenServer(env);
+				if (serverToken) {
+					headers.Authorization = `Bearer ${serverToken}`;
+				}
 			}
 		}
 
