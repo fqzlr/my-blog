@@ -49,19 +49,30 @@ function pkcs1ToPkcs8(pkcs1Der) {
 	const ALGO_OID = new Uint8Array([
 		0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00,
 	]);
+	const VERSION = new Uint8Array([0x02, 0x01, 0x00]);
 	const pkcs1Len = pkcs1Der.byteLength;
-	const seqLen = 2 + ALGO_OID.length + 2 + 2 + pkcs1Len;
-	const buf = new ArrayBuffer(seqLen);
+	// OCTET STRING header size
+	const octetHeader = pkcs1Len < 128 ? 2 : (pkcs1Len < 256 ? 3 : 4);
+	const octetTotal = octetHeader + pkcs1Len;
+	const innerLen = VERSION.length + ALGO_OID.length + octetTotal;
+	// Build outer SEQUENCE with proper length encoding
+	function derLen(dataLen) {
+		if (dataLen < 128) return new Uint8Array([dataLen]);
+		if (dataLen < 256) return new Uint8Array([0x81, dataLen]);
+		return new Uint8Array([0x82, (dataLen >> 8) & 0xff, dataLen & 0xff]);
+	}
+	const outerLenBytes = derLen(innerLen);
+	const buf = new ArrayBuffer(1 + outerLenBytes.length + innerLen);
 	const view = new Uint8Array(buf);
 	let pos = 0;
 	view[pos++] = 0x30;
-	view[pos++] = seqLen - 2;
-	view.set(ALGO_OID, pos);
-	pos += ALGO_OID.length;
+	view.set(outerLenBytes, pos); pos += outerLenBytes.length;
+	view.set(VERSION, pos); pos += VERSION.length;
+	view.set(ALGO_OID, pos); pos += ALGO_OID.length;
 	view[pos++] = 0x04;
-	view[pos++] = pkcs1Len + 2;
-	view[pos++] = 0x00;
-	view[pos++] = pkcs1Len;
+	if (pkcs1Len < 128) { view[pos++] = pkcs1Len; }
+	else if (pkcs1Len < 256) { view[pos++] = 0x81; view[pos++] = pkcs1Len; }
+	else { view[pos++] = 0x82; view[pos++] = (pkcs1Len >> 8) & 0xff; view[pos++] = pkcs1Len & 0xff; }
 	view.set(new Uint8Array(pkcs1Der), pos);
 	return buf;
 }

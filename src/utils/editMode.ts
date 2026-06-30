@@ -61,6 +61,9 @@ function pkcs1ToPkcs8(pkcs1Der: ArrayBuffer): ArrayBuffer {
 	algorithmIdentifier[1] = rsaOid.length;
 	algorithmIdentifier.set(rsaOid, 2);
 
+	// INTEGER version (0)
+	const versionInt = new Uint8Array([0x02, 0x01, 0x00]);
+
 	function wrapDer(tag: number, data: Uint8Array): Uint8Array {
 		const len = data.length;
 		let lenBytes: Uint8Array;
@@ -79,11 +82,12 @@ function pkcs1ToPkcs8(pkcs1Der: ArrayBuffer): ArrayBuffer {
 	}
 
 	const wrappedKey = wrapDer(0x04, bytes);
-	const inner = new Uint8Array(algorithmIdentifier.length + wrappedKey.length);
-	inner.set(algorithmIdentifier, 0);
-	inner.set(wrappedKey, algorithmIdentifier.length);
+	const inner = new Uint8Array(versionInt.length + algorithmIdentifier.length + wrappedKey.length);
+	inner.set(versionInt, 0);
+	inner.set(algorithmIdentifier, versionInt.length);
+	inner.set(wrappedKey, versionInt.length + algorithmIdentifier.length);
 	const pkcs8 = wrapDer(0x30, inner);
-	return pkcs8.buffer;
+	return pkcs8.buffer as ArrayBuffer;
 }
 
 function pemToDer(pem: string): ArrayBuffer {
@@ -99,16 +103,17 @@ async function importPrivateKey(pem: string): Promise<CryptoKey> {
 	const header = new Uint8Array(der, 0, 2);
 	let keyData: ArrayBuffer;
 	if (header[0] === 0x30 && header[1] === 0x82) {
-		const versionOctet = new Uint8Array(der, 3, 1)[0];
-		if (versionOctet === 0x01 || versionOctet === 0x00) {
-			const seqLen = (new Uint8Array(der, 1, 2)[0] << 8) | new Uint8Array(der, 2, 2)[0];
-			const nextByte = new Uint8Array(der, 4, 1)[0];
-			if (nextByte === 0x02) {
-				keyData = pkcs1ToPkcs8(der);
-			} else {
-				keyData = der;
-			}
+		// Long-form length encoding: der[2..3] = length, der[4] = first content byte
+		// PKCS#1: der[4] = 0x02 (INTEGER version tag)
+		// PKCS#8: der[4] = 0x02 (INTEGER version tag) — both have it, need deeper check
+		// PKCS#1 version INTEGER is at offset 4, then modulus INTEGER at offset 4+3=7
+		// PKCS#8 version INTEGER is at offset 4, then AlgorithmIdentifier SEQUENCE (0x30) at offset 4+3=7
+		const afterVersion = new Uint8Array(der, 7, 1)[0];
+		if (afterVersion === 0x02) {
+			// PKCS#1: after version INTEGER comes another INTEGER (modulus)
+			keyData = pkcs1ToPkcs8(der);
 		} else {
+			// PKCS#8: after version INTEGER comes SEQUENCE (AlgorithmIdentifier)
 			keyData = der;
 		}
 	} else {
