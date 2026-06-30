@@ -18,9 +18,14 @@ const STORAGE_DRAFT_META = "gh_draft_meta";
 let cachedInstallationToken: string | null = null;
 let tokenExpiresAt = 0;
 let serverAuthAvailable = false;
+let proxyAppIdAvailable = false;
 
 export function isServerAuth(): boolean {
 	return serverAuthAvailable;
+}
+
+export function isProxyAppIdAvailable(): boolean {
+	return proxyAppIdAvailable;
 }
 
 function strToBuf(str: string): ArrayBuffer {
@@ -344,6 +349,14 @@ export async function checkProxyConfigured(): Promise<boolean> {
 		if (data.serverAuth) {
 			serverAuthAvailable = true;
 			return true;
+		}
+		// 服务端有 App ID 但没有 PEM，客户端只需导入 PEM
+		if (data.hasAppId && data.appId) {
+			proxyAppIdAvailable = true;
+			// 将服务端 App ID 存入 localStorage，供客户端 JWT 签名使用
+			if (!getStoredAppId()) {
+				setStoredAppId(data.appId);
+			}
 		}
 		return hasValidCredentials();
 	} catch {

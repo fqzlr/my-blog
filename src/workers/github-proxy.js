@@ -166,15 +166,20 @@ export async function handleGithubProxy(request, env) {
 	if (request.method === "GET") {
 		const url = new URL(request.url);
 		const path = url.searchParams.get("path");
+		const hasServerAuth = !!(env && env.GH_APP_ID && env.GH_PRIVATE_KEY);
+		const hasAppId = !!(env && env.GH_APP_ID);
 		if (!path) {
-			const hasServerAuth = !!(env && env.GH_APP_ID && env.GH_PRIVATE_KEY);
 			return jsonResponse({
 				ok: true,
 				status: "proxy-ready",
 				serverAuth: hasServerAuth,
+				hasAppId,
+				appId: hasAppId ? env.GH_APP_ID : "",
 				message: hasServerAuth
 					? "GitHub proxy with server-side auth is running."
-					: "GitHub proxy is running. Import your .pem key to authenticate.",
+					: hasAppId
+						? "GitHub proxy is running. App ID available. Import PEM key to authenticate."
+						: "GitHub proxy is running. Import your .pem key to authenticate.",
 			});
 		}
 		// 服务端认证

@@ -22,6 +22,7 @@
 		onDraftsChanged,
 		checkProxyConfigured,
 		isServerAuth,
+		isProxyAppIdAvailable,
 	} from "@/utils/editMode";
 	import { repoConfig } from "@/config/editConfig";
 
@@ -199,7 +200,7 @@
 	}
 
 	function repoConfigHasAppId(): boolean {
-		return !!repoConfig?.appId;
+		return !!repoConfig?.appId || isProxyAppIdAvailable();
 	}
 
 	function handleLogout() {
@@ -378,7 +379,11 @@
 						{:else}
 							<div class="form-hint">
 								<iconify-icon icon="material-symbols:info-outline-rounded" class="text-sm mr-1"></iconify-icon>
-								App ID 已从站点配置中读取，无需手动输入。
+								{#if isProxyAppIdAvailable()}
+									App ID 已从服务端环境变量中读取，无需手动输入。
+								{:else}
+									App ID 已从站点配置中读取，无需手动输入。
+								{/if}
 							</div>
 						{/if}
 
