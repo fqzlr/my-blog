@@ -13,14 +13,14 @@ export const GET: APIRoute = async ({ request }) => {
 
   // GET /api/github → 状态检查
   if (!path) {
-    const hasAppId = !!import.meta.env.PUBLIC_GH_APP_ID;
+    const hasAppId = !!import.meta.env.GH_APP_ID;
     return new Response(
       JSON.stringify({
         ok: true,
         status: "proxy-ready",
         serverAuth: false, // Astro/Vercel 不做服务端签名
         hasAppId,
-        appId: hasAppId ? import.meta.env.PUBLIC_GH_APP_ID : "",
+        appId: hasAppId ? import.meta.env.GH_APP_ID : "",
         message: hasAppId
           ? "GitHub proxy is running. App ID available. Import PEM key to authenticate."
           : "GitHub proxy is running. Import your .pem key to authenticate.",
