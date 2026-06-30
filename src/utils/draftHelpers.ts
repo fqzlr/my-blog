@@ -201,14 +201,23 @@ export function setupRepoDrafts(ctx: RepoDraftContext) {
 	}
 
 	async function doSubmit(content: string, sha: string | null, path: string, isEdit: boolean): Promise<boolean> {
+		console.log('[RepoDrafts] doSubmit called:', { path, isEdit, hasSha: !!sha, contentLength: content.length });
 		const commitMsg = ctx.getCommitMsg
 			? ctx.getCommitMsg(isEdit)
 			: isEdit ? `chore: update ${pageName}` : `chore: create ${pageName}`;
 		let ok = false;
-		if (isEdit && sha) {
-			ok = await updateRepoFile(path, content, sha, commitMsg);
-		} else {
-			ok = await createRepoFile(path, content, commitMsg);
+		try {
+			if (isEdit && sha) {
+				console.log('[RepoDrafts] Updating existing file...');
+				ok = await updateRepoFile(path, content, sha, commitMsg);
+			} else {
+				console.log('[RepoDrafts] Creating new file...');
+				ok = await createRepoFile(path, content, commitMsg);
+			}
+		} catch (error) {
+			console.error('[RepoDrafts] doSubmit error:', error);
+			showToast(`提交 ${pageName} 失败: ${error instanceof Error ? error.message : String(error)}`, "error");
+			return false;
 		}
 		if (ok) {
 			setOriginalContent(content);
@@ -224,22 +233,27 @@ export function setupRepoDrafts(ctx: RepoDraftContext) {
 	}
 
 	async function submitDrafts(): Promise<boolean> {
+		console.log('[RepoDrafts] submitDrafts called');
 		const drafts = getDraftsByPage(pageKey);
 		let contentToSubmit: string;
 		let shaToUse: string | null;
 		let pathToUse: string;
 		let isEdit: boolean;
 		if (drafts.length > 0) {
+			console.log('[RepoDrafts] Found drafts:', drafts.length);
 			const latest = drafts[drafts.length - 1];
 			if (latest.payload?.type === "repo" && latest.payload.content !== undefined) {
 				contentToSubmit = String(latest.payload.content);
 				shaToUse = (latest.payload.sha as string) || null;
 				pathToUse = String(latest.payload.path || getPath());
 				isEdit = !!latest.payload.isEdit;
+				console.log('[RepoDrafts] Using draft data:', { pathToUse, isEdit, hasSha: !!shaToUse });
 			} else {
+				console.error('[RepoDrafts] Invalid draft payload');
 				return false;
 			}
 		} else {
+			console.log('[RepoDrafts] No drafts, using current state');
 			contentToSubmit = getContent();
 			shaToUse = getSha();
 			pathToUse = getPath();
