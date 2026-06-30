@@ -207,9 +207,21 @@ export function setupRepoDrafts(ctx: RepoDraftContext) {
 			: isEdit ? `chore: update ${pageName}` : `chore: create ${pageName}`;
 		let ok = false;
 		try {
-			if (isEdit && sha) {
+			// 如果需要更新但没有 sha，先尝试从仓库获取
+			let actualSha = sha;
+			if (isEdit && !actualSha) {
+				console.log('[RepoDrafts] isEdit but no sha, fetching file meta...');
+				const existing = await getRepoFile(path);
+				if (existing && existing.sha) {
+					actualSha = existing.sha;
+					console.log('[RepoDrafts] Got sha from repo:', actualSha);
+				} else {
+					console.log('[RepoDrafts] File does not exist in repo, will create');
+				}
+			}
+			if (isEdit && actualSha) {
 				console.log('[RepoDrafts] Updating existing file...');
-				ok = await updateRepoFile(path, content, sha, commitMsg);
+				ok = await updateRepoFile(path, content, actualSha, commitMsg);
 			} else {
 				console.log('[RepoDrafts] Creating new file...');
 				ok = await createRepoFile(path, content, commitMsg);
