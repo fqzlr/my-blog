@@ -329,6 +329,49 @@ export async function githubApi(
 	return proxyRequest(method, apiPath, body);
 }
 
+/** 诊断：检查 GitHub App 安装权限 */
+export async function diagnosePermissions(): Promise<{
+	permissions: Record<string, string>;
+	repoAccess: boolean;
+	tokenValid: boolean;
+}> {
+	const result = { permissions: {} as Record<string, string>, repoAccess: false, tokenValid: false };
+	try {
+		// 检查 token 是否有效
+		const userResp = await proxyRequest("GET", "user");
+		result.tokenValid = userResp.ok;
+		if (!userResp.ok) {
+			console.error("[diagnose] Token invalid:", userResp.status);
+			return result;
+		}
+		const user = await userResp.json();
+		console.log("[diagnose] Authenticated as:", user.login || user.type);
+
+		// 检查仓库访问权限
+		const repoResp = await proxyRequest("GET", `repos/${repoConfig.owner}/${repoConfig.repo}`);
+		result.repoAccess = repoResp.ok;
+		if (repoResp.ok) {
+			const repo = await repoResp.json();
+			console.log("[diagnose] Repo access OK, permissions:", repo.permissions);
+		} else {
+			console.error("[diagnose] Repo access failed:", repoResp.status);
+		}
+
+		// 尝试获取 installation 信息
+		const instResp = await proxyRequest("GET", `repos/${repoConfig.owner}/${repoConfig.repo}/installation`);
+		if (instResp.ok) {
+			const inst = await instResp.json();
+			result.permissions = inst.permissions || {};
+			console.log("[diagnose] Installation permissions:", JSON.stringify(inst.permissions));
+		} else {
+			console.error("[diagnose] Installation info failed:", instResp.status);
+		}
+	} catch (e) {
+		console.error("[diagnose] Error:", e);
+	}
+	return result;
+}
+
 // ============ 鍏煎�鏃�PI ============
 
 export function getStoredToken(): string {
@@ -471,15 +514,22 @@ export async function updateRepoFile(
 ): Promise<boolean> {
 	try {
 		const encodedContent = btoa(unescape(encodeURIComponent(content)));
-		const resp = await proxyRequest("PUT", repoPath(config, path), {
+		const apiPath = repoPath(config, path);
+		console.log('[updateRepoFile] PUT', apiPath, 'sha:', sha?.slice(0, 8), 'branch:', config.branch);
+		const resp = await proxyRequest("PUT", apiPath, {
 			message,
 			content: encodedContent,
 			sha,
 			branch: config.branch,
 		});
-		if (!resp.ok) invalidateToken();
+		if (!resp.ok) {
+			const errText = await resp.text().catch(() => "");
+			console.error('[updateRepoFile] Failed:', resp.status, errText);
+			invalidateToken();
+		}
 		return resp.ok;
-	} catch {
+	} catch (e) {
+		console.error('[updateRepoFile] Exception:', e);
 		invalidateToken();
 		return false;
 	}
@@ -493,14 +543,21 @@ export async function createRepoFile(
 ): Promise<boolean> {
 	try {
 		const encodedContent = btoa(unescape(encodeURIComponent(content)));
-		const resp = await proxyRequest("PUT", repoPath(config, path), {
+		const apiPath = repoPath(config, path);
+		console.log('[createRepoFile] PUT', apiPath, 'branch:', config.branch, 'msg:', message);
+		const resp = await proxyRequest("PUT", apiPath, {
 			message,
 			content: encodedContent,
 			branch: config.branch,
 		});
-		if (!resp.ok) invalidateToken();
+		if (!resp.ok) {
+			const errText = await resp.text().catch(() => "");
+			console.error('[createRepoFile] Failed:', resp.status, errText);
+			invalidateToken();
+		}
 		return resp.ok;
-	} catch {
+	} catch (e) {
+		console.error('[createRepoFile] Exception:', e);
 		invalidateToken();
 		return false;
 	}
