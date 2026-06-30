@@ -31,10 +31,12 @@
 		defaultCategory = "all",
 		skipDomCollect = false,
 		customPageName = "番剧",
+		initialItems = [],
 	}: {
 		defaultCategory?: string;
 		skipDomCollect?: boolean;
 		customPageName?: string;
+		initialItems?: BangumiItem[];
 	} = $props();
 
 	let editMode = $state(false);
@@ -100,7 +102,11 @@
 
 	onMount(() => {
 		ensureIconify();
-		if (!skipDomCollect) {
+		if (initialItems.length > 0) {
+			// 使用页面直接传入的初始数据
+			items = initialItems.map((item) => ({ ...item, _local: true }));
+			originalItems = deepClone(items);
+		} else if (!skipDomCollect) {
 			collectFromDOM();
 		}
 		loadGistData();

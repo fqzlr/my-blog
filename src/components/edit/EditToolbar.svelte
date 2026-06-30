@@ -20,6 +20,7 @@
 		clearDraftsByPage,
 		submitAllDrafts,
 		onDraftsChanged,
+		checkProxyConfigured,
 	} from "@/utils/editMode";
 	import { repoConfig } from "@/config/editConfig";
 
@@ -69,7 +70,9 @@
 	onMount(async () => {
 		ensureIconify();
 		appIdInput = getStoredAppId();
-		authed = hasValidCredentials();
+		// 检查服务端代理认证
+		const proxyOk = await checkProxyConfigured();
+		authed = proxyOk || hasValidCredentials();
 		pageDraftCount = getDraftsByPage(pageKey).length;
 		totalDraftCount = getDraftCount();
 		unsubscribeDrafts = onDraftsChanged(() => {

@@ -17,6 +17,7 @@ const STORAGE_DRAFT_META = "gh_draft_meta";
 
 let cachedInstallationToken: string | null = null;
 let tokenExpiresAt = 0;
+let serverAuthAvailable = false;
 
 function strToBuf(str: string): ArrayBuffer {
 	return new TextEncoder().encode(str);
@@ -194,6 +195,8 @@ async function getInstallationToken(jwt: string): Promise<{ token: string; expir
 }
 
 export async function getAuthToken(): Promise<string | null> {
+	// 如果服务端代理可认证，返回 null（代理会自动添加 token）
+	if (serverAuthAvailable) return null;
 	const appId = getStoredAppId();
 	const privateKey = getStoredPrivateKey();
 	if (!appId || !privateKey) return null;
@@ -261,6 +264,8 @@ export function clearStoredCredentials(): void {
 }
 
 export function hasValidCredentials(): boolean {
+	// 如果有服务端代理认证，始终返回有效
+	if (serverAuthAvailable) return true;
 	return !!getStoredAppId() && !!getStoredPrivateKey();
 }
 
@@ -328,7 +333,18 @@ export async function validateToken(_token?: string): Promise<boolean> {
 }
 
 export async function checkProxyConfigured(): Promise<boolean> {
-	return hasValidCredentials();
+	try {
+		const resp = await fetch(PROXY_URL);
+		if (!resp.ok) return false;
+		const data = await resp.json();
+		if (data.serverAuth) {
+			serverAuthAvailable = true;
+			return true;
+		}
+		return hasValidCredentials();
+	} catch {
+		return false;
+	}
 }
 
 export function invalidateProxyCheck(): void {

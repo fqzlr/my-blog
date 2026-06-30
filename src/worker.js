@@ -15,7 +15,7 @@ export default {
 		}
 
 		if (url.pathname === "/api/github" || url.pathname.startsWith("/api/github/")) {
-			return handleGithubProxy(request);
+			return handleGithubProxy(request, env);
 		}
 
 		if (env.ASSETS) {
