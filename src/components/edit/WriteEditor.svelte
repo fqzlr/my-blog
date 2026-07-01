@@ -598,18 +598,11 @@
 		}
 		try {
 			const pem = await readFileAsText(file);
-			let appId = repoConfig.appId;
+			const appId = repoConfig.appId;
 			if (!appId) {
-				appId = getStoredAppId();
-			}
-			if (!appId) {
-				const inputId = prompt("请输入你的 GitHub App ID（数字）：", "");
-				if (!inputId) {
-					showToast("需要 App ID 才能完成认证", "error");
-					input.value = "";
-					return;
-				}
-				appId = inputId.trim();
+				showToast("请先在 Vercel 环境变量中配置 PUBLIC_GITHUB_APP_ID", "error");
+				input.value = "";
+				return;
 			}
 			showToast("正在验证私钥...", "info");
 			const result = await validateCredentials(appId, pem);
