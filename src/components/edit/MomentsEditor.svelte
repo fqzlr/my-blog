@@ -3,17 +3,16 @@
 	import EditToolbar from "./EditToolbar.svelte";
 	import EditToast from "./EditToast.svelte";
 	import {
-		getRepoFile,
+		getRepoFileMeta,
 		updateRepoFile,
 		createRepoFile,
+		deleteRepoFile,
 		showToast,
 		genId,
 		deepClone,
 		ensureIconify,
-		getAuthToken,
 	} from "@/utils/editMode";
 	import { setupRepoDrafts } from "@/utils/draftHelpers";
-	import { repoConfig } from "@/config/editConfig";
 
 	const props = $props<{
 		initialLocalCount?: number;
@@ -443,13 +442,7 @@
 		}
 		saving = true;
 		try {
-			const token = await getAuthToken();
-			if (!token) {
-				showToast("未认证，请先导入私钥", "error");
-				return;
-			}
-
-			console.log("[MomentsEditor] Token obtained, processing", moments.length, "moments");
+			console.log("[MomentsEditor] Processing", moments.length, "moments");
 
 			const cleanData: MomentItem[] = moments.map(({ _draft, ...rest }) => ({
 				id: rest.id || genId("wx"),
@@ -464,7 +457,7 @@
 			}));
 			moments = cleanData;
 
-			// 方案 B：将每个说说保存为独立的 Markdown 文件
+			// 方案 B：将每个说说保存为独立的 Markdown 文件（使用代理 API）
 			let successCount = 0;
 			let failCount = 0;
 			const errors: string[] = [];
@@ -477,11 +470,25 @@
 				console.log(`[MomentsEditor] Saving ${filepath}`);
 
 				try {
-					// 检查文件是否已存在（通过 ID 匹配）
-					// 这里简化处理：直接创建/更新文件
-					await createOrUpdateRepoFile(filepath, mdContent, repoConfig, token, `feat(moments): ${m.pinned ? '置顶' : '更新'}说说 - ${m.content.slice(0, 20)}`);
-					successCount++;
-					console.log(`[MomentsEditor] Successfully saved ${filepath}`);
+					const commitMsg = `feat(moments): ${m.pinned ? '置顶' : '更新'}说说 - ${m.content.slice(0, 20)}`;
+					// 使用代理 API 检查文件是否存在
+					const existing = await getRepoFileMeta(filepath);
+					let ok: boolean;
+					if (existing) {
+						// 文件存在，更新
+						ok = await updateRepoFile(filepath, mdContent, existing.sha, commitMsg);
+					} else {
+						// 文件不存在，创建
+						ok = await createRepoFile(filepath, mdContent, commitMsg);
+					}
+					if (ok) {
+						successCount++;
+						console.log(`[MomentsEditor] Successfully saved ${filepath}`);
+					} else {
+						failCount++;
+						errors.push(`${filename}: API 返回失败`);
+						console.error(`[MomentsEditor] Failed to save ${filepath}: API returned false`);
+					}
 				} catch (e: any) {
 					failCount++;
 					errors.push(`${filename}: ${e.message}`);
@@ -493,6 +500,18 @@
 
 			if (failCount === 0) {
 				showToast(`成功提交 ${successCount} 条说说到 GitHub`, "success");
+
+				// 尝试删除旧的 public/moments.json 文件
+				try {
+					const oldFile = await getRepoFileMeta("public/moments.json");
+					if (oldFile) {
+						await deleteRepoFile("public/moments.json", oldFile.sha, "chore: remove old moments.json (migrated to markdown)");
+						console.log("[MomentsEditor] Deleted old public/moments.json");
+					}
+				} catch (e) {
+					console.log("[MomentsEditor] Old public/moments.json not found or already deleted");
+				}
+
 				// 清除草稿
 				drafts.clearDrafts();
 				// 刷新页面以显示最新内容
@@ -509,71 +528,7 @@
 		}
 	}
 
-	/**
-	 * 创建或更新仓库文件
-	 */
-	async function createOrUpdateRepoFile(
-		path: string,
-		content: string,
-		config: typeof repoConfig,
-		token: string,
-		message: string
-	) {
-		try {
-			// 先尝试获取文件（检查是否存在）
-			const existing = await fetch(
-				`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}`,
-				{
-					headers: {
-						Authorization: `Bearer ${token}`,
-						Accept: "application/vnd.github.v3+json",
-					},
-				}
-			);
 
-			if (existing.ok) {
-				// 文件存在，更新
-				const data = await existing.json();
-				await fetch(
-					`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}`,
-					{
-						method: "PUT",
-						headers: {
-							Authorization: `Bearer ${token}`,
-							Accept: "application/vnd.github.v3+json",
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify({
-							message,
-							content: btoa(unescape(encodeURIComponent(content))), // Base64 编码
-							sha: data.sha,
-							branch: config.branch || "master",
-						}),
-					}
-				);
-			} else {
-				// 文件不存在，创建
-				await fetch(
-					`https://api.github.com/repos/${config.owner}/${config.repo}/contents/${path}`,
-					{
-						method: "PUT",
-						headers: {
-							Authorization: `Bearer ${token}`,
-							Accept: "application/vnd.github.v3+json",
-							"Content-Type": "application/json",
-						},
-						body: JSON.stringify({
-							message,
-							content: btoa(unescape(encodeURIComponent(content))), // Base64 编码
-							branch: config.branch || "master",
-						}),
-					}
-				);
-			}
-		} catch (e) {
-			throw new Error(`Failed to save ${path}: ${e instanceof Error ? e.message : String(e)}`);
-		}
-	}
 </script>
 
 <EditToast />
