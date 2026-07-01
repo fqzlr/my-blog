@@ -10,7 +10,6 @@
 		getRepoFile,
 	} from "@/utils/editMode";
 	import { setupRepoDrafts } from "@/utils/draftHelpers";
-	import { friendsEditConfig } from "@/config/editConfig";
 
 	interface FriendItem {
 		id?: string;
@@ -20,6 +19,7 @@
 		siteurl: string;
 		tags?: string[];
 		weight?: number;
+		enabled?: boolean;
 		_draft?: boolean;
 	}
 
@@ -30,6 +30,153 @@
 	let editingIndex = $state(-1);
 	let repoLoaded = $state(false);
 	let fileSha = $state<string | null>(null);
+	let originalTS = $state<string>("");
+
+	// 从 TypeScript 配置文件中解析友链数组
+	function parseFriendsFromTS(tsContent: string): FriendItem[] {
+		// 统一换行符为 LF
+		tsContent = tsContent.replace(/\r\n/g, "\n");
+		const startMarker = "export const friendsConfig: FriendLink[] = [";
+		const startIdx = tsContent.indexOf(startMarker);
+		if (startIdx === -1) return [];
+		let bracketStart = startIdx + startMarker.length;
+		let depth = 1;
+		let idx = bracketStart;
+		while (idx < tsContent.length && depth > 0) {
+			if (tsContent[idx] === "[") depth++;
+			else if (tsContent[idx] === "]") depth--;
+			if (depth > 0) idx++;
+		}
+		let arrayStr = tsContent.substring(bracketStart, idx).trim();
+		// 移除 JS 行注释，但保留字符串内的 // (如 URL)
+		arrayStr = stripLineComments(arrayStr);
+		// 移除尾逗号: 在 ] 前、} 前、以及字符串末尾
+		arrayStr = arrayStr.replace(/,(\s*[\]\}])/g, "$1");
+		arrayStr = arrayStr.replace(/,(\s*)$/, "$1");
+		// 给未加引号的属性名加上引号 (TypeScript -> JSON)
+		// 仅匹配行首的属性名，避免匹配字符串值中的冒号
+		arrayStr = arrayStr.replace(/^(\s*)(\w+)\s*:/gm, '$1"$2":');
+		try {
+			return JSON.parse(`[${arrayStr}]`);
+		} catch (e) {
+			console.error("Failed to parse friends from TS:", e);
+			return [];
+		}
+	}
+
+	// 移除行注释，但保留字符串内的 // (避免破坏 URL)
+	function stripLineComments(code: string): string {
+		const lines = code.split("\n");
+		return lines.map(line => {
+			let inStr = false;
+			let quotes = 0;
+			for (let i = 0; i < line.length - 1; i++) {
+				if (line[i] === '"' && (i === 0 || line[i - 1] !== '\\')) {
+					inStr = !inStr;
+					quotes++;
+				}
+				if (!inStr && line[i] === '/' && line[i + 1] === '/') {
+					// 仅当 // 前面有偶数个引号时才认为是注释
+					if (quotes % 2 === 0) {
+						return line.substring(0, i);
+					}
+				}
+			}
+			return line;
+		}).join("\n");
+	}
+
+	// 构建完整的 TypeScript 配置文件内容
+	function buildFriendsConfigTS(friends: FriendItem[]): string {
+		const entries = friends.map((f) => {
+			const obj = {
+				title: f.title,
+				imgurl: f.imgurl,
+				desc: f.desc,
+				siteurl: f.siteurl,
+				tags: f.tags || ["Blog"],
+				weight: f.weight ?? 10,
+				enabled: f.enabled !== false,
+			};
+			const json = JSON.stringify(obj, null, 2)
+				.split("\n")
+				.map((line, i, arr) => (i === arr.length - 1 ? `\t\t${line},` : `\t\t${line}`))
+				.join("\n");
+			return json;
+		});
+		return `import type { FriendLink, FriendsPageConfig } from "../types/config";
+
+// 可以在src/content/spec/friends.md中编写友链页面下方的自定义内容
+
+// 友链页面配置
+export const friendsPageConfig: FriendsPageConfig = {
+	// 页面标题，如果留空则使用 i18n 中的翻译
+	title: "",
+
+	// 页面描述文本，如果留空则使用 i18n 中的翻译
+	description: "",
+
+	// 是否显示底部自定义内容（friends.mdx 中的内容）
+	showCustomContent: true,
+
+	// 是否显示评论区，需要先在commentConfig.ts启用评论系统
+	showComment: true,
+
+	// 是否开启随机排序配置，如果开启，就会忽略权重，构建时进行一次随机排序
+	randomizeSort: false,
+
+	// 友链申请链接，填写后会在友链页面显示申请按钮
+	// 使用模板参数直接跳转到友链申请模板
+	applyLink:
+		"https://github.com/fqzlr/my-blog/issues/new?template=friend-link.yml",
+
+	// 本站信息，用于友链申请指南弹窗中的站点信息展示
+	siteInfo: {
+		name: "fqzlr",
+		desc: "躬身入局，心为主理，行有尺度，自持本心",
+		url: "https://fqzlr.com",
+		avatar: "https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640",
+		email: "20447289@qq.com",
+	},
+
+	// 注意事项，用于友链申请指南弹窗中的注意事项展示
+	notes: [
+		{
+			title: "互换原则",
+			content: "请先将本站添加到您的友链页面，确认后会添加您的友链",
+		},
+		{
+			title: "链接维护",
+			content: "友链网站长期无法访问或内容违规，将会被移除",
+		},
+		{
+			title: "内容要求",
+			content: "内容积极向上，不含有任何含色情/反动/暴力等违法违规内容",
+		},
+		{
+			title: "站点要求",
+			content: "支持 HTTPS，以原创内容为主，能够正常访问且有持续更新",
+		},
+	],
+};
+
+// 友链配置
+export const friendsConfig: FriendLink[] = [
+${entries.join("\n")}
+];
+
+// 获取启用的友链并进行排序
+export const getEnabledFriends = (): FriendLink[] => {
+	const friends = friendsConfig.filter((friend) => friend.enabled);
+
+	if (friendsPageConfig.randomizeSort) {
+		return friends.sort(() => Math.random() - 0.5);
+	}
+
+	return friends.sort((a, b) => b.weight - a.weight);
+};
+`;
+	}
 
 	const typeColors: Record<string, { bg: string; text: string }> = {
 		Blog: { bg: "#3b82f6", text: "#ffffff" },
@@ -39,13 +186,18 @@
 	const drafts = setupRepoDrafts({
 		pageKey: "friends",
 		pageName: "友链",
-		getContent: () => JSON.stringify(friends, null, 2),
-		setContent: (v) => (friends = JSON.parse(v)),
-		getPath: () => "public/friends.json",
+		getContent: () => buildFriendsConfigTS(friends),
+		setContent: (v) => {
+			const parsed = parseFriendsFromTS(v);
+			if (parsed.length > 0 || v.includes("friendsConfig")) {
+				friends = parsed;
+			}
+		},
+		getPath: () => "src/config/friendsConfig.ts",
 		getSha: () => fileSha,
 		setSha: (v) => (fileSha = v),
-		getOriginalContent: () => JSON.stringify(originalFriends, null, 2),
-		setOriginalContent: (v) => (originalFriends = JSON.parse(v)),
+		getOriginalContent: () => originalTS,
+		setOriginalContent: (v) => (originalTS = v),
 		getCommitMsg: (isEdit) => isEdit ? `chore: update friends` : `chore: create friends`,
 		onSubmitted: () => {
 			setTimeout(() => window.location.reload(), 1200);
@@ -61,10 +213,22 @@
 	});
 
 	async function loadRepoData() {
-		const existing = await getRepoFile("public/friends.json");
+		const existing = await getRepoFile("src/config/friendsConfig.ts");
 		if (existing && existing.content) {
 			try {
-				const repoItems: FriendItem[] = JSON.parse(existing.content);
+				const repoItems: FriendItem[] = parseFriendsFromTS(existing.content);
+				originalTS = existing.content;
+				// 用仓库数据中的 weight/enabled 覆盖 DOM 收集的默认值
+				const repoMap = new Map(repoItems.map(f => [f.siteurl.replace(/\/$/, ""), f]));
+				friends = friends.map(f => {
+					const key = f.siteurl.replace(/\/$/, "");
+					const repoItem = repoMap.get(key);
+					if (repoItem) {
+						return { ...f, weight: repoItem.weight ?? f.weight, enabled: repoItem.enabled ?? f.enabled };
+					}
+					return f;
+				});
+				// 添加仓库中有但 DOM 中没有的友链
 				const existingUrls = new Set(friends.map((f) => f.siteurl.replace(/\/$/, "")));
 				for (const g of repoItems) {
 					const url = g.siteurl.replace(/\/$/, "");
@@ -77,6 +241,9 @@
 			} catch (e) {
 				console.error("Failed to parse repo friends:", e);
 			}
+		} else {
+			// 仓库中不存在文件，用当前 DOM 数据生成原始内容
+			originalTS = buildFriendsConfigTS(friends);
 		}
 		repoLoaded = true;
 		drafts.restoreFromDrafts();
@@ -102,9 +269,13 @@
 				desc,
 				siteurl: link.href,
 				tags: [tag],
+				weight: 10,
+				enabled: true,
 			});
 		});
 		friends = items;
+		const ts = buildFriendsConfigTS(items);
+		originalTS = ts;
 		originalFriends = deepClone(items);
 	}
 
@@ -216,6 +387,8 @@
 			desc: "",
 			siteurl: "",
 			tags: ["Blog"],
+			weight: 10,
+			enabled: true,
 			_draft: true,
 		};
 		friends = [...friends, newFriend];
@@ -226,6 +399,8 @@
 		const cleanData = friends.map(({ _draft, ...rest }) => ({
 			...rest,
 			id: rest.id || genId("fr"),
+			weight: rest.weight ?? 10,
+			enabled: rest.enabled !== false,
 		}));
 		friends = cleanData;
 		drafts.saveToDrafts();
@@ -241,6 +416,8 @@
 			const cleanData = friends.map(({ _draft, ...rest }) => ({
 				...rest,
 				id: rest.id || genId("fr"),
+				weight: rest.weight ?? 10,
+				enabled: rest.enabled !== false,
 			}));
 			friends = cleanData;
 			await drafts.submitDrafts();
