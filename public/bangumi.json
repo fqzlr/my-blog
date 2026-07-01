@@ -1102,21 +1102,6 @@
     "updated_at": "2026-07-01T14:31:39.806Z"
   },
   {
-    "id": "book/心理/认知觉醒开启自我改变的原动力",
-    "title": "测试认知觉醒：开启自我改变的原动力",
-    "name_cn": "认知觉醒：开启自我改变的原动力",
-    "category": "book",
-    "status": 2,
-    "score": 0,
-    "image": "https://cdn.weread.qq.com/weread/cover/86/YueWen_33628204/t6_YueWen_33628204.jpg",
-    "tags": [
-      "心理-认知与行为",
-      "周岭"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T21:36:30.273Z"
-  },
-  {
     "id": "bgm-1782940779311-hm48hj",
     "title": "测试",
     "name_cn": "测试",
@@ -1129,6 +1114,21 @@
     ],
     "comment": "测试",
     "updated_at": "2026-07-01T21:20:21.906Z"
+  },
+  {
+    "id": "book/心理/认知觉醒开启自我改变的原动力",
+    "title": "认知觉醒：开启自我改变的原动力",
+    "name_cn": "认知觉醒：开启自我改变的原动力测试6点",
+    "category": "book",
+    "status": 2,
+    "score": 0,
+    "image": "https://cdn.weread.qq.com/weread/cover/86/YueWen_33628204/t6_YueWen_33628204.jpg",
+    "tags": [
+      "心理-认知与行为",
+      "周岭"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T22:09:01.892Z"
   },
   {
     "id": "book/个人成长/人性的弱点",
