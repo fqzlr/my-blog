@@ -49,7 +49,7 @@
 	let fileSha = $state<string | null>(null);
 
 	const drafts = setupRepoDrafts({
-		pageKey: "bangumi",
+		pageKey: customPageName === "书架" ? "books" : customPageName === "影视游戏" ? "movies-games" : "bangumi",
 		pageName: customPageName,
 		getContent: () => JSON.stringify(items, null, 2),
 		setContent: (v) => (items = JSON.parse(v)),
@@ -183,10 +183,14 @@
 			const existing = await getRepoFile("public/bangumi.json");
 			if (existing && existing.content) {
 				const repoItems: BangumiItem[] = JSON.parse(existing.content);
+				// 只合并与当前页面分类匹配的条目，避免书架页显示电影数据等
+				const allowedCategories = new Set(initialItems.map((i) => i.category));
 				const localKeys = new Set(
 					items.filter((i) => i._local).map((i) => `${i.title}|${i.category}`),
 				);
 				for (const g of repoItems) {
+					// 如果当前页面有初始数据（skipDomCollect模式），只保留匹配分类的条目
+					if (allowedCategories.size > 0 && !allowedCategories.has(g.category)) continue;
 					const key = `${g.title}|${g.category}`;
 					const existingIdx = items.findIndex(
 						(i) => `${i.title}|${i.category}` === key,
@@ -397,7 +401,25 @@
 				...rest,
 				id: rest.id || genId("bgm"),
 			}));
-			items = cleanData;
+
+			// 合并而非覆盖：获取仓库中其他分类的数据，与当前页面的数据合并
+			try {
+				const existing = await getRepoFile("public/bangumi.json");
+				if (existing && existing.content) {
+					const repoItems: BangumiItem[] = JSON.parse(existing.content);
+					const currentCategories = new Set(cleanData.map((i) => i.category));
+					// 保留当前页面不涉及的其他分类条目
+					const otherItems = repoItems.filter((r) => !currentCategories.has(r.category));
+					const merged = [...otherItems, ...cleanData];
+					items = merged;
+				} else {
+					items = cleanData;
+				}
+			} catch {
+				items = cleanData;
+			}
+
+			drafts.saveToDrafts();
 			await drafts.submitDrafts();
 		} finally {
 			saving = false;
