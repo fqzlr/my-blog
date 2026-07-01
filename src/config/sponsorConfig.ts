@@ -1,11 +1,11 @@
 import type { SponsorConfig } from "../types/config";
 
 export const sponsorConfig: SponsorConfig = {
-	title: "赞助测试",
+	title: "赞助",
 
-	description: "感谢您的支持，您的赞助将帮助我持续创作优质内容测试",
+	description: "感谢您的支持，您的赞助将帮助我持续创作优质内容",
 
-	usage: "测试",
+	usage: "",
 
 	showSponsorsList: true,
 
@@ -15,10 +15,8 @@ export const sponsorConfig: SponsorConfig = {
 
 	methods: [
 		{
-			name: "爱发电测试",
-			link: "https://ifdian.net/a/fqzlr",
-			description: "通过 爱发电 进行打赏",
-			enabled: true,
+			name: "爱发电",
+			enabled: false,
 		},
 		{
 			name: "微信支付",
@@ -34,7 +32,7 @@ export const sponsorConfig: SponsorConfig = {
 
 	sponsors: [
 		{
-			name: "番茄主理人测试",
+			name: "番茄主理人",
 			avatar: "https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640",
 			amount: "¥50",
 			date: "10/1/2025",
