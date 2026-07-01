@@ -441,6 +441,8 @@ export const getEnabledFriends = (): FriendLink[] => {
 				enabled: rest.enabled !== false,
 			}));
 			friends = cleanData;
+			// 先保存当前状态为草稿，确保提交的是最新内容
+			drafts.saveToDrafts();
 			await drafts.submitDrafts();
 		} finally {
 			saving = false;
