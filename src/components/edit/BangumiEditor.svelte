@@ -107,6 +107,27 @@
 		...categoryList,
 	];
 
+	// 影视游戏页面支持第二排状态筛选
+	const statusTabs = customPageName === "影视游戏" ? [
+		{ id: "all", name: "全部" },
+		{ id: "2", name: "看过" },
+		{ id: "3", name: "在看" },
+		{ id: "1", name: "想看" },
+		{ id: "4", name: "搁置" },
+		{ id: "5", name: "抛弃" },
+	] : null;
+
+	let activeStatusTab = $state("all");
+
+	// 根据分类和状态双重筛选
+	let filteredItems = $derived.by(() => {
+		let result = activeTab === "all" ? items : items.filter((i) => i.category === activeTab);
+		if (activeStatusTab !== "all") {
+			result = result.filter((i) => i.status === Number(activeStatusTab));
+		}
+		return result;
+	});
+
 	const statusMap: Record<number, { name: string; color: string }> = {
 		1: { name: "想看", color: "#3b82f6" },
 		2: { name: "看过", color: "#10b981" },
@@ -493,7 +514,11 @@
 		editingIndex = -1;
 	}
 
-	const filteredItems = $derived(activeTab === "all" ? items : items.filter((i) => i.category === activeTab));
+	// 切换状态筛选标签（仅影视游戏页面）
+	function switchStatusTab(tabId: string) {
+		activeStatusTab = tabId;
+		editingIndex = -1;
+	}
 </script>
 
 <EditToast />
@@ -537,6 +562,26 @@
 				</button>
 			{/each}
 		</div>
+
+		<!-- 影视游戏页面：第二排状态筛选标签 -->
+		{#if statusTabs}
+			<div class="edit-bangumi-tabs edit-bangumi-status-tabs">
+				{#each statusTabs as tab (tab.id)}
+					<button
+						class="edit-tab"
+						class:active={activeStatusTab === tab.id}
+						onclick={() => switchStatusTab(tab.id)}
+					>
+						{tab.name}
+						<span class="edit-tab-count">
+							{tab.id === "all" 
+								? filteredItems.length 
+								: filteredItems.filter((i) => i.status === Number(tab.id)).length}
+						</span>
+					</button>
+				{/each}
+			</div>
+		{/if}
 
 		<!-- 卡片网格 -->
 		<div class="edit-bangumi-grid" id="edit-bangumi-grid">
@@ -762,6 +807,11 @@
 	}
 	.edit-bangumi-tabs::-webkit-scrollbar {
 		display: none;
+	}
+	/* 第二排状态筛选标签 */
+	.edit-bangumi-status-tabs {
+		margin-top: -8px;
+		margin-bottom: 16px;
 	}
 	:global(.dark) .edit-bangumi-tabs {
 		background: var(--card-bg, rgba(255,255,255,0.03));
