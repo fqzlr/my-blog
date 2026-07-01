@@ -284,7 +284,9 @@ export function hasValidCredentials(): boolean {
 }
 
 export function hasValidToken(): boolean {
-	return cachedInstallationToken !== null && Date.now() < tokenExpiresAt;
+	// 有缓存的未过期 token，或者有有效的凭据（可以获取 token）
+	if (cachedInstallationToken !== null && Date.now() < tokenExpiresAt) return true;
+	return hasValidCredentials();
 }
 
 export async function validateCredentials(appId?: string, pem?: string): Promise<{ ok: boolean; error?: string }> {
