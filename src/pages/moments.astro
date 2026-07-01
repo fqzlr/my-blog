@@ -57,97 +57,94 @@ import "@/styles/components/moment-card.css";
   </div>
 </MainGridLayout>
 
-<script is:inline>
+<script>
   // ========== 访客统计 ==========
-  var countElements = document.querySelectorAll('.waline-count[data-path="/moments/"]');
+  const countElements = document.querySelectorAll('.waline-count[data-path="/moments/"]');
   if (countElements.length > 0) {
-    var serverURL = "https://co.tsh520.cn";
+    const serverURL = "https://co.tsh520.cn";
     fetch(serverURL + "/api/uv?path=/moments/")
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        var count = data.data ? data.data.unique_visitor || data.uv || 0 : (data.uv || 0);
-        countElements.forEach(function(el) { el.textContent = String(count); });
+      .then(res => res.json())
+      .then(data => {
+        const count = data.data ? data.data.unique_visitor || data.uv || 0 : (data.uv || 0);
+        countElements.forEach((el: Element) => { el.textContent = String(count); });
       })
-      .catch(function() {
-        countElements.forEach(function(el) { el.textContent = "-"; });
+      .catch(() => {
+        countElements.forEach((el: Element) => { el.textContent = "-"; });
       });
   }
 
   // ========== 说说客户端渲染 ==========
-  var GH_OWNER = "fqzlr";
-  var GH_REPO = "my-blog";
-  var DEFAULT_AVATAR = "https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640";
-  var DEFAULT_AUTHOR = "fqzlr";
+  const GH_OWNER = "fqzlr";
+  const GH_REPO = "my-blog";
+  const DEFAULT_AVATAR = "https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640";
+  const DEFAULT_AUTHOR = "fqzlr";
 
-  function getMomentsUrl() {
-    var branch = (typeof window !== 'undefined' && window.__DEPLOY_BRANCH__) || "master";
-    return "https://raw.githubusercontent.com/" + GH_OWNER + "/" + GH_REPO + "/" + branch + "/public/moments.json";
+  function getMomentsUrl(): string {
+    const branch = (typeof window !== 'undefined' && (window as any).__DEPLOY_BRANCH__) || "master";
+    return `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${branch}/public/moments.json`;
   }
 
-  function escapeHtml(str) {
+  function escapeHtml(str: string): string {
     if (!str) return "";
     return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
 
-  function formatTimeAgo(dateStr) {
-    var date = new Date(dateStr);
+  function formatTimeAgo(dateStr: string): string {
+    const date = new Date(dateStr);
     if (isNaN(date.getTime())) return dateStr;
-    var now = new Date();
-    var diff = now.getTime() - date.getTime();
-    var minutes = Math.floor(diff / 60000);
-    var hours = Math.floor(diff / 3600000);
-    var days = Math.floor(diff / 86400000);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
     if (minutes < 1) return "刚刚";
     if (minutes < 60) return minutes + "分钟前";
     if (hours < 24) return hours + "小时前";
     if (days < 30) return days + "天前";
-    var y = date.getFullYear();
-    var m = String(date.getMonth() + 1).padStart(2, "0");
-    var d = String(date.getDate()).padStart(2, "0");
-    return y + "-" + m + "-" + d;
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   }
 
-  function getGridCols(count) {
+  function getGridCols(count: number): number {
     if (count === 1) return 1;
     if (count === 2 || count === 4) return 2;
     return 3;
   }
 
-  function renderMomentCard(m) {
-    var author = escapeHtml(m.author || DEFAULT_AUTHOR);
-    var avatar = escapeHtml(m.avatar || DEFAULT_AVATAR);
-    var content = escapeHtml(m.content || "").replace(/\n/g, "<br>");
-    var time = formatTimeAgo(m.published);
-    var isoTime = new Date(m.published).toISOString();
+  function renderMomentCard(m: any): string {
+    const author = escapeHtml(m.author || DEFAULT_AUTHOR);
+    const avatar = escapeHtml(m.avatar || DEFAULT_AVATAR);
+    const content = escapeHtml(m.content || "").replace(/\n/g, "<br>");
+    const time = formatTimeAgo(m.published);
+    const isoTime = new Date(m.published).toISOString();
 
-    // 卡片头部
-    var pinnedBadge = m.pinned
+    const pinnedBadge = m.pinned
       ? '<span class="pinned-badge"><iconify-icon icon="material-symbols:pinboard" class="pinned-icon"></iconify-icon><span>置顶</span></span>'
       : "";
 
-    var locationHtml = m.location
+    const locationHtml = m.location
       ? '<span class="meta-dot">·</span><span class="location"><iconify-icon icon="material-symbols:location-on-outline" class="location-icon"></iconify-icon>' + escapeHtml(m.location) + "</span>"
       : "";
 
-    var header = '<div class="card-header">'
+    const header = '<div class="card-header">'
       + '<div class="card-avatar"><img src="' + avatar + '" alt="' + author + '" class="avatar-img" loading="lazy" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23999%22><circle cx=%2212%22 cy=%228%22 r=%224%22/><path d=%22M20 21a8 8 0 1 0-16 0%22/></svg>\'"></div>'
       + '<div class="card-user-info"><div class="user-row"><span class="user-name">' + author + "</span>" + pinnedBadge + "</div>"
       + '<div class="meta-row"><time datetime="' + isoTime + '">' + time + "</time>" + locationHtml + "</div></div></div>";
 
-    // 内容
-    var contentHtml = content
+    const contentHtml = content
       ? '<div class="card-content"><div class="moment-markdown"><p>' + content + "</p></div></div>"
       : "";
 
-    // 图片
-    var imagesHtml = "";
+    let imagesHtml = "";
     if (m.images && m.images.length > 0) {
-      var cols = getGridCols(m.images.length);
-      var imgItems = "";
-      var maxShow = 9;
-      for (var i = 0; i < m.images.length && i < maxShow; i++) {
-        var img = escapeHtml(m.images[i]);
-        var isLast = i === maxShow - 1 && m.images.length > maxShow;
+      const cols = getGridCols(m.images.length);
+      let imgItems = "";
+      const maxShow = 9;
+      for (let i = 0; i < m.images.length && i < maxShow; i++) {
+        const img = escapeHtml(m.images[i]);
+        const isLast = i === maxShow - 1 && m.images.length > maxShow;
         imgItems += '<div class="image-item">'
           + '<img src="' + img + '" alt="" class="image-img" loading="lazy" data-fancybox="gallery-' + escapeHtml(m.id) + '" data-src="' + img + '">'
           + (isLast ? '<div class="more-overlay"><span class="more-text">+' + (m.images.length - maxShow + 1) + "</span></div>" : "")
@@ -156,13 +153,12 @@ import "@/styles/components/moment-card.css";
       imagesHtml = '<div class="card-images image-cols-' + cols + '">' + imgItems + "</div>";
     }
 
-    // 标签
-    var tagsHtml = "";
+    let tagsHtml = "";
     if (m.tags && m.tags.length > 0) {
-      var tagItems = "";
-      for (var j = 0; j < m.tags.length; j++) {
-        var tag = escapeHtml(m.tags[j].trim());
-        if (tag) tagItems += '<a href="/tags/' + encodeURIComponent(tag) + '/" class="tag-item">#' + tag + "</a>";
+      let tagItems = "";
+      for (const tag of m.tags) {
+        const t = escapeHtml(tag.trim());
+        if (t) tagItems += '<a href="/tags/' + encodeURIComponent(t) + '/" class="tag-item">#' + t + "</a>";
       }
       tagsHtml = '<div class="card-tags">' + tagItems + "</div>";
     }
@@ -174,9 +170,9 @@ import "@/styles/components/moment-card.css";
       + "</div></div>";
   }
 
-  function renderPinnedBlock(pinned) {
-    var block = document.getElementById("pinned-block");
-    var container = document.getElementById("pinned-items");
+  function renderPinnedBlock(pinned: any[]) {
+    const block = document.getElementById("pinned-block");
+    const container = document.getElementById("pinned-items");
     if (!block || !container) return;
 
     if (pinned.length === 0) {
@@ -185,19 +181,17 @@ import "@/styles/components/moment-card.css";
     }
 
     block.style.display = "";
-    var html = "";
-    for (var i = 0; i < pinned.length; i++) {
-      var m = pinned[i];
+    let html = "";
+    for (const m of pinned) {
       if (m.images && m.images.length > 0) {
-        var cols = Math.min(m.images.length, 9);
-        var imgs = "";
-        for (var j = 0; j < cols; j++) {
+        const cols = Math.min(m.images.length, 9);
+        let imgs = "";
+        for (let j = 0; j < cols; j++) {
           imgs += '<img src="' + escapeHtml(m.images[j]) + '" alt="" class="wx-pinned-img" loading="lazy">';
         }
         html += '<div class="wx-pinned-preview"><div class="wx-pimgs wx-pimgs-' + cols + '">' + imgs + "</div></div>";
       } else {
-        var text = (m.content || "").slice(0, 60);
-        if ((m.content || "").length > 60) text += "...";
+        const text = (m.content || "").slice(0, 60) + ((m.content || "").length > 60 ? "..." : "");
         html += '<div class="wx-pinned-preview"><p class="wx-ptxt">' + escapeHtml(text) + "</p></div>";
       }
     }
@@ -205,35 +199,31 @@ import "@/styles/components/moment-card.css";
   }
 
   function renderMoments() {
-    var feed = document.getElementById("moments-feed");
+    const feed = document.getElementById("moments-feed");
     if (!feed) return;
 
     console.log("[Moments] Fetching from:", getMomentsUrl());
     fetch(getMomentsUrl() + "?t=" + Date.now())
-      .then(function(res) {
+      .then(res => {
         if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json();
       })
-      .then(function(data) {
+      .then(data => {
         if (!Array.isArray(data)) data = [];
 
-        // 分离置顶和普通
-        var pinned = [];
-        var normal = [];
-        for (var i = 0; i < data.length; i++) {
-          if (data[i].pinned) pinned.push(data[i]);
-          else normal.push(data[i]);
+        const pinned: any[] = [];
+        const normal: any[] = [];
+        for (const item of data) {
+          if (item.pinned) pinned.push(item);
+          else normal.push(item);
         }
 
-        // 按时间倒序
-        pinned.sort(function(a, b) { return new Date(b.published) - new Date(a.published); });
-        normal.sort(function(a, b) { return new Date(b.published) - new Date(a.published); });
+        pinned.sort((a: any, b: any) => new Date(b.published).getTime() - new Date(a.published).getTime());
+        normal.sort((a: any, b: any) => new Date(b.published).getTime() - new Date(a.published).getTime());
 
-        // 渲染置顶
         renderPinnedBlock(pinned);
 
-        // 渲染列表（置顶在前）
-        var all = pinned.concat(normal);
+        const all = pinned.concat(normal);
         if (all.length === 0) {
           feed.innerHTML = '<div class="wx-empty" id="moments-empty">'
             + '<div class="wx-empty-icon"><iconify-icon icon="material-symbols:sentiment-neutral-outline"></iconify-icon></div>'
@@ -242,32 +232,27 @@ import "@/styles/components/moment-card.css";
           return;
         }
 
-        var html = "";
-        for (var j = 0; j < all.length; j++) {
-          html += renderMomentCard(all[j]);
+        let html = "";
+        for (const item of all) {
+          html += renderMomentCard(item);
         }
         feed.innerHTML = html;
 
-        // 确保 iconify 加载图标
-        if (window.Iconify && window.Iconify.scan) {
-          window.Iconify.scan(feed);
-          var pinnedBlock = document.getElementById("pinned-block");
-          if (pinnedBlock) window.Iconify.scan(pinnedBlock);
+        if ((window as any).Iconify && (window as any).Iconify.scan) {
+          (window as any).Iconify.scan(feed);
+          const pinnedBlock = document.getElementById("pinned-block");
+          if (pinnedBlock) (window as any).Iconify.scan(pinnedBlock);
         }
       })
-      .catch(function(err) {
+      .catch(err => {
         console.error("[Moments] Failed to load:", err);
         feed.innerHTML = '<div class="wx-empty"><div class="wx-empty-icon"><iconify-icon icon="material-symbols:error-outline"></iconify-icon></div>'
           + "<h3>加载失败</h3><p>请稍后刷新页面重试</p></div>";
       });
   }
 
-  // 页面加载后渲染
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", renderMoments);
-  } else {
-    renderMoments();
-  }
+  // 页面加载时渲染（Astro bundled script 会在 Swup 导航后重新执行）
+  renderMoments();
 </script>
 
 <style>
