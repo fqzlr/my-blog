@@ -102,6 +102,18 @@
 		}
 	})();
 
+	// 获取条目的 subcategory（仅影视游戏页面使用）
+	function getItemSubcategory(item: BangumiItem): string {
+		if (item.category !== "real" && item.category !== "game") return item.category;
+		if (item.category === "game") return "game";
+		
+		const tags = item.tags || [];
+		if (tags.some((t) => t.includes("纪录"))) return "documentary";
+		if (tags.some((t) => t.includes("动漫") || t.includes("动画"))) return "anime";
+		if (tags.some((t) => t.includes("电视剧") || t.includes("剧集"))) return "tv";
+		return "movie"; // 默认为电影
+	}
+
 	const tabs = [
 		{ id: "all", name: "全部" },
 		...categoryList,
@@ -121,10 +133,21 @@
 
 	// 根据分类和状态双重筛选
 	let filteredItems = $derived.by(() => {
-		let result = activeTab === "all" ? items : items.filter((i) => i.category === activeTab);
+		let result = items;
+		
+		// 影视游戏页面：按 subcategory 筛选
+		if (customPageName === "影视游戏" && activeTab !== "all") {
+			result = result.filter((i) => getItemSubcategory(i) === activeTab);
+		} else if (activeTab !== "all") {
+			// 其他页面：按 category 筛选
+			result = result.filter((i) => i.category === activeTab);
+		}
+		
+		// 状态筛选
 		if (activeStatusTab !== "all") {
 			result = result.filter((i) => i.status === Number(activeStatusTab));
 		}
+		
 		return result;
 	});
 
@@ -558,7 +581,13 @@
 					onclick={() => switchTab(tab.id)}
 				>
 					{tab.name}
-					<span class="edit-tab-count">{tab.id === "all" ? items.length : items.filter((i) => i.category === tab.id).length}</span>
+					<span class="edit-tab-count">{
+						tab.id === "all" 
+							? items.length 
+							: customPageName === "影视游戏" 
+								? items.filter((i) => getItemSubcategory(i) === tab.id).length 
+								: items.filter((i) => i.category === tab.id).length
+					}</span>
 				</button>
 			{/each}
 		</div>
