@@ -27,8 +27,16 @@
 	}
 
 	const MOMENTS_FILE = "public/moments.json"; // 仓库中的说说 JSON 文件
+	const GH_OWNER = "fqzlr";
+	const GH_REPO = "my-blog";
 	const DEFAULT_AVATAR = "https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640";
 	const DEFAULT_AUTHOR = "fqzlr";
+
+	/** 根据当前部署分支构造 GitHub raw URL */
+	function getMomentsRawUrl(): string {
+		const branch = (typeof window !== "undefined" && window.__DEPLOY_BRANCH__) || "master";
+		return `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${branch}/${MOMENTS_FILE}`;
+	}
 
 	let editMode = $state(false);
 	let saving = $state(false);
@@ -61,7 +69,7 @@
 		loadMomentsData();
 	});
 
-	// ========== 从 JSON 文件加载说说数据 ==========
+	// ========== 从 GitHub raw URL 加载说说数据（无需重建即可生效） ==========
 	async function loadMomentsData() {
 		// 先恢复本地草稿（如果有）
 		const restored = drafts.restoreFromDrafts();
@@ -69,9 +77,11 @@
 			gistLoaded = true;
 			return;
 		}
-		// 没有草稿，从 moments.json 加载
+		// 没有草稿，从 GitHub raw URL 加载
+		const url = getMomentsRawUrl();
+		console.log("[MomentsEditor] Fetching from GitHub:", url);
 		try {
-			const res = await fetch("/moments.json?t=" + Date.now());
+			const res = await fetch(url + "?t=" + Date.now());
 			if (res.ok) {
 				const data = await res.json();
 				if (Array.isArray(data)) {
@@ -88,9 +98,11 @@
 					}));
 					originalMoments = deepClone(moments);
 				}
+			} else {
+				console.warn("[MomentsEditor] GitHub returned", res.status, "— 文件可能还不存在");
 			}
 		} catch (e) {
-			console.error("[MomentsEditor] Failed to load moments.json:", e);
+			console.error("[MomentsEditor] Failed to load from GitHub:", e);
 		}
 		gistLoaded = true;
 	}
@@ -275,6 +287,23 @@
 		drafts.saveToDrafts();
 	}
 
+	/** 对比两组数据，生成变更摘要 */
+	function diffMoments(remote: MomentItem[], local: MomentItem[]) {
+		const added: string[] = [];
+		const modified: string[] = [];
+		const deleted: string[] = [];
+		const remoteMap = new Map(remote.map((m) => [m.id, m]));
+		const localMap = new Map(local.map((m) => [m.id, m]));
+		for (const m of local) {
+			if (!remoteMap.has(m.id)) added.push(m.id);
+			else if (JSON.stringify(remoteMap.get(m.id)) !== JSON.stringify(m)) modified.push(m.id);
+		}
+		for (const m of remote) {
+			if (!localMap.has(m.id)) deleted.push(m.id);
+		}
+		return { added, modified, deleted };
+	}
+
 	async function handleSubmit() {
 		const branch = typeof window !== 'undefined' ? window.__DEPLOY_BRANCH__ : undefined;
 		console.log("[MomentsEditor] handleSubmit called, branch:", branch);
@@ -287,7 +316,7 @@
 		try {
 			console.log("[MomentsEditor] Processing", moments.length, "moments");
 
-			// 清洗数据
+			// 清洗数据（保留原始 id，不给已有说说重新生成）
 			const cleanData: MomentItem[] = moments.map(({ _draft, ...rest }) => ({
 				id: rest.id || genId("wx"),
 				content: rest.content,
@@ -301,9 +330,36 @@
 			}));
 			moments = cleanData;
 
+			// 先从 GitHub 获取远端当前数据，对比差异
+			let remoteData: MomentItem[] = [];
+			try {
+				const res = await fetch(getMomentsRawUrl() + "?t=" + Date.now());
+				if (res.ok) {
+					const parsed = await res.json();
+					if (Array.isArray(parsed)) remoteData = parsed;
+				}
+			} catch { /* 文件可能不存在，忽略 */ }
+
+			const diff = diffMoments(remoteData, cleanData);
+			const totalChanges = diff.added.length + diff.modified.length + diff.deleted.length;
+
+			if (totalChanges === 0) {
+				showToast("没有检测到任何更改，无需提交", "info");
+				saving = false;
+				return;
+			}
+
+			// 生成有意义的提交信息
+			const parts: string[] = [];
+			if (diff.added.length) parts.push(`新增${diff.added.length}条`);
+			if (diff.modified.length) parts.push(`修改${diff.modified.length}条`);
+			if (diff.deleted.length) parts.push(`删除${diff.deleted.length}条`);
+			const commitMsg = `feat(moments): ${parts.join("，")} (共${cleanData.length}条)`;
+
+			console.log(`[MomentsEditor] Diff:`, diff, `Commit:`, commitMsg);
+
 			// 方案 A：将所有说说保存为单个 JSON 文件
 			const jsonContent = JSON.stringify(cleanData, null, 2);
-			const commitMsg = `feat(moments): 更新说说 (${cleanData.length} 条)`;
 
 			console.log(`[MomentsEditor] Saving ${MOMENTS_FILE}`);
 
@@ -317,7 +373,7 @@
 			}
 
 			if (ok) {
-				showToast(`成功提交 ${cleanData.length} 条说说到 GitHub`, "success");
+				showToast(`成功提交: ${parts.join("，")}`, "success");
 				drafts.clearDrafts();
 				setTimeout(() => window.location.reload(), 1500);
 			} else {

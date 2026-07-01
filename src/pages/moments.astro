@@ -74,9 +74,15 @@ import "@/styles/components/moment-card.css";
   }
 
   // ========== 说说客户端渲染 ==========
-  var MOMENTS_JSON = "/moments.json";
+  var GH_OWNER = "fqzlr";
+  var GH_REPO = "my-blog";
   var DEFAULT_AVATAR = "https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640";
   var DEFAULT_AUTHOR = "fqzlr";
+
+  function getMomentsUrl() {
+    var branch = (typeof window !== 'undefined' && window.__DEPLOY_BRANCH__) || "master";
+    return "https://raw.githubusercontent.com/" + GH_OWNER + "/" + GH_REPO + "/" + branch + "/public/moments.json";
+  }
 
   function escapeHtml(str) {
     if (!str) return "";
@@ -202,7 +208,8 @@ import "@/styles/components/moment-card.css";
     var feed = document.getElementById("moments-feed");
     if (!feed) return;
 
-    fetch(MOMENTS_JSON + "?t=" + Date.now())
+    console.log("[Moments] Fetching from:", getMomentsUrl());
+    fetch(getMomentsUrl() + "?t=" + Date.now())
       .then(function(res) {
         if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json();
