@@ -103,9 +103,16 @@
 	})();
 
 	// 获取条目的 subcategory（仅影视游戏页面使用）
+	// 与前端 SSR 渲染逻辑完全一致
 	function getItemSubcategory(item: BangumiItem): string {
-		if (item.category !== "real" && item.category !== "game") return item.category;
+		// 优先使用 _subcategory 字段（如果有）
+		if ((item as any)._subcategory) return (item as any)._subcategory;
+		
+		// game 分类保持为 game
 		if (item.category === "game") return "game";
+		
+		// real 分类根据 tags 推断 subcategory
+		if (item.category !== "real") return item.category;
 		
 		const tags = item.tags || [];
 		if (tags.some((t) => t.includes("纪录"))) return "documentary";
