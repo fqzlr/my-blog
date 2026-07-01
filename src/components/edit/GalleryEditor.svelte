@@ -13,6 +13,7 @@
 		saveDraft,
 		getDraft,
 		deleteDraft,
+		registerSubmitHandler,
 	} from "@/utils/editMode";
 	import { repoConfig } from "@/config/editConfig";
 
@@ -187,10 +188,10 @@
 		if (draft?.albums) { albums = draft.albums; await handleSave(); if (!saving) deleteDraft("gallery"); }
 	}
 
-	async function handleSave() {
+	async function handleSave(): Promise<boolean> {
 		if (!hasValidToken()) {
 			showToast("请先导入密钥再保存", "warning");
-			return;
+			return false;
 		}
 		saving = true;
 		try {
@@ -263,10 +264,13 @@
 			} else {
 				showToast("保存失败，请检查 Token 权限（需要 repo 权限）", "error");
 			}
+			return ok;
 		} catch (e) {
 			showToast("保存失败：" + (e as Error).message, "error");
+			return false;
+		} finally {
+			saving = false;
 		}
-		saving = false;
 	}
 
 	function handleCancel() {
@@ -297,6 +301,17 @@
 			s.style.display = "";
 		});
 	}
+
+	// 注册批量提交处理程序
+	registerSubmitHandler("gallery", async (draft) => {
+		if (draft.payload?.type === "gist") return false; // gallery 不使用 gist
+		if (draft.payload?.albums) {
+			albums = draft.payload.albums;
+			const ok = await handleSave();
+			return ok;
+		}
+		return false;
+	});
 </script>
 
 <EditToast />

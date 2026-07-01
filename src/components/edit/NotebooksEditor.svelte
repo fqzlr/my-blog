@@ -15,6 +15,7 @@
     saveDraft,
     getDraft,
     deleteDraft,
+    registerSubmitHandler,
   } from "@/utils/editMode";
   import { repoConfig } from "@/config/editConfig";
 
@@ -191,7 +192,13 @@
   }
 
   function handleSaveDraft() {
-    saveDraft("notebooks", "笔记本", { notebooks }, `共 ${notebooks.length} 个笔记本`);
+    saveDraft({
+      pageKey: "notebooks",
+      pageName: "笔记本",
+      description: `共 ${notebooks.length} 个笔记本`,
+      operation: "update",
+      payload: { notebooks },
+    });
     showToast("笔记本草稿已保存", "success");
   }
   async function handleBatchSubmit() {
@@ -288,6 +295,17 @@
     } catch (err) { showToast("保存出错：" + (err as Error).message, "error"); }
     saving = false;
   }
+
+  // 注册批量提交处理程序
+  registerSubmitHandler("notebooks", async (draft) => {
+    if (draft.payload?.type === "gist") return false; // notebooks 不使用 gist
+    if (draft.payload?.notebooks) {
+      notebooks = draft.payload.notebooks;
+      const ok = await handleSave();
+      return ok;
+    }
+    return false;
+  });
 
   function slugify(text: string): string {
     return text.toLowerCase().trim().replace(/[\s]+/g,"-").replace(/[^\w\u4e00-\u9fa5-]/g,"").replace(/-+/g,"-").replace(/^-|-$/g,"") || "notebook";

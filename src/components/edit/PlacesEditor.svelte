@@ -15,6 +15,7 @@
     saveDraft,
     getDraft,
     deleteDraft,
+    registerSubmitHandler,
   } from "@/utils/editMode";
   import { repoConfig } from "@/config/editConfig";
 
@@ -236,7 +237,13 @@
   }
 
   function handleSaveDraft() {
-    saveDraft("places", "旅行足迹", { places }, `共 ${places.length} 个地点`);
+    saveDraft({
+      pageKey: "places",
+      pageName: "旅行足迹",
+      description: `共 ${places.length} 个地点`,
+      operation: "update",
+      payload: { places },
+    });
     showToast("旅行足迹草稿已保存", "success");
   }
   async function handleBatchSubmit() {
@@ -244,8 +251,8 @@
     if (draft?.places) { places = draft.places; await handleSave(); if (!saving) deleteDraft("places"); }
   }
 
-  async function handleSave() {
-    if (!hasValidToken()) { showToast("GitHub 代理未配置，请联系管理员", "warning"); return; }
+  async function handleSave(): Promise<boolean> {
+    if (!hasValidToken()) { showToast("GitHub 代理未配置，请联系管理员", "warning"); return false; }
     saving = true;
     try {
       let allOk = true;
@@ -283,11 +290,25 @@
       } else {
         showToast("部分操作失败，请检查 GitHub App 权限配置", "error");
       }
+      return allOk;
     } catch (err) {
       showToast("保存出错：" + (err as Error).message, "error");
+      return false;
+    } finally {
+      saving = false;
     }
-    saving = false;
   }
+
+  // 注册批量提交处理程序
+  registerSubmitHandler("places", async (draft) => {
+    if (draft.payload?.type === "gist") return false; // places 不使用 gist
+    if (draft.payload?.places) {
+      places = draft.payload.places;
+      const ok = await handleSave();
+      return ok;
+    }
+    return false;
+  });
 </script>
 
 <EditToast />

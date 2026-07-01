@@ -782,6 +782,7 @@ export function getDraftsByPage(pageKey: string): DraftChange[] {
 	return readDraftStore().changes.filter(c => c.pageKey === pageKey);
 }
 
+/** 保存草稿（新 API） */
 export function saveDraft(change: Omit<DraftChange, "id" | "timestamp">): DraftChange {
 	const store = readDraftStore();
 	const newChange: DraftChange = {
@@ -792,6 +793,17 @@ export function saveDraft(change: Omit<DraftChange, "id" | "timestamp">): DraftC
 	store.changes.push(newChange);
 	writeDraftStore(store);
 	return newChange;
+}
+
+/** 保存草稿（旧 API 兼容，已废弃） */
+export function saveDraftLegacy(pageKey: string, pageName: string, payload: any, description: string): void {
+	saveDraft({
+		pageKey,
+		pageName,
+		description,
+		operation: "update",
+		payload,
+	});
 }
 
 export function removeDraft(id: string): void {

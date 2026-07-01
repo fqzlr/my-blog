@@ -16,6 +16,7 @@
     saveDraft,
     getDraft,
     deleteDraft,
+    registerSubmitHandler,
   } from "@/utils/editMode";
   import { repoConfig } from "@/config/editConfig";
 
@@ -241,7 +242,13 @@
   }
 
   function handleSaveDraft() {
-    saveDraft("routines", "日常规划", { routines }, `共 ${routines.length} 条规划`);
+    saveDraft({
+      pageKey: "routines",
+      pageName: "日常规划",
+      description: `共 ${routines.length} 条规划`,
+      operation: "update",
+      payload: { routines },
+    });
     showToast("日常规划草稿已保存", "success");
   }
   async function handleBatchSubmit() {
@@ -249,8 +256,8 @@
     if (draft?.routines) { routines = draft.routines; await handleSave(); if (!saving) deleteDraft("routines"); }
   }
 
-  async function handleSave() {
-    if (!hasValidToken()) { showToast("GitHub 代理未配置，请联系管理员", "warning"); return; }
+  async function handleSave(): Promise<boolean> {
+    if (!hasValidToken()) { showToast("GitHub 代理未配置，请联系管理员", "warning"); return false; }
     saving = true;
     try {
       let allOk = true;
@@ -286,9 +293,21 @@
         hasChanges = false;
         setTimeout(() => window.location.reload(), 1200);
       } else { showToast("部分操作失败，请检查 GitHub App 权限配置", "error"); }
-    } catch (err) { showToast("保存出错：" + (err as Error).message, "error"); }
-    saving = false;
+      return allOk;
+    } catch (err) { showToast("保存出错：" + (err as Error).message, "error"); return false; }
+    finally { saving = false; }
   }
+
+  // 注册批量提交处理程序
+  registerSubmitHandler("routines", async (draft) => {
+    if (draft.payload?.type === "gist") return false; // routines 不使用 gist
+    if (draft.payload?.routines) {
+      routines = draft.payload.routines;
+      const ok = await handleSave();
+      return ok;
+    }
+    return false;
+  });
 </script>
 
 <EditToast />
