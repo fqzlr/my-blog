@@ -3,6 +3,7 @@
 	import EditToolbar from "./EditToolbar.svelte";
 	import EditToast from "./EditToast.svelte";
 	import {
+		getRepoFile,
 		getRepoFileMeta,
 		updateRepoFile,
 		createRepoFile,
@@ -27,16 +28,8 @@
 	}
 
 	const MOMENTS_FILE = "public/moments.json"; // 仓库中的说说 JSON 文件
-	const GH_OWNER = "fqzlr";
-	const GH_REPO = "my-blog";
 	const DEFAULT_AVATAR = "https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640";
 	const DEFAULT_AUTHOR = "fqzlr";
-
-	/** 根据当前部署分支构造 GitHub raw URL */
-	function getMomentsRawUrl(): string {
-		const branch = (typeof window !== "undefined" && window.__DEPLOY_BRANCH__) || "master";
-		return `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${branch}/${MOMENTS_FILE}`;
-	}
 
 	let editMode = $state(false);
 	let saving = $state(false);
@@ -69,7 +62,7 @@
 		loadMomentsData();
 	});
 
-	// ========== 从 GitHub raw URL 加载说说数据（无需重建即可生效） ==========
+	// ========== 从 GitHub API 加载说说数据（实时，不走CDN缓存） ==========
 	async function loadMomentsData() {
 		// 先恢复本地草稿（如果有）
 		const restored = drafts.restoreFromDrafts();
@@ -77,13 +70,12 @@
 			gistLoaded = true;
 			return;
 		}
-		// 没有草稿，从 GitHub raw URL 加载
-		const url = getMomentsRawUrl();
-		console.log("[MomentsEditor] Fetching from GitHub:", url);
+		// 没有草稿，通过 GitHub Contents API 加载（实时数据）
+		console.log("[MomentsEditor] Fetching from GitHub API:", MOMENTS_FILE);
 		try {
-			const res = await fetch(url + "?t=" + Date.now());
-			if (res.ok) {
-				const data = await res.json();
+			const result = await getRepoFile(MOMENTS_FILE);
+			if (result) {
+				const data = JSON.parse(result.content);
 				if (Array.isArray(data)) {
 					moments = data.map((m: any) => ({
 						id: m.id || genId("wx"),
@@ -97,9 +89,10 @@
 						avatar: m.avatar || DEFAULT_AVATAR,
 					}));
 					originalMoments = deepClone(moments);
+					fileSha = result.sha;
 				}
 			} else {
-				console.warn("[MomentsEditor] GitHub returned", res.status, "— 文件可能还不存在");
+				console.warn("[MomentsEditor] 文件不存在，将创建新文件");
 			}
 		} catch (e) {
 			console.error("[MomentsEditor] Failed to load from GitHub:", e);
@@ -330,12 +323,12 @@
 			}));
 			moments = cleanData;
 
-			// 先从 GitHub 获取远端当前数据，对比差异
+			// 先从 GitHub API 获取远端当前数据，对比差异
 			let remoteData: MomentItem[] = [];
 			try {
-				const res = await fetch(getMomentsRawUrl() + "?t=" + Date.now());
-				if (res.ok) {
-					const parsed = await res.json();
+				const result = await getRepoFile(MOMENTS_FILE);
+				if (result) {
+					const parsed = JSON.parse(result.content);
 					if (Array.isArray(parsed)) remoteData = parsed;
 				}
 			} catch { /* 文件可能不存在，忽略 */ }

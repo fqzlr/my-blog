@@ -76,12 +76,33 @@ import "@/styles/components/moment-card.css";
   // ========== 说说客户端渲染 ==========
   const GH_OWNER = "fqzlr";
   const GH_REPO = "my-blog";
+  const MOMENTS_PATH = "public/moments.json";
   const DEFAULT_AVATAR = "https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640";
   const DEFAULT_AUTHOR = "fqzlr";
 
-  function getMomentsUrl(): string {
+  /**
+   * 通过 /api/github 代理读取 GitHub Contents API（实时，不走CDN缓存）
+   * GitHub Contents API 返回 base64 编码的内容，需要解码
+   */
+  async function fetchMoments(): Promise<any[]> {
     const branch = (typeof window !== 'undefined' && (window as any).__DEPLOY_BRANCH__) || "master";
-    return `https://raw.githubusercontent.com/${GH_OWNER}/${GH_REPO}/${branch}/public/moments.json`;
+    const apiPath = `repos/${GH_OWNER}/${GH_REPO}/contents/${MOMENTS_PATH}?ref=${branch}`;
+
+    const res = await fetch("/api/github", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: apiPath,
+        method: "GET",
+        headers: { Accept: "application/vnd.github+json" },
+      }),
+    });
+
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    // GitHub Contents API 返回 base64 编码的 content
+    const text = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
+    return JSON.parse(text);
   }
 
   function escapeHtml(str: string): string {
@@ -202,12 +223,8 @@ import "@/styles/components/moment-card.css";
     const feed = document.getElementById("moments-feed");
     if (!feed) return;
 
-    console.log("[Moments] Fetching from:", getMomentsUrl());
-    fetch(getMomentsUrl() + "?t=" + Date.now())
-      .then(res => {
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        return res.json();
-      })
+    console.log("[Moments] Fetching via GitHub API proxy");
+    fetchMoments()
       .then(data => {
         if (!Array.isArray(data)) data = [];
 
