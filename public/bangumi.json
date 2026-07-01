@@ -1,34 +1,5 @@
 [
   {
-    "id": "undefined",
-    "title": "霸王别姬",
-    "name_cn": "霸王别姬测试",
-    "category": "real",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/霸王别姬.webp",
-    "tags": [
-      "剧情",
-      "爱情"
-    ],
-    "comment": "测试",
-    "updated_at": "2026-07-01T22:08:26.950Z"
-  },
-  {
-    "id": "undefined",
-    "title": "王者荣耀",
-    "name_cn": "王者荣耀",
-    "category": "game",
-    "status": 3,
-    "score": 0,
-    "image": "https://ph.0824.uk/file/game/王者荣耀.jpg",
-    "tags": [
-      "游戏"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T22:03:45.365Z"
-  },
-  {
     "id": "/bangumi/game/王者荣耀/",
     "title": "王者荣耀3333",
     "name_cn": "王者荣耀",
@@ -43,28 +14,42 @@
     "updated_at": "2026-07-01T21:21:25.779Z"
   },
   {
+    "id": "/bangumi/anime/唐人街探案/",
+    "title": "唐人街探案",
+    "name_cn": "唐人街探案",
+    "category": "real",
+    "status": 2,
+    "score": 0,
+    "image": "https://ph.0824.uk/file/anime/%E5%94%90%E4%BA%BA%E8%A1%97%E6%8E%A2%E6%A1%88.jpg",
+    "tags": [],
+    "comment": "",
+    "updated_at": "2026-07-01T22:13:34.070Z"
+  },
+  {
+    "id": "undefined",
+    "title": "王者荣耀",
+    "name_cn": "王者荣耀",
+    "category": "game",
+    "status": 3,
+    "score": 0,
+    "image": "https://ph.0824.uk/file/game/王者荣耀.jpg",
+    "tags": [
+      "游戏"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T22:11:38.043Z"
+  },
+  {
     "id": "/bangumi/anime/食神/",
     "title": "食神",
     "name_cn": "食神",
-    "category": "anime",
+    "category": "real",
     "status": 2,
     "score": 9,
     "image": "https://ph.0824.uk/file/anime/%E9%A3%9F%E7%A5%9E.jpg",
     "tags": [
       "周星驰"
     ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "/bangumi/anime/唐人街探案/",
-    "title": "唐人街探案",
-    "name_cn": "唐人街探案",
-    "category": "anime",
-    "status": 2,
-    "score": 0,
-    "image": "https://ph.0824.uk/file/anime/%E5%94%90%E4%BA%BA%E8%A1%97%E6%8E%A2%E6%A1%88.jpg",
-    "tags": [],
     "comment": "",
     "updated_at": "2026-07-01T14:31:39.808Z"
   },
@@ -1084,20 +1069,6 @@
   },
   {
     "id": "undefined",
-    "title": "英雄联盟",
-    "name_cn": "英雄联盟",
-    "category": "game",
-    "status": 5,
-    "score": 9.5,
-    "image": "https://re.tsh520.cn/Ccover/13419419933304609.webp",
-    "tags": [
-      "游戏"
-    ],
-    "comment": "",
-    "updated_at": "2026-03-31T00:00:00.000Z"
-  },
-  {
-    "id": "undefined",
     "title": "盗梦空间",
     "name_cn": "盗梦空间",
     "category": "anime",
@@ -1270,6 +1241,21 @@
     ],
     "comment": "",
     "updated_at": "2025-04-09T00:00:00.000Z"
+  },
+  {
+    "id": "undefined",
+    "title": "飞越疯人院",
+    "name_cn": "飞越疯人院",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/飞跃疯人院.webp",
+    "tags": [
+      "剧情",
+      "经典"
+    ],
+    "comment": "",
+    "updated_at": "2025-01-09T00:00:00.000Z"
   },
   {
     "id": "undefined",
