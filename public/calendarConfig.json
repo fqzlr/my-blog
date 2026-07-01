@@ -1,0 +1,83 @@
+{
+  "title": "",
+  "description": "",
+  "showComment": false,
+  "holidayApi": {
+    "enable": true,
+    "url": "https://timor.tech/api/holiday/year/",
+    "fallbackOnError": true,
+    "years": [2026, 2027]
+  },
+  "builtinHolidays": [
+    {
+      "name": "春节",
+      "date": { "type": "lunar", "month": 1, "day": 1 },
+      "icon": "material-symbols:festival"
+    },
+    {
+      "name": "元宵节",
+      "date": { "type": "lunar", "month": 1, "day": 15 },
+      "icon": "material-symbols:lightbulb"
+    },
+    {
+      "name": "端午节",
+      "date": { "type": "lunar", "month": 5, "day": 5 },
+      "icon": "material-symbols:rowing"
+    },
+    {
+      "name": "七夕",
+      "date": { "type": "lunar", "month": 7, "day": 7 },
+      "icon": "material-symbols:favorite"
+    },
+    {
+      "name": "中秋节",
+      "date": { "type": "lunar", "month": 8, "day": 15 },
+      "icon": "material-symbols:nightlight"
+    },
+    {
+      "name": "重阳节",
+      "date": { "type": "lunar", "month": 9, "day": 9 },
+      "icon": "material-symbols:hiking"
+    },
+    {
+      "name": "腊八节",
+      "date": { "type": "lunar", "month": 12, "day": 8 },
+      "icon": "material-symbols:soup-kitchen"
+    }
+  ],
+  "birthdays": [
+    {
+      "name": "我的生日",
+      "date": { "type": "solar", "month": 12, "day": 1 },
+      "icon": "material-symbols:cake",
+      "note": "又长大一岁"
+    },
+    {
+      "name": "建站日",
+      "date": { "type": "solar", "month": 4, "day": 12 },
+      "icon": "material-symbols:rocket-launch",
+      "note": "MmzMing的博客上线纪念日"
+    }
+  ],
+  "schedules": [
+    { "title": "python 学习", "date": "2026-05-20", "note": "开始学习Python" },
+    { "title": "python 学习", "date": "2026-05-22", "note": "Python数据类型" },
+    { "title": "python 学习", "date": "2026-05-23", "note": "Python流程控制" },
+    { "title": "python 学习", "date": "2026-05-24", "note": "Python函数" },
+    { "title": "python 学习", "date": "2026-05-25", "note": "Python模块" },
+    { "title": "python 学习", "date": "2026-05-26", "note": "Python文件操作" },
+    { "title": "python 学习", "date": "2026-05-27", "note": "Python面向对象" },
+    { "title": "python 学习", "date": "2026-05-28", "note": "Python异常处理" },
+    { "title": "python 学习", "date": "2026-05-29", "note": "Python项目实战" },
+    { "title": "python 学习", "date": "2026-05-30", "note": "Python总结复习" }
+  ],
+  "show": {
+    "posts": true,
+    "lunarDate": true,
+    "weekNumber": false
+  },
+  "overview": {
+    "futureDays": 30,
+    "maxItems": 6
+  }
+}

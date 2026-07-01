@@ -1,50 +1,7 @@
 ---
-import { getCollection } from "astro:content";
 import { Icon } from "astro-icon/components";
 import PlacesEditor from "@/components/edit/PlacesEditor.svelte";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
-
-const lifeEntries = await getCollection("life");
-
-const isIn = (entryId: string, folder: string) =>
-	entryId.replace(/\\/g, "/").startsWith(`${folder}/`);
-
-const now = new Date();
-const currentYear = now.getFullYear();
-
-const isSameYear = (date?: Date | string) => {
-	if (!date) return false;
-	const d = date instanceof Date ? date : new Date(String(date));
-	if (Number.isNaN(d.getTime())) return false;
-	return d.getFullYear() === currentYear;
-};
-
-const sum = (arr: number[]) => arr.reduce((acc, num) => acc + num, 0);
-
-const visitedPlaces = lifeEntries
-	.filter((entry) => isIn(entry.id, "places"))
-	.filter((entry) => !entry.id.toLowerCase().includes("readme"))
-	.map((entry) => entry.data);
-
-const sortedPlaces = [...visitedPlaces].sort((a, b) => {
-	const aTime = a.date instanceof Date ? a.date.getTime() : 0;
-	const bTime = b.date instanceof Date ? b.date.getTime() : 0;
-	return bTime - aTime;
-});
-
-const totalVisitCount = sum(sortedPlaces.map((p) => p.visitCount || 1));
-const thisYearVisitCount = sortedPlaces.filter((p) =>
-	isSameYear(p.date),
-).length;
-
-const clientSortedPlaces = sortedPlaces.map((p) => ({
-	province: p.province,
-	city: p.city || "",
-	district: p.district || "",
-	experience: p.experience || "",
-	visitCount: p.visitCount || 1,
-	date: p.date instanceof Date ? p.date.toISOString().split("T")[0] : "",
-}));
 ---
 
 <MainGridLayout title='去过的地方' description='足迹地图与旅行记录'>
@@ -68,20 +25,20 @@ const clientSortedPlaces = sortedPlaces.map((p) => ({
       </div>
 
       <!-- 统计 -->
-      <div class="flex flex-wrap gap-3 mb-6">
+      <div class="flex flex-wrap gap-3 mb-6" id="places-stats">
         <div class="stat-pill">
           <Icon name="material-symbols:location-city" class="text-sm" />
-          <span class="font-semibold">{sortedPlaces.length}</span>
+          <span class="font-semibold">-</span>
           <span class="text-neutral-500 dark:text-neutral-400">地点</span>
         </div>
         <div class="stat-pill">
           <Icon name="material-symbols:pin-drop" class="text-sm" />
-          <span class="font-semibold">{totalVisitCount}</span>
+          <span class="font-semibold">-</span>
           <span class="text-neutral-500 dark:text-neutral-400">到访次数</span>
         </div>
         <div class="stat-pill">
           <Icon name="material-symbols:calendar-today" class="text-sm" />
-          <span class="font-semibold">{thisYearVisitCount}</span>
+          <span class="font-semibold">-</span>
           <span class="text-neutral-500 dark:text-neutral-400">今年出行</span>
         </div>
       </div>
@@ -96,39 +53,134 @@ const clientSortedPlaces = sortedPlaces.map((p) => ({
       <!-- 地点列表 -->
       <div>
         <h2 class="text-lg font-bold text-neutral-900 dark:text-neutral-100 mb-3">地点列表</h2>
-        {sortedPlaces.length === 0 ? (
+        <div id="places-list">
           <div class='w-full p-12 text-center'>
-            <Icon name="material-symbols:explore" class="text-5xl text-neutral-300 dark:text-neutral-600 mb-4" />
-            <p class='text-neutral-500 dark:text-neutral-400'>暂无地点记录</p>
-            <p class='text-sm text-neutral-400 dark:text-neutral-500 mt-2'>在 life/places/ 下新建 md 即可添加</p>
+            <p class='text-neutral-500 dark:text-neutral-400'>加载中...</p>
           </div>
-        ) : (
-          <div class='places-grid'>
-            {sortedPlaces.map((place) => (
-              <article class='place-card'>
-                <div class='flex items-start justify-between gap-4'>
-                  <div class='flex-1 min-w-0'>
-                    <h3 class='place-name'>{place.province || '未知省份'}{place.city ? ` · ${place.city}` : ''}</h3>
-                    {place.experience && (
-                      <p class='place-exp'>{place.experience}</p>
-                    )}
-                  </div>
-                  <div class='text-right text-xs text-neutral-400 dark:text-neutral-500 shrink-0'>
-                    <div class='font-semibold text-neutral-600 dark:text-neutral-300'>到访 {place.visitCount || 1} 次</div>
-                    <div class='mt-0.5'>{place.date instanceof Date ? place.date.toISOString().split('T')[0] : (typeof place.date === 'string' ? place.date : '')}</div>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
+        </div>
       </div>
 
     </div>
   </div>
 </MainGridLayout>
 
-<script is:inline define:vars={{ clientSortedPlaces }}>
+<script>
+  const GH_OWNER = "fqzlr";
+  const GH_REPO = "my-blog";
+  const PLACES_PATH = "public/places.json";
+
+  async function fetchJson(path: string): Promise<any> {
+    if (path.startsWith("public/")) {
+      try {
+        const res = await fetch("/" + path.slice(7));
+        if (res.ok) return await res.json();
+      } catch {}
+    }
+    const branch = (typeof window !== 'undefined' && (window as any).__DEPLOY_BRANCH__) || "master";
+    const apiPath = `repos/${GH_OWNER}/${GH_REPO}/contents/${path}?ref=${branch}`;
+    const res = await fetch("/api/github", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: apiPath, method: "GET", headers: { Accept: "application/vnd.github+json" } }),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const text = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
+    return JSON.parse(text);
+  }
+
+  function esc(s: string) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+  function renderPlaces(places: any[]) {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+
+    // Sort by date desc
+    const sorted = [...places].sort((a, b) => {
+      const aTime = a.date ? new Date(a.date).getTime() : 0;
+      const bTime = b.date ? new Date(b.date).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    const totalVisitCount = sorted.reduce((acc, p) => acc + (p.visitCount || 1), 0);
+    const thisYearVisitCount = sorted.filter(p => {
+      if (!p.date) return false;
+      const d = new Date(p.date);
+      return !isNaN(d.getTime()) && d.getFullYear() === currentYear;
+    }).length;
+
+    // Stats
+    const statsEl = document.getElementById("places-stats");
+    if (statsEl) {
+      statsEl.innerHTML = `
+        <div class="stat-pill"><span class="iconify text-sm" data-icon="material-symbols:location-city"></span><span class="font-semibold">${sorted.length}</span><span class="text-neutral-500 dark:text-neutral-400">地点</span></div>
+        <div class="stat-pill"><span class="iconify text-sm" data-icon="material-symbols:pin-drop"></span><span class="font-semibold">${totalVisitCount}</span><span class="text-neutral-500 dark:text-neutral-400">到访次数</span></div>
+        <div class="stat-pill"><span class="iconify text-sm" data-icon="material-symbols:calendar-today"></span><span class="font-semibold">${thisYearVisitCount}</span><span class="text-neutral-500 dark:text-neutral-400">今年出行</span></div>`;
+    }
+
+    // List
+    const listEl = document.getElementById("places-list");
+    if (listEl) {
+      if (sorted.length === 0) {
+        listEl.innerHTML = `<div class='w-full p-12 text-center'>
+          <span class="iconify text-5xl text-neutral-300 dark:text-neutral-600 mb-4" data-icon="material-symbols:explore"></span>
+          <p class='text-neutral-500 dark:text-neutral-400'>暂无地点记录</p>
+        </div>`;
+      } else {
+        const cardsHtml = sorted.map(p => {
+          const province = esc(p.province || '未知省份');
+          const city = p.city ? ` · ${esc(p.city)}` : '';
+          const exp = p.experience ? `<p class='place-exp'>${esc(p.experience)}</p>` : '';
+          const visitCount = p.visitCount || 1;
+          const dateStr = p.date || '';
+          return `<article class='place-card'>
+            <div class='flex items-start justify-between gap-4'>
+              <div class='flex-1 min-w-0'>
+                <h3 class='place-name'>${province}${city}</h3>
+                ${exp}
+              </div>
+              <div class='text-right text-xs text-neutral-400 dark:text-neutral-500 shrink-0'>
+                <div class='font-semibold text-neutral-600 dark:text-neutral-300'>到访 ${visitCount} 次</div>
+                <div class='mt-0.5'>${esc(dateStr)}</div>
+              </div>
+            </div>
+          </article>`;
+        }).join('');
+        listEl.innerHTML = `<div class='places-grid'>${cardsHtml}</div>`;
+      }
+    }
+
+    // Set data for ECharts
+    const clientData = sorted.map(p => ({
+      province: p.province,
+      city: p.city || "",
+      district: p.district || "",
+      experience: p.experience || "",
+      visitCount: p.visitCount || 1,
+      date: p.date || "",
+    }));
+    (window as any).__placesData = clientData;
+    window.dispatchEvent(new Event('placesDataReady'));
+
+    // Scan icons
+    if ((window as any).Iconify && (window as any).Iconify.scan) {
+      ["places-stats", "places-list"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) (window as any).Iconify.scan(el);
+      });
+    }
+  }
+
+  fetchJson(PLACES_PATH).then(data => {
+    renderPlaces(data);
+  }).catch(err => {
+    console.error("[Places] Failed to load:", err);
+    const listEl = document.getElementById("places-list");
+    if (listEl) listEl.innerHTML = '<p style="text-align:center;color:var(--content-meta);">加载失败，请刷新重试</p>';
+  });
+</script>
+
+<script is:inline>
 (function() {
   var container = document.getElementById('life-map');
   if (!container) return;
@@ -173,6 +225,8 @@ const clientSortedPlaces = sortedPlaces.map((p) => ({
 
       echartsLib.registerMap('china', chinaMapData);
       chartInstance = echartsLib.init(currentContainer);
+
+      var clientSortedPlaces = window.__placesData || [];
 
       var provinceVisitCount = {};
       var maxVisits = 1;
@@ -264,6 +318,22 @@ const clientSortedPlaces = sortedPlaces.map((p) => ({
     });
   }
 
+  function tryInitMap() {
+    if (window.__placesData) {
+      initMap();
+    } else {
+      // Poll for data from bundled script
+      var pollCount = 0;
+      var pollInterval = setInterval(function() {
+        pollCount++;
+        if (window.__placesData || pollCount > 50) {
+          clearInterval(pollInterval);
+          initMap();
+        }
+      }, 200);
+    }
+  }
+
   function whenReady(fn) {
     if (document.readyState === 'complete') {
       requestAnimationFrame(fn);
@@ -272,7 +342,7 @@ const clientSortedPlaces = sortedPlaces.map((p) => ({
     }
   }
 
-  whenReady(initMap);
+  whenReady(tryInitMap);
 
   window.addEventListener('resize', function() {
     if (chartInstance) chartInstance.resize();
@@ -283,7 +353,7 @@ const clientSortedPlaces = sortedPlaces.map((p) => ({
     mutations.forEach(function(m) {
       if (m.attributeName === 'class') {
         if (chartInstance) { chartInstance.dispose(); chartInstance = null; }
-        initMap();
+        tryInitMap();
       }
     });
   });
@@ -292,13 +362,13 @@ const clientSortedPlaces = sortedPlaces.map((p) => ({
   // Re-init on SPA navigation
   document.addEventListener('astro:after-swap', function() {
     if (document.getElementById('life-map') && !chartInstance) {
-      whenReady(initMap);
+      whenReady(tryInitMap);
     }
   });
   document.addEventListener('swup:contentReplaced', function() {
     if (document.getElementById('life-map')) {
       if (chartInstance) { chartInstance.dispose(); chartInstance = null; }
-      whenReady(initMap);
+      whenReady(tryInitMap);
     }
   });
 })();

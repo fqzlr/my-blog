@@ -1,5 +1,4 @@
 ---
-import { getCollection, render } from "astro:content";
 import { Icon } from "astro-icon/components";
 import ChangelogEditor from "@/components/edit/ChangelogEditor.svelte";
 import { siteConfig } from "@/config";
@@ -10,45 +9,6 @@ import MainGridLayout from "@/layouts/MainGridLayout.astro";
 if (!siteConfig.pages.changelog) {
 	return Astro.redirect("/404/");
 }
-
-const entries = await getCollection("changelog");
-
-const sorted = entries.sort(
-	(a, b) => b.data.date.getTime() - a.data.date.getTime(),
-);
-
-const entriesWithContent = await Promise.all(
-	sorted.map(async (entry) => {
-		const { Content } = await render(entry);
-		return {
-			...entry,
-			Content,
-		};
-	}),
-);
-
-const typeConfig = {
-	feature: {
-		label: i18n(I18nKey.changelogFeature),
-		icon: "material-symbols:rocket-launch",
-		cls: "cl-feature",
-	},
-	improvement: {
-		label: i18n(I18nKey.changelogImprovement),
-		icon: "material-symbols:build",
-		cls: "cl-improvement",
-	},
-	fix: {
-		label: i18n(I18nKey.changelogFix),
-		icon: "material-symbols:bug-report",
-		cls: "cl-fix",
-	},
-	removal: {
-		label: i18n(I18nKey.changelogRemoval),
-		icon: "material-symbols:delete",
-		cls: "cl-removal",
-	},
-};
 
 const displayTitle = i18n(I18nKey.changelogTitle);
 const displaySubtitle = i18n(I18nKey.changelogSubtitle);
@@ -74,145 +34,226 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
         <ChangelogEditor client:only />
       </div>
 
-      <!-- 分类筛选胶囊 -->
+      <!-- 分类筛选胶囊（JS 动态渲染） -->
       <div class="cl-filter-bar" id="cl-filter-bar">
         <div class="tools-tab-pill" data-cl-tab-nav>
           <div class="tools-tab-indicator" data-cl-tab-indicator></div>
           <button data-cl-tab="all" class="tools-tab-btn tools-tab-btn-active">
             全部
-            <span class="tools-tab-badge">{entriesWithContent.length}</span>
+            <span class="tools-tab-badge" id="cl-count-all">-</span>
           </button>
-          {Object.entries(typeConfig).map(([key, cfg]) => (
-            <button data-cl-tab={key} class="tools-tab-btn tools-tab-btn-inactive">
-              <Icon name={cfg.icon} class="text-sm" />
-              <span>{cfg.label}</span>
-            </button>
-          ))}
+          <button data-cl-tab="feature" class="tools-tab-btn tools-tab-btn-inactive">
+            <iconify-icon icon="material-symbols:rocket-launch" class="text-sm"></iconify-icon>
+            <span>功能</span>
+          </button>
+          <button data-cl-tab="improvement" class="tools-tab-btn tools-tab-btn-inactive">
+            <iconify-icon icon="material-symbols:build" class="text-sm"></iconify-icon>
+            <span>改进</span>
+          </button>
+          <button data-cl-tab="fix" class="tools-tab-btn tools-tab-btn-inactive">
+            <iconify-icon icon="material-symbols:bug-report" class="text-sm"></iconify-icon>
+            <span>修复</span>
+          </button>
+          <button data-cl-tab="removal" class="tools-tab-btn tools-tab-btn-inactive">
+            <iconify-icon icon="material-symbols:delete" class="text-sm"></iconify-icon>
+            <span>移除</span>
+          </button>
         </div>
       </div>
 
-      <!-- 时间线 -->
+      <!-- 时间线（JS 动态渲染） -->
       <div class="cl-timeline" id="cl-timeline">
-        {entriesWithContent.length > 0 ? (
-          entriesWithContent.map((entry) => {
-            const t = typeConfig[entry.data.type];
-            const dateStr = entry.data.date.toISOString().slice(0, 10);
-            return (
-              <article
-                class={`cl-entry ${t.cls}`}
-                data-type={entry.data.type}
-                data-slug={entry.id}
-                data-filename={entry.id}
-              >
-                <div class="cl-entry-dot"></div>
-                <div class="cl-entry-body">
-                  <div class="cl-entry-meta">
-                    <time datetime={entry.data.date.toISOString()}>{dateStr}{entry.data.time ? " · " + entry.data.time : ""}</time>
-                    <span class="cl-entry-version">{entry.data.version}</span>
-                  </div>
-                  <div class="cl-entry-card">
-                    <p class="cl-entry-text">{entry.data.description}</p>
-                    <div class="cl-entry-content">
-                      <entry.Content />
-                    </div>
-                  </div>
-                </div>
-              </article>
-            );
-          })
-        ) : (
-          <div class="text-center py-16">
-            <Icon name="material-symbols:history" class="text-5xl text-neutral-300 dark:text-neutral-600 mb-4" />
-            <p class="text-neutral-500 dark:text-neutral-400">{i18n(I18nKey.changelogNoData)}</p>
-          </div>
-        )}
+        <div class="cl-loading" id="cl-loading">
+          <span>加载中...</span>
+        </div>
       </div>
 
     </div>
   </div>
-
-  <script is:inline>
-    (function() {
-      function initChangelogTabs() {
-        var tabNav = document.querySelector('[data-cl-tab-nav]');
-        var tabButtons = document.querySelectorAll('[data-cl-tab]');
-        var indicator = document.querySelector('[data-cl-tab-indicator]');
-        if (!tabNav || !tabButtons.length || !indicator) return;
-
-        var newNav = tabNav.cloneNode(true);
-        if (tabNav.parentNode) tabNav.parentNode.replaceChild(newNav, tabNav);
-        tabNav = newNav;
-        tabButtons = tabNav.querySelectorAll('[data-cl-tab]');
-        indicator = tabNav.querySelector('[data-cl-tab-indicator]');
-
-        function updateIndicator(targetBtn) {
-          if (!indicator || !targetBtn) return;
-          indicator.style.left = targetBtn.offsetLeft + 'px';
-          indicator.style.top = targetBtn.offsetTop + 'px';
-          indicator.style.width = targetBtn.offsetWidth + 'px';
-          indicator.style.height = targetBtn.offsetHeight + 'px';
-          indicator.style.opacity = '1';
-        }
-
-        function activateTab(targetTab) {
-          if (!targetTab) return;
-          var targetButton = Array.from(tabButtons).find(function(btn) {
-            return btn.dataset.clTab === targetTab;
-          });
-          if (!targetButton) return;
-
-          tabButtons.forEach(function(btn) {
-            btn.classList.remove('tools-tab-btn-active');
-            btn.classList.add('tools-tab-btn-inactive');
-            btn.disabled = false;
-          });
-          targetButton.classList.remove('tools-tab-btn-inactive');
-          targetButton.classList.add('tools-tab-btn-active');
-          targetButton.disabled = true;
-
-          requestAnimationFrame(function() { updateIndicator(targetButton); });
-
-          var entries = document.querySelectorAll('.cl-entry');
-          entries.forEach(function(entry) {
-            if (targetTab === 'all' || entry.getAttribute('data-type') === targetTab) {
-              entry.classList.remove('hidden');
-            } else {
-              entry.classList.add('hidden');
-            }
-          });
-        }
-
-        tabButtons.forEach(function(button) {
-          button.addEventListener('click', function() {
-            var targetTab = button.dataset.clTab;
-            if (targetTab) activateTab(targetTab);
-          });
-        });
-
-        var activeBtn = tabNav.querySelector('.tools-tab-btn-active');
-        if (activeBtn) {
-          requestAnimationFrame(function() { updateIndicator(activeBtn); });
-        }
-
-        window.addEventListener('resize', function() {
-          var act = tabNav.querySelector('.tools-tab-btn-active');
-          if (act) updateIndicator(act);
-        });
-      }
-
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initChangelogTabs);
-      } else {
-        initChangelogTabs();
-      }
-
-      document.addEventListener('astro:page-load', initChangelogTabs);
-      document.addEventListener('swup:contentReplaced', initChangelogTabs);
-    })();
-  </script>
 </MainGridLayout>
 
+<script>
+  // ========== 更新日志客户端渲染 ==========
+  const GH_OWNER = "fqzlr";
+  const GH_REPO = "my-blog";
+  const CHANGELOG_PATH = "public/changelog.json";
+
+  const typeConfig: Record<string, { label: string; icon: string; cls: string }> = {
+    feature: { label: "功能", icon: "material-symbols:rocket-launch", cls: "cl-feature" },
+    improvement: { label: "改进", icon: "material-symbols:build", cls: "cl-improvement" },
+    fix: { label: "修复", icon: "material-symbols:bug-report", cls: "cl-fix" },
+    removal: { label: "移除", icon: "material-symbols:delete", cls: "cl-removal" },
+  };
+
+  async function fetchJson(path: string): Promise<any> {
+    if (path.startsWith("public/")) {
+      try {
+        const res = await fetch("/" + path.slice(7));
+        if (res.ok) return await res.json();
+      } catch {}
+    }
+    const branch = (typeof window !== 'undefined' && (window as any).__DEPLOY_BRANCH__) || "master";
+    const apiPath = `repos/${GH_OWNER}/${GH_REPO}/contents/${path}?ref=${branch}`;
+    const res = await fetch("/api/github", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        path: apiPath,
+        method: "GET",
+        headers: { Accept: "application/vnd.github+json" },
+      }),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const text = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
+    return JSON.parse(text);
+  }
+
+  function escapeHtml(str: string): string {
+    if (!str) return "";
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function renderTimeline(entries: any[]) {
+    const timeline = document.getElementById("cl-timeline");
+    const loading = document.getElementById("cl-loading");
+    if (!timeline) return;
+
+    if (loading) loading.style.display = "none";
+
+    if (entries.length === 0) {
+      timeline.innerHTML = '<div class="cl-empty"><iconify-icon icon="material-symbols:history" class="cl-empty-icon"></iconify-icon><p>暂无更新日志</p></div>';
+      return;
+    }
+
+    let html = "";
+    for (const entry of entries) {
+      const t = typeConfig[entry.type] || typeConfig.improvement;
+      const dateStr = entry.date ? entry.date.slice(0, 10) : "";
+      const timeStr = entry.time ? " · " + escapeHtml(entry.time) : "";
+      const contentHtml = entry.contentHtml || "";
+
+      html += `<article class="cl-entry ${t.cls}" data-type="${escapeHtml(entry.type)}" data-slug="${escapeHtml(entry.id)}">`
+        + '<div class="cl-entry-dot"></div>'
+        + '<div class="cl-entry-body">'
+        + '<div class="cl-entry-meta">'
+        + `<time datetime="${escapeHtml(entry.date)}">${escapeHtml(dateStr)}${timeStr}</time>`
+        + `<span class="cl-entry-version">${escapeHtml(entry.version)}</span>`
+        + '</div>'
+        + '<div class="cl-entry-card">'
+        + `<p class="cl-entry-text">${escapeHtml(entry.description)}</p>`
+        + `<div class="cl-entry-content">${contentHtml}</div>`
+        + '</div></div></article>';
+    }
+    timeline.insertAdjacentHTML("beforeend", html);
+  }
+
+  function updateCounts(entries: any[]) {
+    const countEl = document.getElementById("cl-count-all");
+    if (countEl) countEl.textContent = String(entries.length);
+  }
+
+  function initTabs() {
+    const tabNav = document.querySelector('[data-cl-tab-nav]') as HTMLElement;
+    if (!tabNav) return;
+    const tabButtons = tabNav.querySelectorAll('[data-cl-tab]') as NodeListOf<HTMLElement>;
+    const indicator = tabNav.querySelector('[data-cl-tab-indicator]') as HTMLElement;
+    if (!tabButtons.length || !indicator) return;
+
+    function updateIndicator(targetBtn: HTMLElement) {
+      indicator.style.left = targetBtn.offsetLeft + 'px';
+      indicator.style.top = targetBtn.offsetTop + 'px';
+      indicator.style.width = targetBtn.offsetWidth + 'px';
+      indicator.style.height = targetBtn.offsetHeight + 'px';
+      indicator.style.opacity = '1';
+    }
+
+    function activateTab(targetTab: string) {
+      tabButtons.forEach((btn) => {
+        btn.classList.remove('tools-tab-btn-active');
+        btn.classList.add('tools-tab-btn-inactive');
+        (btn as HTMLButtonElement).disabled = false;
+      });
+      const targetBtn = Array.from(tabButtons).find(btn => btn.dataset.clTab === targetTab);
+      if (!targetBtn) return;
+      targetBtn.classList.remove('tools-tab-btn-inactive');
+      targetBtn.classList.add('tools-tab-btn-active');
+      (targetBtn as HTMLButtonElement).disabled = true;
+      requestAnimationFrame(() => updateIndicator(targetBtn));
+
+      document.querySelectorAll('.cl-entry').forEach((entry) => {
+        if (targetTab === 'all' || entry.getAttribute('data-type') === targetTab) {
+          entry.classList.remove('hidden');
+        } else {
+          entry.classList.add('hidden');
+        }
+      });
+    }
+
+    tabButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const tab = button.dataset.clTab;
+        if (tab) activateTab(tab);
+      });
+    });
+
+    const activeBtn = tabNav.querySelector('.tools-tab-btn-active') as HTMLElement;
+    if (activeBtn) requestAnimationFrame(() => updateIndicator(activeBtn));
+
+    window.addEventListener('resize', () => {
+      const act = tabNav.querySelector('.tools-tab-btn-active') as HTMLElement;
+      if (act) updateIndicator(act);
+    });
+  }
+
+  // 主流程
+  fetchJson(CHANGELOG_PATH)
+    .then((entries: any[]) => {
+      if (!Array.isArray(entries)) entries = [];
+      entries.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      renderTimeline(entries);
+      updateCounts(entries);
+      initTabs();
+      // Iconify scan
+      if ((window as any).Iconify && (window as any).Iconify.scan) {
+        const timeline = document.getElementById("cl-timeline");
+        if (timeline) (window as any).Iconify.scan(timeline);
+      }
+    })
+    .catch((err: any) => {
+      console.error("[Changelog] Failed to load:", err);
+      const timeline = document.getElementById("cl-timeline");
+      if (timeline) {
+        timeline.innerHTML = '<div class="cl-empty"><iconify-icon icon="material-symbols:error-outline" class="cl-empty-icon"></iconify-icon><p>加载失败，请刷新重试</p></div>';
+      }
+    });
+</script>
+
 <style>
+  .cl-loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--content-meta);
+    font-size: 0.875rem;
+  }
+
+  .cl-empty {
+    text-align: center;
+    padding: 4rem 1rem;
+  }
+
+  .cl-empty-icon {
+    font-size: 3rem;
+    color: oklch(0.7 0 0);
+    margin-bottom: 1rem;
+    display: block;
+  }
+
+  .cl-empty p {
+    color: var(--content-meta);
+    font-size: 0.875rem;
+  }
+
   .cl-filter-bar {
     margin-bottom: 1.5rem;
   }

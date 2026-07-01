@@ -1,160 +1,22 @@
 ---
-import { getCollection } from "astro:content";
 import { Icon } from "astro-icon/components";
-import BangumiSection from "@/components/pages/bangumi/BangumiSection.astro";
-import TabNav from "@/components/pages/bangumi/TabNav.astro";
 import BangumiEditor from "@/components/edit/BangumiEditor.svelte";
 import { siteConfig } from "@/config";
-import { externalBangumiConfig } from "@/config/externalBangumiConfig";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
-import type { UserSubjectCollection } from "@/types/bangumi";
-import { formatDateI18nWithTime } from "@/utils/date-utils";
-import { removeFileExtension } from "@/utils/url-utils";
 
 if (!siteConfig.pages.bangumi) {
 	return Astro.redirect("/404/");
 }
 
-const buildTime = formatDateI18nWithTime(new Date());
-
-const categoryMap = {
-	book: { id: "book", name: i18n(I18nKey.bangumiCategoryBook), subjectType: 1 },
-	anime: {
-		id: "anime",
-		name: i18n(I18nKey.bangumiCategoryAnime),
-		subjectType: 2,
-	},
-	music: {
-		id: "music",
-		name: i18n(I18nKey.bangumiCategoryMusic),
-		subjectType: 3,
-	},
-	game: { id: "game", name: i18n(I18nKey.bangumiCategoryGame), subjectType: 4 },
-	real: { id: "real", name: i18n(I18nKey.bangumiCategoryReal), subjectType: 6 },
-};
-
-const customBangumi = await getCollection("bangumi");
-const allPosts = await getCollection("posts");
-
-const mappedData: UserSubjectCollection[] = customBangumi.map((item) => {
-	const { data } = item;
-	const categoryInfo = categoryMap[data.category];
-
-	let rawLink = (data.link || "").trim().replace(/\\/g, "/");
-
-	if (!rawLink) {
-		const entrySlug = removeFileExtension(item.id);
-		rawLink = `/bangumi/${entrySlug}/`;
-	}
-
-	let finalLink = rawLink;
-
-	const normalize = (s: string) =>
-		s.toLowerCase().replace(/\\/g, "/").replace(/\/$/, "");
-
-	const matchingPost = allPosts.find((p) => {
-		const normalizedId = p.id.replace(/\\/g, "/");
-		const slug = normalizedId.replace(/\.(md|mdx|markdown)$/i, "");
-		const postUrl = `/posts/${slug}/`;
-
-		const nRaw = normalize(rawLink);
-		const nSlug = normalize(slug);
-		const nUrl = normalize(postUrl);
-		const nId = normalize(normalizedId);
-
-		return (
-			nRaw === nUrl ||
-			nRaw === nSlug ||
-			nRaw === nId ||
-			nRaw.endsWith(nSlug) ||
-			nRaw.endsWith(nId) ||
-			p.data.title === data.title
-		);
-	});
-
-	if (matchingPost) {
-		const normalizedId = matchingPost.id.replace(/\\/g, "/");
-		const slug = normalizedId.replace(/\.(md|mdx|markdown)$/i, "");
-		finalLink = `/posts/${slug}/`;
-	}
-
-	if (!finalLink.startsWith("http") && !finalLink.startsWith("/")) {
-		finalLink = "/" + finalLink;
-	}
-
-	return {
-		subject_id: 0,
-		subject_type: categoryInfo.subjectType,
-		rate: data.score || 0,
-		type: data.status as any,
-		comment: data.comment || null,
-		tags: data.tags || [],
-		ep_status: 0,
-		vol_status: 0,
-		updated_at: data.published?.toISOString() || new Date().toISOString(),
-		private: false,
-		link: finalLink,
-		subject: {
-			id: 0,
-			type: categoryInfo.subjectType,
-			name: data.title,
-			name_cn: data.name_cn || data.title,
-			short_summary: "",
-			images: {
-				medium: typeof data.image === "string" ? data.image : data.image.src,
-				large: typeof data.image === "string" ? data.image : data.image.src,
-				common: typeof data.image === "string" ? data.image : data.image.src,
-				small: typeof data.image === "string" ? data.image : data.image.src,
-				grid: typeof data.image === "string" ? data.image : data.image.src,
-			},
-			volumes: 0,
-			eps: 0,
-			collection_total: 0,
-			score: data.score || 0,
-			rank: 0,
-			tags: (data.tags || []).map((t) => ({
-				name: t,
-				count: 0,
-				total_cont: 0,
-			})),
-		},
-	};
-});
-
-// 按时间倒序排列，最新添加的排在前面
-mappedData.sort((a, b) => {
-	const dateA = new Date(a.updated_at).getTime();
-	const dateB = new Date(b.updated_at).getTime();
-	return dateB - dateA;
-});
-
-const bangumiData: Record<string, UserSubjectCollection[]> = {};
-const tabs: Array<{ id: string; name: string; count: number }> = [];
-
-const displayCategories = ["anime", "book", "game", "music"];
-
-for (const key of displayCategories) {
-	if (categoryMap[key as keyof typeof categoryMap]) {
-		const info = categoryMap[key as keyof typeof categoryMap];
-		const items = mappedData.filter((d) => d.subject_type === info.subjectType);
-		bangumiData[key] = items;
-		tabs.push({
-			id: key,
-			name: info.name,
-			count: items.length,
-		});
-	}
-}
-
-const activeTab = tabs[0]?.id || "anime";
+const title = i18n(I18nKey.bangumi);
+const description = i18n(I18nKey.bangumiSubtitle);
 ---
 
-<MainGridLayout title={i18n(I18nKey.bangumi)} description={i18n(I18nKey.bangumiSubtitle)}>
+<MainGridLayout title={title} description={description}>
 	<div class="bangumi-page-wrapper flex w-full overflow-hidden relative min-h-32">
 		<div class="card-base z-10 px-6 pt-8 pb-8 relative w-full">
-			<!-- Page header -->
 			<header class="bangumi-header relative w-full mb-8 flex justify-between items-start gap-4 flex-wrap">
 				<div class="flex-1 min-w-0">
 					<div class="flex items-center gap-3 mb-4">
@@ -162,129 +24,410 @@ const activeTab = tabs[0]?.id || "anime";
 							<Icon name="material-symbols:collections-bookmark-outline-rounded" class="text-[1.4rem] text-[var(--primary)]"></Icon>
 						</div>
 						<div>
-							<h1 class="text-2xl font-bold text-[var(--deep-text)] dark:text-[var(--title-active)] tracking-tight">
-								{i18n(I18nKey.bangumi)}
-							</h1>
+							<h1 class="text-2xl font-bold text-[var(--deep-text)] dark:text-[var(--title-active)] tracking-tight">{title}</h1>
 						</div>
 					</div>
-					<p class="text-sm text-[var(--content-meta)] leading-relaxed pl-[3.5rem]">
-						{i18n(I18nKey.bangumiSubtitle)}
-					</p>
-					<p class="text-xs text-[var(--content-meta)] opacity-60 mt-1.5 pl-[3.5rem]">
-						{i18n(I18nKey.bangumiLastUpdated)} {buildTime}
-					</p>
+					<p class="text-sm text-[var(--content-meta)] leading-relaxed pl-[3.5rem]">{description}</p>
+					<p class="text-xs text-[var(--content-meta)] opacity-60 mt-1.5 pl-[3.5rem]" id="bangumi-update-time"></p>
 				</div>
 				<div class="page-header-toolbar-slot flex-shrink-0"></div>
 			</header>
 
-			<!-- 番剧编辑器（编辑按钮、外部数据加载） -->
 			<div data-no-swup>
 				<BangumiEditor client:only />
 			</div>
 
-			<!-- Tab navigation and content -->
-			{tabs.length > 0 ? (
-				<>
-					<TabNav tabs={tabs} activeTab={activeTab} />
-
-					{tabs.map((tab) => (
-						<BangumiSection
-							sectionId={tab.id}
-							items={bangumiData[tab.id] || []}
-							isActive={tab.id === activeTab}
-					itemsPerPage={12}
-							itemsPerPageMobile={6}
-						/>
-					))}
-				</>
-			) : (
+			<div id="bangumi-content">
 				<div class="flex flex-col items-center justify-center py-20 text-center">
-					<div class="inline-flex items-center justify-center w-16 h-16 bg-[var(--btn-regular-bg)] rounded-2xl mb-6 border border-[var(--line-divider)]">
-						<Icon name="material-symbols:settings" class="text-[2rem] text-[var(--btn-content)]" />
-					</div>
-					<h2 class="text-xl font-semibold text-[var(--deep-text)] dark:text-[var(--title-active)] mb-3">
-						{i18n(I18nKey.bangumiEmpty)}
-					</h2>
-					<p class="text-[var(--content-meta)] mb-4 max-w-md mx-auto text-sm">
-						请在 src/content/bangumi 目录下添加内容文件以显示在此页面
-					</p>
+					<span>加载中...</span>
 				</div>
-			)}
+			</div>
 		</div>
-
 	</div>
 </MainGridLayout>
 
+<script>
+	const GH_OWNER = "fqzlr";
+	const GH_REPO = "my-blog";
+	const BANGUMI_PATH = "public/bangumi.json";
+
+	async function fetchJson(path: string): Promise<any> {
+		if (path.startsWith("public/")) {
+			try {
+				const res = await fetch("/" + path.slice(7));
+				if (res.ok) return await res.json();
+			} catch {}
+		}
+		const branch = (typeof window !== 'undefined' && (window as any).__DEPLOY_BRANCH__) || "master";
+		const apiPath = `repos/${GH_OWNER}/${GH_REPO}/contents/${path}?ref=${branch}`;
+		const res = await fetch("/api/github", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({
+				path: apiPath,
+				method: "GET",
+				headers: { Accept: "application/vnd.github+json" },
+			}),
+		});
+		if (!res.ok) throw new Error("HTTP " + res.status);
+		const data = await res.json();
+		const text = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
+		return JSON.parse(text);
+	}
+
+	function esc(s: string): string {
+		const d = document.createElement("div");
+		d.textContent = s;
+		return d.innerHTML;
+	}
+
+	const statusMap: Record<number, string> = { 1: "wish", 2: "collect", 3: "doing", 4: "on_hold", 5: "dropped" };
+	const statusColorMap: Record<number, string> = { 1: "bg-sky-500/80", 2: "bg-emerald-500/80", 3: "bg-amber-500/80", 4: "bg-violet-500/80", 5: "bg-rose-400/80" };
+	const categoryMap: Record<string, { name: string; subjectType: number }> = {
+		book: { name: "书籍", subjectType: 1 },
+		anime: { name: "动画", subjectType: 2 },
+		music: { name: "音乐", subjectType: 3 },
+		game: { name: "游戏", subjectType: 4 },
+		real: { name: "三次元", subjectType: 6 },
+	};
+	const displayCategories = ["anime", "book", "game", "music"];
+
+	function getStatusText(type: number, subjectType: number): string {
+		switch (type) {
+			case 1:
+				if (subjectType === 1) return "想读";
+				if (subjectType === 3) return "想听";
+				if (subjectType === 4) return "想玩";
+				return "想看";
+			case 2:
+				if (subjectType === 1) return "读过";
+				if (subjectType === 3) return "听过";
+				if (subjectType === 4) return "玩过";
+				return "看过";
+			case 3:
+				if (subjectType === 1) return "在读";
+				if (subjectType === 3) return "在听";
+				if (subjectType === 4) return "在玩";
+				return "在看";
+			case 4: return "搁置";
+			case 5: return "抛弃";
+			default: return "未知";
+		}
+	}
+
+	function getFilterLabel(type: string, sectionId: string): string {
+		const isGame = sectionId === "game";
+		const isBook = sectionId === "book";
+		const isMusic = sectionId === "music";
+		if (type === "all") return "全部";
+		if (type === "on_hold") return "搁置";
+		if (type === "dropped") return "抛弃";
+		if (isGame) {
+			if (type === "collect") return "玩过";
+			if (type === "doing") return "在玩";
+			if (type === "wish") return "想玩";
+		}
+		if (isBook) {
+			if (type === "collect") return "读过";
+			if (type === "doing") return "在读";
+			if (type === "wish") return "想读";
+		}
+		if (isMusic) {
+			if (type === "collect") return "听过";
+			if (type === "doing") return "在听";
+			if (type === "wish") return "想听";
+		}
+		if (type === "collect") return "看过";
+		if (type === "doing") return "在看";
+		if (type === "wish") return "想看";
+		return type;
+	}
+
+	function renderCard(item: any): string {
+		const subjectType = item.subjectType || 2;
+		const title = item.name_cn || item.title || "";
+		const image = item.image || "";
+		const score = item.score || 0;
+		const status = item.status || 2;
+		const tags = item.tags || [];
+		const comment = item.comment || "";
+		const link = item.link || "#";
+
+		const statusText = getStatusText(status, subjectType);
+		const statusColor = statusColorMap[status] || "bg-gray-500/80";
+		const scoreText = score > 0 ? `${score}`.replace(/\.0$/, "") : "";
+		const displayTags = tags.slice(0, 3);
+
+		const imgHtml = image
+			? `<img src="${esc(image)}" alt="${esc(title)}" class="bm-img" loading="lazy" />`
+			: `<div class="bm-img" style="background:var(--btn-regular-bg);display:flex;align-items:center;justify-content:center;font-size:2rem;">📺</div>`;
+
+		const scoreHtml = scoreText
+			? `<span class="bm-score"><svg class="bm-star" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg>${scoreText}</span>`
+			: "";
+
+		let tagsHtml = "";
+		if (displayTags.length > 0) {
+			tagsHtml = '<div class="bm-tags">' + displayTags.map((t: string) => `<span class="bm-tag">${esc(t)}</span>`).join("") + '</div>';
+		}
+
+		const commentHtml = comment
+			? `<div class="bm-overlay"><p class="bm-comment">${esc(comment)}</p></div>`
+			: "";
+
+		return `<a href="${esc(link)}" class="bm-card group" data-type="${subjectType}">
+			<div class="bm-cover">
+				${imgHtml}
+				<div class="bm-gradient"></div>
+				<span class="bm-status ${statusColor}">${statusText}</span>
+				${scoreHtml}
+				<div class="bm-info">
+					<h3 class="bm-title">${esc(title)}</h3>
+					${tagsHtml}
+				</div>
+				${commentHtml}
+			</div>
+		</a>`;
+	}
+
+	function renderBangumi(rawItems: any[]) {
+		const el = document.getElementById("bangumi-content");
+		if (!el) return;
+
+		// Map raw items to structured data
+		const mappedData = rawItems.map((item) => {
+			const cat = categoryMap[item.category];
+			if (!cat) return null;
+			return {
+				...item,
+				subjectType: cat.subjectType,
+				status: item.status || 2,
+				score: item.score || 0,
+				image: typeof item.image === "string" ? item.image : "",
+				link: item.link || `/bangumi/${item.id || ""}/`,
+			};
+		}).filter(Boolean).sort((a, b) => {
+			return new Date(b.updated_at || b.published || 0).getTime() - new Date(a.updated_at || a.published || 0).getTime();
+		});
+
+		// Update time
+		const timeEl = document.getElementById("bangumi-update-time");
+		if (timeEl) {
+			const now = new Date();
+			timeEl.textContent = `数据更新于 ${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,"0")}/${String(now.getDate()).padStart(2,"0")} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+		}
+
+		if (mappedData.length === 0) {
+			el.innerHTML = `<div class="flex flex-col items-center justify-center py-20 text-center">
+				<div class="inline-flex items-center justify-center w-16 h-16 bg-[var(--btn-regular-bg)] rounded-2xl mb-6 border border-[var(--line-divider)]">
+					<span class="iconify material-symbols--settings text-[2rem] text-[var(--btn-content)]"></span>
+				</div>
+				<h2 class="text-xl font-semibold text-[var(--deep-text)] dark:text-[var(--title-active)] mb-3">暂无数据</h2>
+				<p class="text-[var(--content-meta)] mb-4 max-w-md mx-auto text-sm">请在 src/content/bangumi 目录下添加内容文件以显示在此页面</p>
+			</div>`;
+			return;
+		}
+
+		// Build tabs and sections
+		const tabs: { id: string; name: string; count: number; items: any[] }[] = [];
+		for (const key of displayCategories) {
+			const info = categoryMap[key];
+			if (!info) continue;
+			const items = mappedData.filter((d) => d.subjectType === info.subjectType);
+			tabs.push({ id: key, name: info.name, count: items.length, items });
+		}
+
+		if (tabs.length === 0) {
+			el.innerHTML = `<div class="flex flex-col items-center justify-center py-20 text-center"><p>暂无数据</p></div>`;
+			return;
+		}
+
+		const activeTab = tabs[0].id;
+
+		// Tab nav
+		let html = '<div class="bangumi-tabs-wrapper mb-6"><nav class="flex gap-1 p-1 bg-[var(--btn-regular-bg)] dark:bg-[var(--card-bg)] rounded-xl border border-[var(--line-divider)] overflow-x-auto scrollbar-hide" aria-label="Tabs">';
+		for (const tab of tabs) {
+			const isActive = tab.id === activeTab;
+			html += `<button class="bangumi-tab flex items-center gap-1.5 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex-shrink-0 ${isActive ? "bg-[var(--card-bg)] dark:bg-[var(--btn-regular-bg)] text-[var(--primary)] shadow-sm" : "text-[var(--content-meta)] hover:text-[var(--deep-text)] hover:bg-[var(--btn-card-bg-hover)]"}" data-tab="${tab.id}" type="button">
+				<span>${tab.name}</span>
+				<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${isActive ? "bg-[var(--primary)]/10 text-[var(--primary)]" : "bg-[var(--btn-regular-bg)] text-[var(--content-meta)]"}">${tab.count}</span>
+			</button>`;
+		}
+		html += '</nav></div>';
+
+		// Sections
+		for (const tab of tabs) {
+			const isActive = tab.id === activeTab;
+			const sectionId = tab.id;
+
+			// Filters
+			const sc: Record<string, number> = {};
+			for (const item of tab.items) {
+				const s = statusMap[item.status] || "unknown";
+				sc[s] = (sc[s] || 0) + 1;
+			}
+			const filterTypes = ["all", "collect", "doing", "wish", "on_hold", "dropped"];
+			const filters = filterTypes.map(f => ({
+				value: f,
+				label: getFilterLabel(f, sectionId),
+				count: f === "all" ? tab.items.length : (sc[f] || 0),
+			})).filter(f => f.value === "all" || f.count > 0);
+
+			html += `<div class="bangumi-section ${isActive ? "" : "hidden"}" data-section="${sectionId}">`;
+			if (tab.items.length > 0) {
+				// Filter buttons
+				html += '<div class="bangumi-filter-wrapper flex flex-wrap gap-2 mb-5">';
+				for (const filter of filters) {
+					const isFilterActive = filter.value === "all";
+					html += `<button class="bangumi-filter-btn flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium transition-all duration-200 border flex-shrink-0 ${isFilterActive ? "bg-[var(--primary)] text-white border-[var(--primary)] shadow-sm" : "bg-[var(--card-bg)] text-[var(--content-meta)] border-[var(--line-divider)] hover:border-[var(--primary)]/30 hover:text-[var(--deep-text)]"}" data-filter="${filter.value}" data-section="${sectionId}" type="button">
+						<span>${filter.label}</span>
+						<span class="text-[10px] font-semibold tabular-nums ${isFilterActive ? "text-white/80" : "text-[var(--content-meta)]"}">(${filter.count})</span>
+					</button>`;
+				}
+				html += '</div>';
+
+				// Grid
+				html += '<div class="bangumi-grid grid grid-cols-3 sm:grid-cols-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5">';
+				for (const item of tab.items) {
+					const itemStatus = statusMap[item.status] || "unknown";
+					html += `<div class="bangumi-item" data-item-section="${sectionId}" data-item-status="${itemStatus}">${renderCard(item)}</div>`;
+				}
+				html += '</div>';
+
+				// Pagination placeholder
+				html += `<div data-pagination-section="${sectionId}"></div>`;
+			} else {
+				html += `<div class="flex flex-col items-center justify-center py-20 text-center">
+					<div class="inline-flex items-center justify-center w-14 h-14 bg-[var(--btn-regular-bg)] rounded-2xl mb-4 border border-[var(--line-divider)]">
+						<span class="iconify material-symbols--inbox text-[1.75rem] text-[var(--content-meta)]"></span>
+					</div>
+					<h3 class="text-base font-medium text-[var(--deep-text)] dark:text-[var(--title-active)] mb-1.5">暂无数据</h3>
+					<p class="text-sm text-[var(--content-meta)]">该分类下还没有任何条目</p>
+				</div>`;
+			}
+			html += '</div>';
+		}
+
+		el.innerHTML = html;
+
+		// Init Iconify
+		if ((window as any).Iconify && (window as any).Iconify.scan) {
+			(window as any).Iconify.scan(el);
+		}
+
+		// Init tab navigation
+		initTabNav();
+		initFilterControls();
+	}
+
+	function initTabNav() {
+		const tabButtons = document.querySelectorAll('.bangumi-tab') as NodeListOf<HTMLButtonElement>;
+		const sections = document.querySelectorAll('[data-section]');
+
+		tabButtons.forEach(button => {
+			button.addEventListener('click', () => {
+				const targetTab = button.dataset.tab;
+				tabButtons.forEach(btn => {
+					btn.classList.remove('bg-[var(--card-bg)]', 'dark:bg-[var(--btn-regular-bg)]', 'text-[var(--primary)]', 'shadow-sm');
+					btn.classList.add('text-[var(--content-meta)]', 'hover:text-[var(--deep-text)]', 'hover:bg-[var(--btn-card-bg-hover)]');
+					const countSpan = btn.querySelector('span:last-child') as HTMLElement;
+					if (countSpan) { countSpan.classList.remove('bg-[var(--primary)]/10', 'text-[var(--primary)]'); countSpan.classList.add('bg-[var(--btn-regular-bg)]', 'text-[var(--content-meta)]'); }
+				});
+				button.classList.remove('text-[var(--content-meta)]', 'hover:text-[var(--deep-text)]', 'hover:bg-[var(--btn-card-bg-hover)]');
+				button.classList.add('bg-[var(--card-bg)]', 'dark:bg-[var(--btn-regular-bg)]', 'text-[var(--primary)]', 'shadow-sm');
+				const activeCountSpan = button.querySelector('span:last-child') as HTMLElement;
+				if (activeCountSpan) { activeCountSpan.classList.remove('bg-[var(--btn-regular-bg)]', 'text-[var(--content-meta)]'); activeCountSpan.classList.add('bg-[var(--primary)]/10', 'text-[var(--primary)]'); }
+
+				sections.forEach(section => {
+					const s = section as HTMLElement;
+					s.classList.toggle('hidden', s.dataset.section !== targetTab);
+				});
+			});
+		});
+	}
+
+	function initFilterControls() {
+		const filterButtons = document.querySelectorAll('.bangumi-filter-btn') as NodeListOf<HTMLButtonElement>;
+		filterButtons.forEach(button => {
+			button.addEventListener('click', function() {
+				const filter = this.dataset.filter;
+				const sectionId = this.dataset.section;
+				const sectionButtons = document.querySelectorAll(`[data-section="${sectionId}"].bangumi-filter-btn`);
+				sectionButtons.forEach(btn => {
+					btn.classList.remove('bg-[var(--primary)]', 'text-white', 'border-[var(--primary)]', 'shadow-sm');
+					btn.classList.add('bg-[var(--card-bg)]', 'text-[var(--content-meta)]', 'border-[var(--line-divider)]', 'hover:border-[var(--primary)]/30');
+					const cs = btn.querySelector('span:last-child');
+					if (cs) { cs.classList.remove('text-white/80'); cs.classList.add('text-[var(--content-meta)]'); }
+				});
+				this.classList.remove('bg-[var(--card-bg)]', 'text-[var(--content-meta)]', 'border-[var(--line-divider)]');
+				this.classList.add('bg-[var(--primary)]', 'text-white', 'border-[var(--primary)]', 'shadow-sm');
+				const acs = this.querySelector('span:last-child');
+				if (acs) { acs.classList.remove('text-[var(--content-meta)]'); acs.classList.add('text-white/80'); }
+
+				const items = document.querySelectorAll(`[data-item-section="${sectionId}"]`);
+				items.forEach(item => {
+					const itemStatus = (item as HTMLElement).dataset.itemStatus;
+					if (filter === 'all' || itemStatus === filter) {
+						item.classList.remove('hidden');
+						(item as HTMLElement).style.display = 'block';
+					} else {
+						item.classList.add('hidden');
+						(item as HTMLElement).style.display = 'none';
+					}
+				});
+			});
+		});
+	}
+
+	const el = document.getElementById("bangumi-content");
+	if (el) {
+		fetchJson(BANGUMI_PATH)
+			.then((data) => renderBangumi(data))
+			.catch((err) => {
+				console.error("[Bangumi] Failed to load:", err);
+				el.innerHTML = '<div class="flex flex-col items-center justify-center py-20 text-center"><p>加载失败，请刷新重试</p></div>';
+			});
+	}
+</script>
+
 <style>
-	.bangumi-page-wrapper {
-		border-radius: var(--radius-large);
-	}
+	.bangumi-page-wrapper { border-radius: var(--radius-large); }
+	.bangumi-header { animation: fadeSlideIn 0.4s ease both; }
+	.bangumi-icon { transition: transform 0.2s ease; }
+	.bangumi-icon:hover { transform: scale(1.05); }
+	@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+	.bangumi-section { animation: fadeIn 0.3s ease both; }
+	@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+	.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+	.scrollbar-hide::-webkit-scrollbar { display: none; }
 
-	/* Responsive grid */
-	.bangumi-grid {
-		/* Mobile-first: already set via Tailwind classes */
-	}
+	/* Card styles */
+	:global(.bm-card) { display: block; border-radius: var(--radius-large); overflow: hidden; text-decoration: none; color: inherit; transition: transform 0.22s cubic-bezier(.23,1,.32,1), box-shadow 0.22s cubic-bezier(.23,1,.32,1); }
+	:global(.bm-card:hover) { transform: translateY(-3px); box-shadow: 0 8px 25px -6px rgba(0,0,0,.12), 0 0 0 1px var(--primary); }
+	:global(html.dark .bm-card:hover) { box-shadow: 0 8px 25px -6px rgba(0,0,0,.35), 0 0 0 1px var(--primary); }
+	:global(.bm-cover) { position: relative; aspect-ratio: 2/3; background: var(--btn-regular-bg); overflow: hidden; }
+	:global(.bm-card[data-type="4"] .bm-cover) { aspect-ratio: 3/2; }
+	:global(.bm-card[data-type="3"] .bm-cover) { aspect-ratio: 1/1; }
+	:global(.bm-img) { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.5s cubic-bezier(.23,1,.32,1); }
+	:global(.bm-card:hover .bm-img) { transform: scale(1.06); }
+	:global(.bm-gradient) { position: absolute; inset: auto 0 0 0; height: 55%; background: linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.28) 50%, transparent 100%); pointer-events: none; z-index: 1; }
+	:global(.bm-status) { position: absolute; top: 8px; left: 8px; padding: 3px 10px; border-radius: 9999px; font-size: 10px; font-weight: 600; letter-spacing: .04em; color: #fff; backdrop-filter: blur(6px); z-index: 3; line-height: 1.5; }
+	:global(.bm-score) { position: absolute; top: 8px; right: 8px; display: flex; align-items: center; gap: 3px; padding: 3px 8px 3px 6px; border-radius: 9999px; background: rgba(0,0,0,.48); backdrop-filter: blur(6px); font-size: 11px; font-weight: 700; color: #fff; z-index: 3; line-height: 1; }
+	:global(.bm-star) { width: 11px; height: 11px; color: #fbbf24; flex-shrink: 0; }
+	:global(.bm-info) { position: absolute; inset: auto 0 0 0; z-index: 2; padding: 0 10px 10px; pointer-events: none; }
+	:global(.bm-title) { font-size: 14px; font-weight: 700; line-height: 1.4; color: #fff; margin: 0 0 6px; text-shadow: 0 1px 3px rgba(0,0,0,.4); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+	:global(.bm-tags) { display: flex; flex-wrap: wrap; gap: 5px; }
+	:global(.bm-tag) { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 9999px; background: rgba(255,255,255,.15); backdrop-filter: blur(4px); color: rgba(255,255,255,.85); line-height: 1.5; }
+	:global(.bm-overlay) { position: absolute; inset: 0; background: rgba(0,0,0,.76); backdrop-filter: blur(3px); opacity: 0; transition: opacity .25s ease; display: flex; align-items: flex-start; justify-content: center; padding: 16px; pointer-events: none; z-index: 20; }
+	:global(.bm-card:hover .bm-overlay) { opacity: 1; }
+	:global(.bm-comment) { font-size: 12px; line-height: 1.7; color: rgba(255,255,255,.92); margin: auto 0 0; width: 100%; display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
 
-	/* Smooth page-level transitions */
-	.bangumi-header {
-		animation: fadeSlideIn 0.4s ease-[var(--ease-standard)] both;
-	}
-
-	.bangumi-icon {
-		transition: transform 0.2s ease-[var(--ease-standard)];
-	}
-
-	.bangumi-icon:hover {
-		transform: scale(1.05);
-	}
-
-	@keyframes fadeSlideIn {
-		from {
-			opacity: 0;
-			transform: translateY(8px);
-		}
-		to {
-			opacity: 1;
-			transform: translateY(0);
-		}
-	}
-
-	/* Section fade in */
-	.bangumi-section {
-		animation: fadeIn 0.3s ease-[var(--ease-standard)] both;
-	}
-
-	@keyframes fadeIn {
-		from { opacity: 0; }
-		to { opacity: 1; }
-	}
-
-	/* Hide scrollbar for tab nav on mobile but keep it functional */
-	.scrollbar-hide {
-		-ms-overflow-style: none;
-		scrollbar-width: none;
-	}
-
-	.scrollbar-hide::-webkit-scrollbar {
-		display: none;
-	}
-
-	/* Responsive padding adjustments */
 	@media (max-width: 640px) {
-		.card-base {
-			padding-left: 1rem;
-			padding-right: 1rem;
-			padding-top: 1.5rem;
-			padding-bottom: 1.5rem;
-		}
+		:global(.bm-status) { top: 5px; left: 5px; padding: 2px 7px; font-size: 9px; }
+		:global(.bm-score) { top: 5px; right: 5px; padding: 2px 7px 2px 5px; font-size: 10px; }
+		:global(.bm-info) { padding: 0 8px 8px; }
+		:global(.bm-title) { font-size: 13px; margin-bottom: 5px; }
 	}
-
-	@media (max-width: 768px) {
-		:has(> .page-header-toolbar-slot) {
-			flex-direction: column;
-		}
-		.page-header-toolbar-slot {
-			width: 100%;
-		}
-	}
+	@media (max-width: 640px) { .card-base { padding-left: 1rem; padding-right: 1rem; padding-top: 1.5rem; padding-bottom: 1.5rem; } }
+	@media (max-width: 768px) { :has(> .page-header-toolbar-slot) { flex-direction: column; } .page-header-toolbar-slot { width: 100%; } }
 </style>

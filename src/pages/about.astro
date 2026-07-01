@@ -1,65 +1,120 @@
 ---
-import { getEntry } from "astro:content";
 import AboutCanvas from "@components/about/AboutCanvas.svelte";
 import MarkdownPageEditor from "@/components/edit/MarkdownPageEditor.svelte";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
-
-const aboutPost = await getEntry("spec", "about");
-if (!aboutPost) {
-	throw new Error("About page content not found");
-}
-
-const aboutText = aboutPost.body ?? "";
 ---
 
 <MainGridLayout title={i18n(I18nKey.about)} description={i18n(I18nKey.about)}>
     <div class="about-editor-wrapper w-full">
+        <!-- 客户端渲染的关于内容 -->
+        <div class="about-content md-content-display" id="about-content">
+            <div class="about-loading" id="about-loading">
+                <span>加载中...</span>
+            </div>
+        </div>
         <div data-no-swup>
             <MarkdownPageEditor
                 client:only
                 filePath="src/content/spec/about.md"
                 pageName="关于页面"
-                initialContent={aboutText}
+                initialContent=""
             />
         </div>
     </div>
     <div class="about-canvas-container about-display-only" data-about-display>
-        <AboutCanvas text={aboutText} client:only="svelte" />
+        <AboutCanvas text="" client:only="svelte" />
     </div>
 </MainGridLayout>
 
-<script is:inline>
-    (function() {
-        function checkEditMode() {
-            const editorWrappers = document.querySelectorAll('.md-editor-container');
-            const displayEl = document.querySelector('[data-about-display]');
-            if (!displayEl) return;
-            if (editorWrappers.length > 0) {
-                displayEl.style.display = 'none';
-            } else {
-                displayEl.style.display = '';
-            }
+<script>
+    // ========== 关于页面客户端渲染 ==========
+    const GH_OWNER = "fqzlr";
+    const GH_REPO = "my-blog";
+    const ABOUT_PATH = "public/about.json";
+
+    async function fetchJson(path: string): Promise<any> {
+        if (path.startsWith("public/")) {
+            try {
+                const res = await fetch("/" + path.slice(7));
+                if (res.ok) return await res.json();
+            } catch {}
         }
-        function init() {
-            checkEditMode();
-            const observer = new MutationObserver(checkEditMode);
-            const editorWrapper = document.querySelector('.about-editor-wrapper');
-            if (editorWrapper) {
-                observer.observe(editorWrapper, { childList: true, subtree: true });
-            }
-        }
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', init);
+        const branch = (typeof window !== 'undefined' && (window as any).__DEPLOY_BRANCH__) || "master";
+        const apiPath = `repos/${GH_OWNER}/${GH_REPO}/contents/${path}?ref=${branch}`;
+        const res = await fetch("/api/github", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                path: apiPath,
+                method: "GET",
+                headers: { Accept: "application/vnd.github+json" },
+            }),
+        });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        const text = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
+        return JSON.parse(text);
+    }
+
+    // 渲染关于内容
+    const contentEl = document.getElementById("about-content");
+    if (contentEl) {
+        fetchJson(ABOUT_PATH)
+            .then((data) => {
+                contentEl.innerHTML = data.contentHtml || "";
+            })
+            .catch((err) => {
+                console.error("[About] Failed to load:", err);
+                contentEl.innerHTML = '<p style="text-align:center;color:var(--content-meta);">加载失败，请刷新重试</p>';
+            });
+    }
+
+    // 编辑模式检测
+    function checkEditMode() {
+        const editorWrappers = document.querySelectorAll('.md-editor-container');
+        const displayEl = document.querySelector('[data-about-display]');
+        const contentDisplay = document.getElementById('about-content');
+        if (!displayEl) return;
+        if (editorWrappers.length > 0) {
+            displayEl.style.display = 'none';
+            if (contentDisplay) contentDisplay.style.display = 'none';
         } else {
-            init();
+            displayEl.style.display = '';
+            if (contentDisplay) contentDisplay.style.display = '';
         }
-        document.addEventListener('astro:page-load', init);
-    })();
+    }
+
+    function initEditModeObserver() {
+        checkEditMode();
+        const observer = new MutationObserver(checkEditMode);
+        const editorWrapper = document.querySelector('.about-editor-wrapper');
+        if (editorWrapper) {
+            observer.observe(editorWrapper, { childList: true, subtree: true });
+        }
+    }
+
+    initEditModeObserver();
 </script>
 
 <style>
+    .about-content {
+        line-height: 1.8;
+        color: var(--deep-text);
+    }
+
+    .about-loading {
+        text-align: center;
+        padding: 2rem;
+        color: var(--content-meta);
+    }
+
+    /* 隐藏编辑器自带的内容显示，使用我们自己的 */
+    :global(.about-editor-wrapper .md-content-display) {
+        display: none;
+    }
+
     .about-canvas-container {
         position: relative;
         width: 100%;
@@ -67,8 +122,5 @@ const aboutText = aboutPost.body ?? "";
     }
     .about-display-only {
         margin-top: 0;
-    }
-    :global(.about-editor-wrapper .md-content-display) {
-        display: none;
     }
 </style>

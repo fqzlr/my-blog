@@ -6,7 +6,6 @@ import Markdown from "@components/common/Markdown.astro";
 import type { ImageMetadata } from "astro";
 import { Icon } from "astro-icon/components";
 import { marked } from "marked";
-import { externalNotebooksConfig } from "@/config/externalNotebooksConfig";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
 
 const notebookImageFiles = import.meta.glob<ImageMetadata>(
@@ -163,12 +162,6 @@ const sortedEntriesWithImages = isNotebookIndex
 			</section>
 
 			<section class="diary-entries-section">
-				{/* 远程笔记容器 - 插入到本地笔记前面 */}
-				{externalNotebooksConfig.enable && (
-					<div id="remote-entries-container" style="display:none;">
-						<div class="diary-entries-list" id="remote-entries-list"></div>
-					</div>
-				)}
 
 				{sortedEntriesWithImages.length === 0 ? (
 					<div class="diary-empty-entries" id="local-empty"><div class="text-5xl mb-4">📝</div><p class="text-[var(--content-meta)]">还没有日记内容</p></div>
@@ -212,80 +205,6 @@ const sortedEntriesWithImages = isNotebookIndex
 				)}
 			</section>
 
-			{/* 远程笔记注入脚本 */}
-			{externalNotebooksConfig.enable && (
-				<script is:inline
-					data-gists={JSON.stringify(externalNotebooksConfig.notebookGists || {})}
-					data-notebook={folderName}>
-					(function() {
-						var _s = document.currentScript;
-						var GISTS = JSON.parse(_s.getAttribute("data-gists") || "{}");
-						var NOTEBOOK = _s.getAttribute("data-notebook");
-						var GIST_ID = GISTS[NOTEBOOK];
-						if (!GIST_ID || !NOTEBOOK) return;
-
-						var rawUrl = "https://gist.githubusercontent.com/raw/" + GIST_ID + "?t=" + Date.now();
-
-						fetch(rawUrl)
-							.then(function(r) { if (!r.ok) return null; return r.text(); })
-							.then(function(text) {
-								if (!text) return;
-								var entries = [];
-								try { entries = JSON.parse(text); } catch(e) { return; }
-								if (!Array.isArray(entries)) return;
-
-								var filtered = entries.filter(function(e) { return e.notebook === NOTEBOOK; });
-								if (!filtered.length) return;
-
-								filtered.sort(function(a, b) {
-									return new Date(b.date || b.createdAt) - new Date(a.date || a.createdAt);
-								});
-
-								var container = document.getElementById("remote-entries-container");
-								var list = document.getElementById("remote-entries-list");
-								if (!container || !list) return;
-
-								function esc(t) { var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
-
-								function renderPreview(text) {
-									var html = esc(text)
-										.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-										.replace(/\*(.+?)\*/g, '<em>$1</em>')
-										.replace(/`([^`]+)`/g, '<code>$1</code>')
-										.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" style="color:var(--primary);text-decoration:underline;">$1</a>')
-										.replace(/  \n/g, '<br>')
-										.replace(/\n\n+/g, '<br><br>')
-										.replace(/\n/g, '<br>');
-									return html;
-								}
-
-								filtered.forEach(function(entry) {
-									var date = entry.date || "";
-									var contentBody = (entry.content || "").replace(/^---[\s\S]*?---\n?/g, "").trim();
-									var preview = contentBody.slice(0, 200) + (contentBody.length > 200 ? "..." : "");
-
-									var card = document.createElement("a");
-									card.href = "/life/notebooks/remote-entry/?nb=" + encodeURIComponent(NOTEBOOK) + "&id=" + encodeURIComponent(entry.id);
-									card.className = "diary-entry-card group";
-									card.innerHTML =
-										'<div class="entry-card-inner">' +
-										'<div class="entry-card-text">' +
-										'<span class="entry-card-date">' + esc(date) + '</span>' +
-										'<p class="entry-card-preview">' + renderPreview(preview) + '</p>' +
-										'</div>' +
-										'</div>';
-									list.appendChild(card);
-								});
-
-								container.style.display = "";
-
-								var localEmpty = document.getElementById("local-empty");
-								if (localEmpty) localEmpty.style.display = "none";
-							})
-							.catch(function() {});
-					})();
-				</script>
-			)}
 		</div>
 	</MainGridLayout>
 ) : (

@@ -19,6 +19,7 @@ import {
 import { getLunarMonthDayChinese } from "@/utils/lunar-utils";
 import { navigateToPage } from "@/utils/navigation-utils";
 import { eventTypeMeta } from "./eventTypes";
+import { loadCalendarData } from "@/utils/calendar-data-loader";
 
 interface Props {
 	holidays?: HolidayEntry[];
@@ -30,16 +31,32 @@ interface Props {
 }
 
 let {
-	holidays = [],
-	posts = [],
-	birthdays = [],
-	schedules = [],
-	years = [],
-	showPosts = true,
+	holidays: _holidays = [],
+	posts: _posts = [],
+	birthdays: _birthdays = [],
+	schedules: _schedules = [],
 }: Props = $props();
 
 const today = new Date();
 const todayKey = formatYmd(today);
+const years = [today.getFullYear() - 1, today.getFullYear(), today.getFullYear() + 1];
+
+// 客户端数据加载
+let holidays = $state<HolidayEntry[]>(_holidays);
+let posts = $state<PostMeta[]>(_posts);
+let birthdays = $state<BirthdayItem[]>(_birthdays);
+let schedules = $state<ScheduleItem[]>(_schedules);
+let showPosts = $state(true);
+
+$effect(() => {
+	loadCalendarData().then((data) => {
+		holidays = data.holidays;
+		posts = data.posts;
+		birthdays = data.config.birthdays || [];
+		schedules = data.config.schedules || [];
+		showPosts = data.config.show?.posts ?? true;
+	});
+});
 
 let selectedDateKey = $state(todayKey);
 

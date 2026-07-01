@@ -1,39 +1,7 @@
 ---
-import { getCollection, render } from "astro:content";
 import { Icon } from "astro-icon/components";
 import RoutinesEditor from "@/components/edit/RoutinesEditor.svelte";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
-
-const routinesEntries = await getCollection("routines");
-
-const filteredEntries = routinesEntries.filter(
-	(entry) => !entry.id.toLowerCase().includes("readme"),
-);
-
-const sortedEntries = [...filteredEntries].sort((a, b) => {
-	const aTime = a.data.updatedAt?.getTime() || 0;
-	const bTime = b.data.updatedAt?.getTime() || 0;
-	return bTime - aTime;
-});
-
-const lastUpdated = sortedEntries.find((e) => e.data.updatedAt)?.data.updatedAt;
-
-const entriesWithContent = await Promise.all(
-	sortedEntries.map(async (entry) => {
-		const { Content } = await render(entry);
-		return {
-			...entry,
-			Content,
-			name: entry.data.name || "未命名",
-			time: entry.data.time || "",
-			description: entry.data.description || "",
-			icon: entry.data.icon || "📋",
-			color: entry.data.color || "var(--primary)",
-		};
-	}),
-);
-
-const totalEntries = entriesWithContent.length;
 ---
 
 <MainGridLayout title="日常规划" description="我的规划与思考">
@@ -57,58 +25,118 @@ const totalEntries = entriesWithContent.length;
       </div>
 
       <!-- 统计卡片 -->
-      <div class="flex flex-wrap gap-3 mb-6">
-        <div class="stat-pill">
-          <span class="font-semibold">{totalEntries}</span>
-          <span class="text-neutral-500 dark:text-neutral-400">项规划</span>
-        </div>
-        <div class="stat-pill">
-          <span class="font-semibold">{lastUpdated?.toLocaleDateString("zh-CN") || "暂无"}</span>
-          <span class="text-neutral-500 dark:text-neutral-400">最后更新</span>
-        </div>
+      <div class="flex flex-wrap gap-3 mb-6" id="routines-stats">
+        <div class="stat-pill"><span class="font-semibold">-</span><span class="text-neutral-500 dark:text-neutral-400">项规划</span></div>
+        <div class="stat-pill"><span class="font-semibold">加载中...</span><span class="text-neutral-500 dark:text-neutral-400">最后更新</span></div>
       </div>
 
       <!-- 规划列表 -->
-      <div>
-        {totalEntries === 0 ? (
-          <div class="w-full p-12 text-center">
-            <Icon name="material-symbols:checklist" class="text-5xl text-neutral-300 dark:text-neutral-600 mb-4" />
-            <p class="text-neutral-500 dark:text-neutral-400">还没有日常规划</p>
-          </div>
-        ) : (
-          <div class="routines-grid">
-            {entriesWithContent.map((entry) => (
-              <article class="routine-card">
-                <div class="routine-card-header">
-                  <div class="routine-icon-wrap">
-                    <span class="text-xl">{entry.icon}</span>
-                  </div>
-                  <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-2 flex-wrap">
-                      <h2 class="routine-title">{entry.name}</h2>
-                      {entry.time && (
-                        <span class="routine-time">{entry.time}</span>
-                      )}
-                    </div>
-                    {entry.description && (
-                      <p class="routine-desc">{entry.description}</p>
-                    )}
-                  </div>
-                </div>
-                <div class="routine-card-body">
-                  <div class="routine-content">
-                    <entry.Content />
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        )}
+      <div id="routines-content">
+        <div class="w-full p-12 text-center">
+          <span class="text-5xl text-neutral-300 dark:text-neutral-600 mb-4">📋</span>
+          <p class="text-neutral-500 dark:text-neutral-400">加载中...</p>
+        </div>
       </div>
 
     </div>
   </div>
 </MainGridLayout>
+
+<script>
+  const GH_OWNER = "fqzlr";
+  const GH_REPO = "my-blog";
+  const ROUTINES_PATH = "public/routines.json";
+
+  async function fetchJson(path: string): Promise<any> {
+    if (path.startsWith("public/")) {
+      try {
+        const res = await fetch("/" + path.slice(7));
+        if (res.ok) return await res.json();
+      } catch {}
+    }
+    const branch = (typeof window !== 'undefined' && (window as any).__DEPLOY_BRANCH__) || "master";
+    const apiPath = `repos/${GH_OWNER}/${GH_REPO}/contents/${path}?ref=${branch}`;
+    const res = await fetch("/api/github", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path: apiPath, method: "GET", headers: { Accept: "application/vnd.github+json" } }),
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const text = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
+    return JSON.parse(text);
+  }
+
+  function esc(s: string) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+  function renderRoutines(entries: any[]) {
+    // Sort by updatedAt desc
+    const sorted = [...entries].sort((a, b) => {
+      const aTime = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const bTime = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return bTime - aTime;
+    });
+
+    const totalEntries = sorted.length;
+    const lastUpdated = sorted.length > 0 && sorted[0].updatedAt
+      ? new Date(sorted[0].updatedAt).toLocaleDateString("zh-CN")
+      : "暂无";
+
+    // Stats
+    const statsEl = document.getElementById("routines-stats");
+    if (statsEl) {
+      statsEl.innerHTML = `
+        <div class="stat-pill"><span class="font-semibold">${totalEntries}</span><span class="text-neutral-500 dark:text-neutral-400">项规划</span></div>
+        <div class="stat-pill"><span class="font-semibold">${esc(lastUpdated)}</span><span class="text-neutral-500 dark:text-neutral-400">最后更新</span></div>`;
+    }
+
+    // Content
+    const contentEl = document.getElementById("routines-content");
+    if (!contentEl) return;
+
+    if (totalEntries === 0) {
+      contentEl.innerHTML = `<div class="w-full p-12 text-center">
+        <span class="text-5xl text-neutral-300 dark:text-neutral-600 mb-4 block">📋</span>
+        <p class="text-neutral-500 dark:text-neutral-400">还没有日常规划</p>
+      </div>`;
+      return;
+    }
+
+    const cardsHtml = sorted.map(entry => {
+      const icon = entry.icon || "📋";
+      const name = esc(entry.name || "未命名");
+      const time = entry.time ? `<span class="routine-time">${esc(entry.time)}</span>` : "";
+      const desc = entry.description ? `<p class="routine-desc">${esc(entry.description)}</p>` : "";
+      const contentHtml = entry.contentHtml || "";
+
+      return `<article class="routine-card">
+        <div class="routine-card-header">
+          <div class="routine-icon-wrap"><span class="text-xl">${esc(icon)}</span></div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="routine-title">${name}</h2>
+              ${time}
+            </div>
+            ${desc}
+          </div>
+        </div>
+        <div class="routine-card-body">
+          <div class="routine-content">${contentHtml}</div>
+        </div>
+      </article>`;
+    }).join('');
+
+    contentEl.innerHTML = `<div class="routines-grid">${cardsHtml}</div>`;
+  }
+
+  fetchJson(ROUTINES_PATH).then(data => {
+    renderRoutines(data);
+  }).catch(err => {
+    console.error("[Routines] Failed to load:", err);
+    const contentEl = document.getElementById("routines-content");
+    if (contentEl) contentEl.innerHTML = '<p style="text-align:center;color:var(--content-meta);">加载失败，请刷新重试</p>';
+  });
+</script>
 
 <style>
   .stat-pill {
@@ -253,6 +281,22 @@ const totalEntries = entriesWithContent.length;
     border: none;
     border-top: 1px solid var(--line-divider);
     margin: 1.25em 0;
+  }
+
+  .routine-content :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0.75em 0;
+  }
+  .routine-content :global(th),
+  .routine-content :global(td) {
+    border: 1px solid var(--line-divider);
+    padding: 0.5em 0.75em;
+    text-align: left;
+  }
+  .routine-content :global(th) {
+    background: var(--btn-plain-bg-hover);
+    font-weight: 600;
   }
 
   @media (max-width: 640px) {

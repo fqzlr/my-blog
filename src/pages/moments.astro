@@ -85,6 +85,11 @@ import "@/styles/components/moment-card.css";
    * GitHub Contents API 返回 base64 编码的内容，需要解码
    */
   async function fetchMoments(): Promise<any[]> {
+    // 优先直接访问静态文件（本地开发无需 GitHub 代理）
+    try {
+      const directRes = await fetch("/moments.json");
+      if (directRes.ok) return await directRes.json();
+    } catch {}
     const branch = (typeof window !== 'undefined' && (window as any).__DEPLOY_BRANCH__) || "master";
     const apiPath = `repos/${GH_OWNER}/${GH_REPO}/contents/${MOMENTS_PATH}?ref=${branch}`;
 

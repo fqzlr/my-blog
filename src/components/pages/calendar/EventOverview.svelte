@@ -19,6 +19,7 @@ import {
 } from "@/utils/calendar-events";
 import { navigateToPage } from "@/utils/navigation-utils";
 import { eventTypeMeta } from "./eventTypes";
+import { loadCalendarData } from "@/utils/calendar-data-loader";
 
 interface Props {
 	holidays?: HolidayEntry[];
@@ -32,17 +33,35 @@ interface Props {
 }
 
 let {
-	holidays = [],
-	posts = [],
-	birthdays = [],
-	schedules = [],
-	years = [],
-	futureDays = 30,
-	maxItems = 6,
-	showPosts = true,
+	holidays: _holidays = [],
+	posts: _posts = [],
+	birthdays: _birthdays = [],
+	schedules: _schedules = [],
 }: Props = $props();
 
 const todayDate = new Date();
+const years = [todayDate.getFullYear() - 1, todayDate.getFullYear(), todayDate.getFullYear() + 1];
+
+// 客户端数据加载
+let holidays = $state<HolidayEntry[]>(_holidays);
+let posts = $state<PostMeta[]>(_posts);
+let birthdays = $state<BirthdayItem[]>(_birthdays);
+let schedules = $state<ScheduleItem[]>(_schedules);
+let futureDays = $state(30);
+let maxItems = $state(6);
+let showPosts = $state(true);
+
+$effect(() => {
+	loadCalendarData().then((data) => {
+		holidays = data.holidays;
+		posts = data.posts;
+		birthdays = data.config.birthdays || [];
+		schedules = data.config.schedules || [];
+		futureDays = data.config.overview?.futureDays ?? 30;
+		maxItems = data.config.overview?.maxItems ?? 6;
+		showPosts = data.config.show?.posts ?? true;
+	});
+});
 
 const allEvents = $derived.by<CalendarEvent[]>(() => {
 	const list: CalendarEvent[] = [];

@@ -19,6 +19,7 @@ import {
 } from "@/utils/calendar-events";
 import { getLunarDayChinese } from "@/utils/lunar-utils";
 import { eventTypeMeta } from "./eventTypes";
+import { loadCalendarData } from "@/utils/calendar-data-loader";
 
 interface Props {
 	holidays?: HolidayEntry[];
@@ -31,14 +32,32 @@ interface Props {
 }
 
 let {
-	holidays = [],
-	posts = [],
-	birthdays = [],
-	schedules = [],
-	years = [],
-	showPosts = true,
+	holidays: _holidays = [],
+	posts: _posts = [],
+	birthdays: _birthdays = [],
+	schedules: _schedules = [],
+	showPosts: _showPosts = true,
 	showLunar = true,
 }: Props = $props();
+
+// 客户端数据加载
+let holidays = $state<HolidayEntry[]>(_holidays);
+let posts = $state<PostMeta[]>(_posts);
+let birthdays = $state<BirthdayItem[]>(_birthdays);
+let schedules = $state<ScheduleItem[]>(_schedules);
+let showPosts = $state(_showPosts);
+
+$effect(() => {
+	loadCalendarData().then((data) => {
+		holidays = data.holidays;
+		posts = data.posts;
+		birthdays = data.config.birthdays || [];
+		schedules = data.config.schedules || [];
+		showPosts = data.config.show?.posts ?? true;
+	});
+});
+
+const years = [new Date().getFullYear() - 1, new Date().getFullYear(), new Date().getFullYear() + 1];
 
 // ============ 月份名 / 星期名（i18n） ============
 const monthNames = [
