@@ -700,20 +700,18 @@
 
 	@media (max-width: 768px) {
 		.edit-toolbar {
-			gap: 6px;
+			gap: 4px;
 		}
 		.btn-text {
-			display: none;
+			display: none !important;
 		}
 		.edit-btn {
-			padding: 7px 10px;
-			font-size: 0;
-		}
-		.edit-btn iconify-icon {
-			font-size: 16px;
+			padding: 6px 8px;
+			min-width: 0;
 		}
 		.edit-main-btn {
-			padding: 7px 12px;
+			padding: 6px 10px;
+			font-size: 13px;
 		}
 		.draft-badge, .batch-badge {
 			margin-left: 0;
