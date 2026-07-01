@@ -87,7 +87,9 @@
 	}
 
 	// 构建完整的 TypeScript 配置文件内容
-	function buildFriendsConfigTS(friends: FriendItem[]): string {
+	// 如果有原始文件内容，只替换 friendsConfig 数组部分，保留其余配置不变
+	// 如果没有原始内容（新建场景），生成完整文件
+	function buildFriendsConfigTS(friends: FriendItem[], originalContent?: string): string {
 		const entries = friends.map((f) => {
 			const obj = {
 				title: f.title,
@@ -104,6 +106,27 @@
 				.join("\n");
 			return json;
 		});
+		const newArrayContent = `[\n${entries.join("\n")}\n]`;
+
+		if (originalContent) {
+			// 有原始内容：只替换 friendsConfig 数组部分
+			const startMarker = "export const friendsConfig: FriendLink[] = [";
+			const startIdx = originalContent.indexOf(startMarker);
+			if (startIdx !== -1) {
+				let bracketStart = startIdx + startMarker.length;
+				let depth = 1;
+				let idx = bracketStart;
+				while (idx < originalContent.length && depth > 0) {
+					if (originalContent[idx] === "[") depth++;
+					else if (originalContent[idx] === "]") depth--;
+					if (depth > 0) idx++;
+				}
+				// 替换数组部分（从 [ 到 ]）
+				return originalContent.substring(0, bracketStart) + " " + newArrayContent + originalContent.substring(idx + 1);
+			}
+		}
+
+		// 没有原始内容：生成完整文件（新建场景）
 		return `import type { FriendLink, FriendsPageConfig } from "../types/config";
 
 // 可以在src/content/spec/friends.md中编写友链页面下方的自定义内容
@@ -161,9 +184,7 @@ export const friendsPageConfig: FriendsPageConfig = {
 };
 
 // 友链配置
-export const friendsConfig: FriendLink[] = [
-${entries.join("\n")}
-];
+export const friendsConfig: FriendLink[] = ${newArrayContent};
 
 // 获取启用的友链并进行排序
 export const getEnabledFriends = (): FriendLink[] => {
@@ -186,7 +207,7 @@ export const getEnabledFriends = (): FriendLink[] => {
 	const drafts = setupRepoDrafts({
 		pageKey: "friends",
 		pageName: "友链",
-		getContent: () => buildFriendsConfigTS(friends),
+		getContent: () => buildFriendsConfigTS(friends, originalTS),
 		setContent: (v) => {
 			const parsed = parseFriendsFromTS(v);
 			if (parsed.length > 0 || v.includes("friendsConfig")) {
