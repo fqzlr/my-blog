@@ -1223,7 +1223,3 @@
 		color: hsl(var(--theme-hue, 165), 70%, 65%);
 	}
 </style>
-	:global(.dark) .help-body strong {
-		color: hsl(var(--theme-hue, 165), 70%, 65%);
-	}
-</style>
