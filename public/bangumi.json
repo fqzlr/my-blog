@@ -1,759 +1,5 @@
 [
   {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "霸王别姬1111",
-    "name_cn": "霸王别姬1111",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E9%9C%B8%E7%8E%8B%E5%88%AB%E5%A7%AC.webp",
-    "tags": [
-      "剧情",
-      "爱情"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:32:03.373Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "食神",
-    "name_cn": "食神",
-    "category": "anime",
-    "status": 2,
-    "score": 9,
-    "image": "https://ph.0824.uk/file/anime/%E9%A3%9F%E7%A5%9E.jpg",
-    "tags": [
-      "周星驰"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "唐人街探案",
-    "name_cn": "唐人街探案",
-    "category": "anime",
-    "status": 2,
-    "score": 0,
-    "image": "https://ph.0824.uk/file/anime/%E5%94%90%E4%BA%BA%E8%A1%97%E6%8E%A2%E6%A1%88.jpg",
-    "tags": [],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "河狸变身计划",
-    "name_cn": "河狸变身计划",
-    "category": "anime",
-    "status": 2,
-    "score": 0,
-    "image": "https://ph.0824.uk/file/anime/%E6%B2%B3%E7%8B%B8%E5%8F%98%E8%BA%AB%E8%AE%A1%E5%88%92.jpg",
-    "tags": [],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "爱乐之城",
-    "name_cn": "爱乐之城",
-    "category": "anime",
-    "status": 2,
-    "score": 0,
-    "image": "https://ph.0824.uk/file/anime/%E7%88%B1%E4%B9%90%E4%B9%8B%E5%9F%8E.jpg",
-    "tags": [
-      "喜剧",
-      "剧情",
-      "爱情"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "黑暗荣耀第二季",
-    "name_cn": "黑暗荣耀第二季",
-    "category": "anime",
-    "status": 2,
-    "score": 9,
-    "image": "https://re.tsh520.cn/blogre/%E9%BB%91%E6%9A%97%E8%8D%A3%E8%80%802.webp",
-    "tags": [
-      "校园",
-      "电视剧"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "黑暗荣耀1",
-    "name_cn": "黑暗荣耀1",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/blogre/%E9%BB%91%E6%9A%97%E8%8D%A3%E8%80%801.webp",
-    "tags": [
-      "校园",
-      "电视剧"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "消失的人",
-    "name_cn": "消失的人",
-    "category": "anime",
-    "status": 2,
-    "score": 8.5,
-    "image": "https://re.tsh520.cn/blogre/%E6%B6%88%E5%A4%B1%E7%9A%84%E4%BA%BA.webp",
-    "tags": [
-      "悬疑"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "鬼客",
-    "name_cn": "鬼客",
-    "category": "anime",
-    "status": 2,
-    "score": 9,
-    "image": "https://re.tsh520.cn/blogre/%E9%AC%BC%E5%AE%A2.webp",
-    "tags": [
-      "鬼片",
-      "纪录片"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "夺命许愿",
-    "name_cn": "夺命许愿",
-    "category": "anime",
-    "status": 2,
-    "score": 8.5,
-    "image": "https://re.tsh520.cn/blogre/%E5%A4%BA%E5%91%BD%E8%AE%B8%E6%84%BF.webp",
-    "tags": [
-      "鬼片",
-      "电视剧"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "蜘蛛侠",
-    "name_cn": "蜘蛛侠",
-    "category": "anime",
-    "status": 2,
-    "score": 9,
-    "image": "https://re.tsh520.cn/Acover/%E8%9C%98%E8%9B%9B%E4%BE%A01.webp",
-    "tags": [
-      "科幻",
-      "神作"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "爆裂鼓手",
-    "name_cn": "爆裂鼓手",
-    "category": "anime",
-    "status": 2,
-    "score": 9,
-    "image": "https://ph.0824.uk/file/anime/%E7%88%86%E8%A3%82%E9%BC%93%E6%89%8B.jpg",
-    "tags": [
-      "电影"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "迷雾",
-    "name_cn": "迷雾",
-    "category": "anime",
-    "status": 2,
-    "score": 8.1,
-    "image": "https://re.tsh520.cn/Acover/p2363134750.webp",
-    "tags": [
-      "电影"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "盗梦空间",
-    "name_cn": "盗梦空间",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E7%9B%97%E6%A2%A6%E7%A9%BA%E9%97%B4.webp",
-    "tags": [
-      "科幻",
-      "悬疑",
-      "经典"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "这个杀手不太冷",
-    "name_cn": "这个杀手不太冷",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E8%BF%99%E4%B8%AA%E6%9D%80%E6%89%8B%E4%B8%8D%E5%A4%AA%E5%86%B7.webp",
-    "tags": [
-      "剧情",
-      "动作",
-      "犯罪"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "美丽人生",
-    "name_cn": "美丽人生",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E7%BE%8E%E4%B8%BD%E4%BA%BA%E7%94%9F.webp",
-    "tags": [
-      "剧情",
-      "爱情",
-      "战争"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "午夜凶铃",
-    "name_cn": "午夜凶铃",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E5%8D%88%E5%A4%9C%E5%87%B6%E9%93%83.webp",
-    "tags": [
-      "日本",
-      "恐怖"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "咒怨",
-    "name_cn": "咒怨",
-    "category": "anime",
-    "status": 2,
-    "score": 6,
-    "image": "https://re.tsh520.cn/Acover/%E5%92%92%E6%80%A8.webp",
-    "tags": [
-      "日本",
-      "恐怖"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "咒怨2",
-    "name_cn": "咒怨2",
-    "category": "anime",
-    "status": 2,
-    "score": 6,
-    "image": "https://re.tsh520.cn/Acover/%E5%92%92%E6%80%A82.webp",
-    "tags": [
-      "日本",
-      "恐怖"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "头号玩家",
-    "name_cn": "头号玩家",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E5%A4%B4%E5%8F%B7%E7%8E%A9%E5%AE%B6.webp",
-    "tags": [
-      "科幻",
-      "冒险",
-      "游戏"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "穿条纹睡衣的男孩",
-    "name_cn": "穿条纹睡衣的男孩",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E7%A9%BF%E6%9D%A1%E7%BA%B9%E7%9D%A1%E8%A1%A3%E7%9A%84%E7%94%B7%E5%AD%A9.webp",
-    "tags": [
-      "战争",
-      "剧情",
-      "感人"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "让子弹飞",
-    "name_cn": "让子弹飞",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E8%AE%A9%E5%AD%90%E5%BC%B9%E9%A3%9E.webp",
-    "tags": [
-      "喜剧",
-      "动作",
-      "西部"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "向阳花",
-    "name_cn": "向阳花",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E5%90%91%E9%98%B3%E8%8A%B1.webp",
-    "tags": [
-      "剧情",
-      "犯罪",
-      "现代"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "豺狼的日子",
-    "name_cn": "豺狼的日子",
-    "category": "anime",
-    "status": 2,
-    "score": 9,
-    "image": "https://ph.0824.uk/file/anime/%E8%B1%BA%E7%8B%BC%E7%9A%84%E6%97%A5%E5%AD%90.jpg",
-    "tags": [
-      "剧情",
-      "动作冒险",
-      "悬疑"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "三傻大闹宝莱坞",
-    "name_cn": "三傻大闹宝莱坞",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E4%B8%89%E5%82%BB%E5%A4%A7%E9%97%B9%E5%AE%9D%E8%8E%B1%E5%9D%9E.webp",
-    "tags": [
-      "喜剧",
-      "剧情",
-      "爱情"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "九品芝麻官",
-    "name_cn": "九品芝麻官",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E4%B9%9D%E5%93%81%E8%8A%9D%E9%BA%BB%E5%AE%98.webp",
-    "tags": [
-      "喜剧",
-      "古装",
-      "经典"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "你的名字",
-    "name_cn": "你的名字",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E4%BD%A0%E7%9A%84%E5%90%8D%E5%AD%97.webp",
-    "tags": [
-      "动画",
-      "爱情",
-      "奇幻"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "功夫",
-    "name_cn": "功夫",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E5%8A%9F%E5%A4%AB.webp",
-    "tags": [
-      "喜剧",
-      "动作",
-      "经典"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "千与千寻",
-    "name_cn": "千与千寻",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E5%8D%83%E4%B8%8E%E5%8D%83%E5%AF%BB.webp",
-    "tags": [
-      "动画",
-      "奇幻",
-      "剧情"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "唐伯虎点秋香",
-    "name_cn": "唐伯虎点秋香",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E5%94%90%E4%BC%AF%E8%99%8E%E7%82%B9%E7%A7%8B%E9%A6%99.webp",
-    "tags": [
-      "喜剧",
-      "古装",
-      "经典"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "喜剧之王",
-    "name_cn": "喜剧之王",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E5%96%9C%E5%89%A7%E4%B9%8B%E7%8E%8B.webp",
-    "tags": [
-      "喜剧",
-      "剧情",
-      "经典"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "小丑",
-    "name_cn": "小丑",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E5%B0%8F%E4%B8%91.webp",
-    "tags": [
-      "剧情",
-      "犯罪",
-      "心理"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "少年派的奇幻漂流",
-    "name_cn": "少年派的奇幻漂流",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E5%B0%91%E5%B9%B4%E6%B4%BE%E7%9A%84%E5%A5%87%E5%B9%BB%E6%BC%82%E6%B5%81.webp",
-    "tags": [
-      "奇幻",
-      "冒险",
-      "剧情"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "当幸福来敲门",
-    "name_cn": "当幸福来敲门",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E5%BD%93%E5%B9%B8%E7%A6%8F%E6%9D%A5%E6%95%B2%E9%97%A8.webp",
-    "tags": [
-      "剧情",
-      "传记",
-      "家庭"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "我不是药神",
-    "name_cn": "我不是药神",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E6%88%91%E4%B8%8D%E6%98%AF%E8%8D%AF%E7%A5%9E.webp",
-    "tags": [
-      "剧情",
-      "喜剧",
-      "社会"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "摔跤吧！爸爸",
-    "name_cn": "摔跤吧！爸爸",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E6%91%94%E8%B7%A4%E5%90%A7%E7%88%B8%E7%88%B8.webp",
-    "tags": [
-      "剧情",
-      "传记",
-      "运动"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "星际穿越",
-    "name_cn": "星际穿越",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E6%98%9F%E9%99%85%E7%A9%BF%E8%B6%8A.webp",
-    "tags": [
-      "科幻",
-      "冒险",
-      "剧情"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "泰坦尼克号",
-    "name_cn": "泰坦尼克号",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E6%B3%B0%E5%9D%A6%E5%B0%BC%E5%85%8B%E5%8F%B7.webp",
-    "tags": [
-      "爱情",
-      "灾难",
-      "剧情"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "海边的曼彻斯特",
-    "name_cn": "海边的曼彻斯特",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E6%B5%B7%E8%BE%B9%E7%9A%84%E6%9B%BC%E5%BD%BB%E6%96%AF%E7%89%B9.webp",
-    "tags": [
-      "剧情",
-      "家庭",
-      "感人"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "白日梦想家",
-    "name_cn": "白日梦想家",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E7%99%BD%E6%97%A5%E6%A2%A6%E6%83%B3%E5%AE%B6.webp",
-    "tags": [
-      "喜剧",
-      "冒险",
-      "励志"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "素媛",
-    "name_cn": "素媛",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E7%B4%A0%E5%AA%9B.webp",
-    "tags": [
-      "剧情",
-      "社会",
-      "感人"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "绿皮书",
-    "name_cn": "绿皮书",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E7%BB%BF%E7%9A%AE%E4%B9%A6.webp",
-    "tags": [
-      "剧情",
-      "喜剧",
-      "传记"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "肖申克的救赎",
-    "name_cn": "肖申克的救赎",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E8%82%96%E7%94%B3%E5%85%8B%E7%9A%84%E6%95%91%E8%B5%8E.webp",
-    "tags": [
-      "剧情",
-      "犯罪",
-      "经典"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "蝙蝠侠：黑暗骑士",
-    "name_cn": "蝙蝠侠：黑暗骑士",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E8%9D%99%E8%9D%A0%E4%BE%A0%E9%BB%91%E6%9A%97%E9%AA%91%E5%A3%AB.webp",
-    "tags": [
-      "超级英雄",
-      "动作",
-      "犯罪"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "釜山行",
-    "name_cn": "釜山行",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E9%87%9C%E5%B1%B1%E8%A1%8C.webp",
-    "tags": [
-      "丧尸",
-      "动作",
-      "灾难"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "阿甘正传",
-    "name_cn": "阿甘正传",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://re.tsh520.cn/Acover/%E9%98%BF%E7%94%98%E6%AD%A3%E4%BC%A0.webp",
-    "tags": [
-      "剧情",
-      "爱情",
-      "传记"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "飞越疯人院",
-    "name_cn": "飞越疯人院",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://re.tsh520.cn/Acover/%E9%A3%9E%E8%B7%83%E7%96%AF%E4%BA%BA%E9%99%A2.webp",
-    "tags": [
-      "剧情",
-      "经典"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvZ2Ft",
-    "title": "王者荣耀",
-    "name_cn": "王者荣耀",
-    "category": "game",
-    "status": 3,
-    "score": 0,
-    "image": "https://ph.0824.uk/file/game/%E7%8E%8B%E8%80%85%E8%8D%A3%E8%80%80.jpg",
-    "tags": [
-      "游戏"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvZ2Ft",
-    "title": "英雄联盟",
-    "name_cn": "英雄联盟",
-    "category": "game",
-    "status": 5,
-    "score": 9.5,
-    "image": "https://re.tsh520.cn/Ccover/13419419933304609.webp",
-    "tags": [
-      "游戏"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.808Z"
-  },
-  {
     "id": "local-L2Jhbmd1bWkvbXVz",
     "title": "一生所爱",
     "name_cn": "一生所爱",
@@ -1030,78 +276,6 @@
     "updated_at": "2026-07-01T14:31:39.808Z"
   },
   {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "极速风流",
-    "name_cn": "极速风流",
-    "category": "anime",
-    "status": 2,
-    "score": 9,
-    "image": "https://ph.0824.uk/file/anime/%E6%9E%81%E9%80%9F%E9%A3%8E%E6%B5%81.jpg",
-    "tags": [
-      "剧情",
-      "动作"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.806Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "茶馆",
-    "name_cn": "茶馆",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://ph.0824.uk/file/anime/%E8%8C%B6%E9%A6%86.jpg",
-    "tags": [
-      "剧情"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.806Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "侏罗纪世界",
-    "name_cn": "侏罗纪世界",
-    "category": "anime",
-    "status": 2,
-    "score": 8,
-    "image": "https://ph.0824.uk/file/anime/%E4%BE%8F%E7%BD%97%E7%BA%AA%E4%B8%96%E7%95%8C.jpg",
-    "tags": [
-      "冒险",
-      "科幻"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.806Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "凡人修仙传",
-    "name_cn": "凡人修仙传",
-    "category": "anime",
-    "status": 3,
-    "score": 10,
-    "image": "https://ph.0824.uk/file/anime/%E5%87%A1%E4%BA%BA%E4%BF%AE%E4%BB%99%E4%BC%A0.jpg",
-    "tags": [
-      "动画"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.806Z"
-  },
-  {
-    "id": "local-L2Jhbmd1bWkvYW5p",
-    "title": "给阿嬷的情书",
-    "name_cn": "给阿嬷的情书",
-    "category": "anime",
-    "status": 2,
-    "score": 10,
-    "image": "https://ph.0824.uk/file/anime/%E7%BB%99%E9%98%BF%E5%AC%B7%E7%9A%84%E6%83%85%E4%B9%A6.jpg",
-    "tags": [
-      "剧情，感情"
-    ],
-    "comment": "",
-    "updated_at": "2026-07-01T14:31:39.806Z"
-  },
-  {
     "id": "bgm-1782940779311-hm48hj",
     "title": "测试",
     "name_cn": "测试",
@@ -1248,5 +422,831 @@
     ],
     "comment": "",
     "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/game/王者荣耀/",
+    "title": "王者荣耀3333",
+    "name_cn": "王者荣耀",
+    "category": "game",
+    "status": 3,
+    "score": 0,
+    "image": "https://ph.0824.uk/file/game/%E7%8E%8B%E8%80%85%E8%8D%A3%E8%80%80.jpg",
+    "tags": [
+      "游戏"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T21:21:25.779Z"
+  },
+  {
+    "id": "/bangumi/anime/霸王别姬/",
+    "title": "霸王别姬5667",
+    "name_cn": "霸王别姬",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/霸王别姬.webp",
+    "tags": [
+      "剧情",
+      "爱情"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T21:21:06.687Z"
+  },
+  {
+    "id": "/bangumi/anime/食神/",
+    "title": "食神",
+    "name_cn": "食神",
+    "category": "anime",
+    "status": 2,
+    "score": 9,
+    "image": "https://ph.0824.uk/file/anime/%E9%A3%9F%E7%A5%9E.jpg",
+    "tags": [
+      "周星驰"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/唐人街探案/",
+    "title": "唐人街探案",
+    "name_cn": "唐人街探案",
+    "category": "anime",
+    "status": 2,
+    "score": 0,
+    "image": "https://ph.0824.uk/file/anime/%E5%94%90%E4%BA%BA%E8%A1%97%E6%8E%A2%E6%A1%88.jpg",
+    "tags": [],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/河狸变身计划/",
+    "title": "河狸变身计划",
+    "name_cn": "河狸变身计划",
+    "category": "anime",
+    "status": 2,
+    "score": 0,
+    "image": "https://ph.0824.uk/file/anime/%E6%B2%B3%E7%8B%B8%E5%8F%98%E8%BA%AB%E8%AE%A1%E5%88%92.jpg",
+    "tags": [],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/爱乐之城/",
+    "title": "爱乐之城",
+    "name_cn": "爱乐之城",
+    "category": "anime",
+    "status": 2,
+    "score": 0,
+    "image": "https://ph.0824.uk/file/anime/%E7%88%B1%E4%B9%90%E4%B9%8B%E5%9F%8E.jpg",
+    "tags": [
+      "喜剧",
+      "剧情",
+      "爱情"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/黑暗荣耀第二季/",
+    "title": "黑暗荣耀第二季",
+    "name_cn": "黑暗荣耀第二季",
+    "category": "anime",
+    "status": 2,
+    "score": 9,
+    "image": "https://re.tsh520.cn/blogre/%E9%BB%91%E6%9A%97%E8%8D%A3%E8%80%802.webp",
+    "tags": [
+      "校园",
+      "电视剧"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/黑暗荣耀1/",
+    "title": "黑暗荣耀1",
+    "name_cn": "黑暗荣耀1",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/blogre/%E9%BB%91%E6%9A%97%E8%8D%A3%E8%80%801.webp",
+    "tags": [
+      "校园",
+      "电视剧"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/消失的人/",
+    "title": "消失的人",
+    "name_cn": "消失的人",
+    "category": "anime",
+    "status": 2,
+    "score": 8.5,
+    "image": "https://re.tsh520.cn/blogre/%E6%B6%88%E5%A4%B1%E7%9A%84%E4%BA%BA.webp",
+    "tags": [
+      "悬疑"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/鬼客/",
+    "title": "鬼客",
+    "name_cn": "鬼客",
+    "category": "anime",
+    "status": 2,
+    "score": 9,
+    "image": "https://re.tsh520.cn/blogre/%E9%AC%BC%E5%AE%A2.webp",
+    "tags": [
+      "鬼片",
+      "纪录片"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/夺命许愿/",
+    "title": "夺命许愿",
+    "name_cn": "夺命许愿",
+    "category": "anime",
+    "status": 2,
+    "score": 8.5,
+    "image": "https://re.tsh520.cn/blogre/%E5%A4%BA%E5%91%BD%E8%AE%B8%E6%84%BF.webp",
+    "tags": [
+      "鬼片",
+      "电视剧"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/蜘蛛侠/",
+    "title": "蜘蛛侠",
+    "name_cn": "蜘蛛侠",
+    "category": "anime",
+    "status": 2,
+    "score": 9,
+    "image": "https://re.tsh520.cn/Acover/%E8%9C%98%E8%9B%9B%E4%BE%A01.webp",
+    "tags": [
+      "科幻",
+      "神作"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/爆裂鼓手/",
+    "title": "爆裂鼓手",
+    "name_cn": "爆裂鼓手",
+    "category": "anime",
+    "status": 2,
+    "score": 9,
+    "image": "https://ph.0824.uk/file/anime/%E7%88%86%E8%A3%82%E9%BC%93%E6%89%8B.jpg",
+    "tags": [
+      "电影"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/迷雾/",
+    "title": "迷雾",
+    "name_cn": "迷雾",
+    "category": "anime",
+    "status": 2,
+    "score": 8.1,
+    "image": "https://re.tsh520.cn/Acover/p2363134750.webp",
+    "tags": [
+      "电影"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/game/英雄联盟/",
+    "title": "英雄联盟",
+    "name_cn": "英雄联盟",
+    "category": "game",
+    "status": 5,
+    "score": 9.5,
+    "image": "https://re.tsh520.cn/Ccover/13419419933304609.webp",
+    "tags": [
+      "游戏"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/盗梦空间/",
+    "title": "盗梦空间",
+    "name_cn": "盗梦空间",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E7%9B%97%E6%A2%A6%E7%A9%BA%E9%97%B4.webp",
+    "tags": [
+      "科幻",
+      "悬疑",
+      "经典"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/这个杀手不太冷/",
+    "title": "这个杀手不太冷",
+    "name_cn": "这个杀手不太冷",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E8%BF%99%E4%B8%AA%E6%9D%80%E6%89%8B%E4%B8%8D%E5%A4%AA%E5%86%B7.webp",
+    "tags": [
+      "剧情",
+      "动作",
+      "犯罪"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/美丽人生/",
+    "title": "美丽人生",
+    "name_cn": "美丽人生",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E7%BE%8E%E4%B8%BD%E4%BA%BA%E7%94%9F.webp",
+    "tags": [
+      "剧情",
+      "爱情",
+      "战争"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/午夜凶铃/",
+    "title": "午夜凶铃",
+    "name_cn": "午夜凶铃",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E5%8D%88%E5%A4%9C%E5%87%B6%E9%93%83.webp",
+    "tags": [
+      "日本",
+      "恐怖"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/咒怨/",
+    "title": "咒怨",
+    "name_cn": "咒怨",
+    "category": "anime",
+    "status": 2,
+    "score": 6,
+    "image": "https://re.tsh520.cn/Acover/%E5%92%92%E6%80%A8.webp",
+    "tags": [
+      "日本",
+      "恐怖"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/咒怨2/",
+    "title": "咒怨2",
+    "name_cn": "咒怨2",
+    "category": "anime",
+    "status": 2,
+    "score": 6,
+    "image": "https://re.tsh520.cn/Acover/%E5%92%92%E6%80%A82.webp",
+    "tags": [
+      "日本",
+      "恐怖"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/头号玩家/",
+    "title": "头号玩家",
+    "name_cn": "头号玩家",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E5%A4%B4%E5%8F%B7%E7%8E%A9%E5%AE%B6.webp",
+    "tags": [
+      "科幻",
+      "冒险",
+      "游戏"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/穿条纹睡衣的男孩/",
+    "title": "穿条纹睡衣的男孩",
+    "name_cn": "穿条纹睡衣的男孩",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E7%A9%BF%E6%9D%A1%E7%BA%B9%E7%9D%A1%E8%A1%A3%E7%9A%84%E7%94%B7%E5%AD%A9.webp",
+    "tags": [
+      "战争",
+      "剧情",
+      "感人"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/让子弹飞/",
+    "title": "让子弹飞",
+    "name_cn": "让子弹飞",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E8%AE%A9%E5%AD%90%E5%BC%B9%E9%A3%9E.webp",
+    "tags": [
+      "喜剧",
+      "动作",
+      "西部"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/向阳花/",
+    "title": "向阳花",
+    "name_cn": "向阳花",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E5%90%91%E9%98%B3%E8%8A%B1.webp",
+    "tags": [
+      "剧情",
+      "犯罪",
+      "现代"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/豺狼的日子/",
+    "title": "豺狼的日子",
+    "name_cn": "豺狼的日子",
+    "category": "anime",
+    "status": 2,
+    "score": 9,
+    "image": "https://ph.0824.uk/file/anime/%E8%B1%BA%E7%8B%BC%E7%9A%84%E6%97%A5%E5%AD%90.jpg",
+    "tags": [
+      "剧情",
+      "动作冒险",
+      "悬疑"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/三傻大闹宝莱坞/",
+    "title": "三傻大闹宝莱坞",
+    "name_cn": "三傻大闹宝莱坞",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E4%B8%89%E5%82%BB%E5%A4%A7%E9%97%B9%E5%AE%9D%E8%8E%B1%E5%9D%9E.webp",
+    "tags": [
+      "喜剧",
+      "剧情",
+      "爱情"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/九品芝麻官/",
+    "title": "九品芝麻官",
+    "name_cn": "九品芝麻官",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E4%B9%9D%E5%93%81%E8%8A%9D%E9%BA%BB%E5%AE%98.webp",
+    "tags": [
+      "喜剧",
+      "古装",
+      "经典"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/你的名字/",
+    "title": "你的名字",
+    "name_cn": "你的名字",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E4%BD%A0%E7%9A%84%E5%90%8D%E5%AD%97.webp",
+    "tags": [
+      "动画",
+      "爱情",
+      "奇幻"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/功夫/",
+    "title": "功夫",
+    "name_cn": "功夫",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E5%8A%9F%E5%A4%AB.webp",
+    "tags": [
+      "喜剧",
+      "动作",
+      "经典"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/千与千寻/",
+    "title": "千与千寻",
+    "name_cn": "千与千寻",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E5%8D%83%E4%B8%8E%E5%8D%83%E5%AF%BB.webp",
+    "tags": [
+      "动画",
+      "奇幻",
+      "剧情"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/唐伯虎点秋香/",
+    "title": "唐伯虎点秋香",
+    "name_cn": "唐伯虎点秋香",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E5%94%90%E4%BC%AF%E8%99%8E%E7%82%B9%E7%A7%8B%E9%A6%99.webp",
+    "tags": [
+      "喜剧",
+      "古装",
+      "经典"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/喜剧之王/",
+    "title": "喜剧之王",
+    "name_cn": "喜剧之王",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E5%96%9C%E5%89%A7%E4%B9%8B%E7%8E%8B.webp",
+    "tags": [
+      "喜剧",
+      "剧情",
+      "经典"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/小丑/",
+    "title": "小丑",
+    "name_cn": "小丑",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E5%B0%8F%E4%B8%91.webp",
+    "tags": [
+      "剧情",
+      "犯罪",
+      "心理"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/少年派的奇幻漂流/",
+    "title": "少年派的奇幻漂流",
+    "name_cn": "少年派的奇幻漂流",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E5%B0%91%E5%B9%B4%E6%B4%BE%E7%9A%84%E5%A5%87%E5%B9%BB%E6%BC%82%E6%B5%81.webp",
+    "tags": [
+      "奇幻",
+      "冒险",
+      "剧情"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/当幸福来敲门/",
+    "title": "当幸福来敲门",
+    "name_cn": "当幸福来敲门",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E5%BD%93%E5%B9%B8%E7%A6%8F%E6%9D%A5%E6%95%B2%E9%97%A8.webp",
+    "tags": [
+      "剧情",
+      "传记",
+      "家庭"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/我不是药神/",
+    "title": "我不是药神",
+    "name_cn": "我不是药神",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E6%88%91%E4%B8%8D%E6%98%AF%E8%8D%AF%E7%A5%9E.webp",
+    "tags": [
+      "剧情",
+      "喜剧",
+      "社会"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/摔跤吧爸爸/",
+    "title": "摔跤吧！爸爸",
+    "name_cn": "摔跤吧！爸爸",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E6%91%94%E8%B7%A4%E5%90%A7%E7%88%B8%E7%88%B8.webp",
+    "tags": [
+      "剧情",
+      "传记",
+      "运动"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/星际穿越/",
+    "title": "星际穿越",
+    "name_cn": "星际穿越",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E6%98%9F%E9%99%85%E7%A9%BF%E8%B6%8A.webp",
+    "tags": [
+      "科幻",
+      "冒险",
+      "剧情"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/泰坦尼克号/",
+    "title": "泰坦尼克号",
+    "name_cn": "泰坦尼克号",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E6%B3%B0%E5%9D%A6%E5%B0%BC%E5%85%8B%E5%8F%B7.webp",
+    "tags": [
+      "爱情",
+      "灾难",
+      "剧情"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/海边的曼彻斯特/",
+    "title": "海边的曼彻斯特",
+    "name_cn": "海边的曼彻斯特",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E6%B5%B7%E8%BE%B9%E7%9A%84%E6%9B%BC%E5%BD%BB%E6%96%AF%E7%89%B9.webp",
+    "tags": [
+      "剧情",
+      "家庭",
+      "感人"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/白日梦想家/",
+    "title": "白日梦想家",
+    "name_cn": "白日梦想家",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E7%99%BD%E6%97%A5%E6%A2%A6%E6%83%B3%E5%AE%B6.webp",
+    "tags": [
+      "喜剧",
+      "冒险",
+      "励志"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/素媛/",
+    "title": "素媛",
+    "name_cn": "素媛",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E7%B4%A0%E5%AA%9B.webp",
+    "tags": [
+      "剧情",
+      "社会",
+      "感人"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/绿皮书/",
+    "title": "绿皮书",
+    "name_cn": "绿皮书",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E7%BB%BF%E7%9A%AE%E4%B9%A6.webp",
+    "tags": [
+      "剧情",
+      "喜剧",
+      "传记"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/肖申克的救赎/",
+    "title": "肖申克的救赎",
+    "name_cn": "肖申克的救赎",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E8%82%96%E7%94%B3%E5%85%8B%E7%9A%84%E6%95%91%E8%B5%8E.webp",
+    "tags": [
+      "剧情",
+      "犯罪",
+      "经典"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/蝙蝠侠黑暗骑士/",
+    "title": "蝙蝠侠：黑暗骑士",
+    "name_cn": "蝙蝠侠：黑暗骑士",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E8%9D%99%E8%9D%A0%E4%BE%A0%E9%BB%91%E6%9A%97%E9%AA%91%E5%A3%AB.webp",
+    "tags": [
+      "超级英雄",
+      "动作",
+      "犯罪"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/釜山行/",
+    "title": "釜山行",
+    "name_cn": "釜山行",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E9%87%9C%E5%B1%B1%E8%A1%8C.webp",
+    "tags": [
+      "丧尸",
+      "动作",
+      "灾难"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/阿甘正传/",
+    "title": "阿甘正传",
+    "name_cn": "阿甘正传",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://re.tsh520.cn/Acover/%E9%98%BF%E7%94%98%E6%AD%A3%E4%BC%A0.webp",
+    "tags": [
+      "剧情",
+      "爱情",
+      "传记"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/飞越疯人院/",
+    "title": "飞越疯人院",
+    "name_cn": "飞越疯人院",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://re.tsh520.cn/Acover/%E9%A3%9E%E8%B7%83%E7%96%AF%E4%BA%BA%E9%99%A2.webp",
+    "tags": [
+      "剧情",
+      "经典"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.808Z"
+  },
+  {
+    "id": "/bangumi/anime/极速风流/",
+    "title": "极速风流",
+    "name_cn": "极速风流",
+    "category": "anime",
+    "status": 2,
+    "score": 9,
+    "image": "https://ph.0824.uk/file/anime/%E6%9E%81%E9%80%9F%E9%A3%8E%E6%B5%81.jpg",
+    "tags": [
+      "剧情",
+      "动作"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.806Z"
+  },
+  {
+    "id": "/bangumi/anime/茶馆/",
+    "title": "茶馆",
+    "name_cn": "茶馆",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://ph.0824.uk/file/anime/%E8%8C%B6%E9%A6%86.jpg",
+    "tags": [
+      "剧情"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.806Z"
+  },
+  {
+    "id": "/bangumi/anime/侏罗纪世界/",
+    "title": "侏罗纪世界",
+    "name_cn": "侏罗纪世界",
+    "category": "anime",
+    "status": 2,
+    "score": 8,
+    "image": "https://ph.0824.uk/file/anime/%E4%BE%8F%E7%BD%97%E7%BA%AA%E4%B8%96%E7%95%8C.jpg",
+    "tags": [
+      "冒险",
+      "科幻"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.806Z"
+  },
+  {
+    "id": "/bangumi/anime/凡人修仙传/",
+    "title": "凡人修仙传",
+    "name_cn": "凡人修仙传",
+    "category": "anime",
+    "status": 3,
+    "score": 10,
+    "image": "https://ph.0824.uk/file/anime/%E5%87%A1%E4%BA%BA%E4%BF%AE%E4%BB%99%E4%BC%A0.jpg",
+    "tags": [
+      "动画"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.806Z"
+  },
+  {
+    "id": "/bangumi/anime/给阿嬷的情书/",
+    "title": "给阿嬷的情书",
+    "name_cn": "给阿嬷的情书",
+    "category": "anime",
+    "status": 2,
+    "score": 10,
+    "image": "https://ph.0824.uk/file/anime/%E7%BB%99%E9%98%BF%E5%AC%B7%E7%9A%84%E6%83%85%E4%B9%A6.jpg",
+    "tags": [
+      "剧情，感情"
+    ],
+    "comment": "",
+    "updated_at": "2026-07-01T14:31:39.806Z"
   }
 ]
