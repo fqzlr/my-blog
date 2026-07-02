@@ -1,0 +1,74 @@
+/* ===== 卡片样式 ===== */
+@reference "tailwindcss";
+@layer components {
+  /* 极简风格：card-base 透明无边框 */
+  .card-base,
+  .card-base-transparent {
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    border-radius: 0 !important;
+    overflow: visible;
+  }
+
+  .enable-card-border .card-base,
+  .enable-card-border .card-base-transparent {
+    background-color: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .enable-card-border #navbar > div:not(.absolute) {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* 封面关闭时，文章卡片显示黑线框 */
+  [data-hide-covers="true"] .post-card-wrapper.card-base {
+    border: 2.5px solid var(--deep-text) !important;
+  }
+  :root.dark [data-hide-covers="true"] .post-card-wrapper.card-base {
+    border-color: #fff !important;
+  }
+
+  /* 阴影（极简模式几乎为零） */
+  .card-shadow {
+    @apply drop-shadow-[0_2px_4px_rgba(0,0,0,0.005)];
+  }
+
+  /* 全屏壁纸模式下的半透明效果 */
+  .wallpaper-transparent .card-base {
+    background-color: var(--card-bg-transparent) !important;
+  }
+
+  .wallpaper-transparent #navbar > div {
+    background-color: var(--card-bg-transparent) !important;
+  }
+
+  .wallpaper-transparent .btn-card {
+    background-color: var(--card-bg-transparent) !important;
+  }
+
+  .wallpaper-transparent .moment-card {
+    background-color: var(--card-bg-transparent) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .wallpaper-transparent .featured-card,
+  .wallpaper-transparent .category-nav,
+  .wallpaper-transparent .category-section,
+  .wallpaper-transparent .site-card {
+    background-color: var(--card-bg-transparent) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .wallpaper-transparent .life-card,
+  .wallpaper-transparent .nav-tabs-wrapper {
+    background-color: var(--card-bg-transparent) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}

@@ -1,0 +1,33 @@
+/* 状态栏同步按钮 */
+.sync-status-bar {
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  font-size: 12px;
+}
+
+.sync-status-bar:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+/* 构建中 - 闪烁动画 */
+.sync-building {
+  color: var(--text-muted);
+  animation: sync-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes sync-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* 成功 */
+.sync-success {
+  color: var(--text-success);
+}
+
+/* 失败 */
+.sync-error {
+  color: var(--text-error);
+}

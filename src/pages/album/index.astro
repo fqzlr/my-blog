@@ -1,0 +1,252 @@
+---
+import { getCollection } from "astro:content";
+import { Icon } from "astro-icon/components";
+import BounceCards from "@/components/features/BounceCards.astro";
+import MainGridLayout from "@/layouts/MainGridLayout.astro";
+
+const albums = await getCollection("album", ({ data }) => {
+	return import.meta.env.PROD ? data.draft !== true : true;
+});
+
+const sortedAlbums = albums.sort(
+	(a, b) => b.data.date.getTime() - a.data.date.getTime(),
+);
+
+const totalPhotos = sortedAlbums.reduce(
+	(sum, album) => sum + (album.data.photos?.length || 0),
+	0,
+);
+const earliestDate =
+	sortedAlbums.length > 0
+		? sortedAlbums[sortedAlbums.length - 1].data.date
+		: new Date();
+const latestDate =
+	sortedAlbums.length > 0 ? sortedAlbums[0].data.date : new Date();
+
+const formatDateRange = (start: Date, end: Date) => {
+	const format = (d: Date) =>
+		`${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}`;
+	return `${format(start)} - ${format(end)}`;
+};
+
+function getPreviewPhotos(album: any) {
+	const photos = album.data.photos || [];
+	return photos.slice(0, 5);
+}
+---
+
+<MainGridLayout title="相册" description="记录生活中的美好瞬间">
+  <div class="flex flex-col w-full relative min-h-[50vh]">
+    <!-- 头部横幅 -->
+    <div class="relative w-full mb-10">
+      <div class="flex items-center gap-4 mb-2">
+        <div class="w-12 h-12 rounded-2xl bg-black dark:bg-white flex items-center justify-center">
+          <Icon name="material-symbols:collections-bookmark" class="text-2xl text-white dark:text-black" />
+        </div>
+        <div>
+          <h1 data-pagefind-meta="title" data-pagefind-weight="10" class="text-3xl font-bold text-neutral-900 dark:text-neutral-100">我的相册</h1>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400">记录生活中的美好瞬间</p>
+        </div>
+      </div>
+
+      <!-- 统计信息 -->
+      <div class="flex items-center gap-3 mt-5">
+        <div class="stat-pill">
+          <Icon name="material-symbols:photo-album" class="text-sm" />
+          <span class="font-semibold">{sortedAlbums.length}</span>
+          <span class="text-neutral-500 dark:text-neutral-400">相册</span>
+        </div>
+        <div class="stat-pill">
+          <Icon name="material-symbols:imagesmode" class="text-sm" />
+          <span class="font-semibold">{totalPhotos}</span>
+          <span class="text-neutral-500 dark:text-neutral-400">照片</span>
+        </div>
+        <div class="stat-pill">
+          <Icon name="material-symbols:calendar-month" class="text-sm" />
+          <span class="text-neutral-400 dark:text-neutral-500">{formatDateRange(earliestDate, latestDate)}</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 相册网格 -->
+    <div class="albums-grid">
+      {sortedAlbums.length > 0 ? (
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {sortedAlbums.map((album, index) => {
+            const previewPhotos = getPreviewPhotos(album);
+            const photoCount = album.data.photos?.length || 0;
+            const photoUrls = previewPhotos.map((p: any) => typeof p === 'string' ? p : p.src);
+            // 根据照片数量生成散开样式
+            const cardTransforms = photoUrls.length === 1
+              ? ["rotate(-2deg)"]
+              : photoUrls.length === 2
+                ? ["rotate(-5deg) translate(-40px)", "rotate(5deg) translate(40px)"]
+                : photoUrls.length === 3
+                  ? ["rotate(-5deg) translate(-70px)", "rotate(0deg)", "rotate(5deg) translate(70px)"]
+                  : photoUrls.length === 4
+                    ? ["rotate(5deg) translate(-105px)", "rotate(0deg) translate(-35px)", "rotate(-5deg) translate(35px)", "rotate(5deg) translate(105px)"]
+                    : ["rotate(10deg) translate(-140px)", "rotate(5deg) translate(-70px)", "rotate(-3deg)", "rotate(-10deg) translate(70px)", "rotate(2deg) translate(140px)"];
+            return (
+              <a
+                href={`/album/${album.id}/`}
+                class="album-card group onload-animation"
+                style={`animation-delay: calc(var(--content-delay) + ${index * 80}ms)`}
+              >
+                <!-- BounceCards 照片展示 -->
+                <div class="bounce-stack">
+                  {photoUrls.length > 0 ? (
+                    <BounceCards
+                      id={`bounce-${album.id}`}
+                      images={photoUrls}
+                      containerWidth={280}
+                      containerHeight={180}
+                      animationDelay={0.3 + index * 0.1}
+                      animationStagger={0.08}
+                      enableHover={true}
+                      transformStyles={cardTransforms}
+                    />
+                  ) : (
+                    <div class="empty-placeholder">
+                      <Icon name="material-symbols:add-photo-alternate-outline" class="text-4xl" />
+                    </div>
+                  )}
+                  {photoCount > 5 && (
+                    <div class="photo-badge">+{photoCount - 5}</div>
+                  )}
+                </div>
+
+                <!-- 相册信息 -->
+                <div class="card-body">
+                  <h3 class="card-title">{album.data.title}</h3>
+                  <div class="card-meta">
+                    <span class="meta-item">
+                      <Icon name="material-symbols:calendar-today" class="text-xs" />
+                      {album.data.date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' })}
+                    </span>
+                    <span class="meta-item">
+                      <Icon name="material-symbols:imagesmode" class="text-xs" />
+                      {photoCount} 张
+                    </span>
+                  </div>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      ) : (
+        <div class="w-full p-12 text-center">
+          <Icon name="material-symbols:photo-album-outline" class="text-6xl text-neutral-300 dark:text-neutral-600 mb-4" />
+          <p class="text-neutral-500 dark:text-neutral-400">还没有创建任何相册哦~</p>
+          <p class="text-sm text-neutral-400 dark:text-neutral-500 mt-2">快去记录生活中的美好瞬间吧！</p>
+        </div>
+      )}
+    </div>
+  </div>
+</MainGridLayout>
+
+<style>
+  .albums-grid {
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* 统计胶囊 */
+  .stat-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: var(--card-bg);
+    border: 2px solid #000;
+    border-radius: 50px;
+    font-size: 13px;
+    color: var(--deep-text);
+  }
+  :root.dark .stat-pill { border-color: #fff; }
+
+  .stat-pill :global(svg) {
+    color: var(--primary);
+  }
+
+  /* 相册卡片 */
+  .album-card {
+    display: flex;
+    flex-direction: column;
+    background: transparent;
+    border-radius: 16px;
+    overflow: visible;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .album-card:hover {
+    transform: translateY(-6px);
+  }
+
+  /* BounceCards 堆叠区域 */
+  .bounce-stack {
+    position: relative;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: visible;
+  }
+
+  .bounce-stack :global(.bounce-card) {
+    width: 100px;
+    border-width: 3px;
+    border-radius: 14px;
+  }
+
+  .photo-badge {
+    position: absolute;
+    bottom: 8px; right: 12px;
+    background: rgba(0, 0, 0, 0.75);
+    color: white; font-size: 11px; font-weight: 600;
+    padding: 3px 8px; border-radius: 12px;
+    backdrop-filter: blur(4px);
+    z-index: 10;
+  }
+
+  .empty-placeholder {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--primary);
+    opacity: 0.3;
+  }
+
+  .card-body {
+    padding: 14px 8px 8px;
+  }
+
+  .card-title {
+    font-size: 15px; font-weight: 600;
+    color: var(--deep-text);
+    margin-bottom: 6px;
+    transition: color 0.3s;
+  }
+
+  .album-card:hover .card-title {
+    color: var(--primary);
+  }
+
+  .card-meta {
+    display: flex; align-items: center; gap: 14px;
+    font-size: 12px; color: var(--content-meta);
+  }
+
+  .meta-item {
+    display: flex; align-items: center; gap: 4px;
+  }
+
+  @media (max-width: 640px) {
+    .polaroid-stack { height: 180px; }
+    .stat-pill { padding: 6px 12px; font-size: 12px; }
+  }
+</style>

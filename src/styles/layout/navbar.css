@@ -1,0 +1,128 @@
+/**
+ * 极简导航栏
+ * 无玻璃模糊效果，向下滚动隐藏，向上滚动显示
+ */
+
+#navbar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  transition: transform 0.3s ease;
+}
+#navbar.nav-hidden {
+  transform: translateY(-100%);
+}
+
+#navbar>div {
+  background: var(--page-bg);
+  border: none;
+  border-radius: 0;
+  width: 100%;
+  max-width: none;
+  margin: 0 auto;
+  padding: 0.5rem 0;
+}
+
+/* 滚动后收缩 */
+#navbar.scrolled>div {
+  max-width: min(72%, 860px);
+  border-radius: 0;
+  margin: 0 auto;
+  border: 2px solid #000;
+  background: var(--page-bg);
+}
+:root.dark #navbar.scrolled>div {
+  border-color: #fff;
+}
+
+/* ============ 全宽模式 ============ */
+@media (min-width: 1024px) {
+  #navbar-wrapper #navbar[data-full-width="true"]>div,
+  #navbar-wrapper #navbar[data-full-width="true"].scrolled>div {
+    border-radius: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+}
+
+/* ============ 导航栏图标隐藏 ============ */
+@media (max-width: 1199px) {
+  .navbar-icon { display: none !important; }
+}
+
+/* ============ 响应式文字缩小 ============ */
+@media (max-width: 1400px) {
+  #navbar .dropdown-container>a,
+  #navbar .dropdown-container:not(:has([data-dropdown-menu]))>a,
+  #navbar .hidden.lg\:flex a {
+    font-size: 0.875rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+}
+@media (max-width: 1200px) {
+  #navbar .dropdown-container>a,
+  #navbar .dropdown-container:not(:has([data-dropdown-menu]))>a,
+  #navbar .hidden.lg\:flex a {
+    font-size: 0.8rem !important;
+    padding-left: 0.625rem !important;
+    padding-right: 0.625rem !important;
+  }
+}
+
+/* ============ 下拉菜单 / 浮动面板背景 ============ */
+.dropdown-content,
+.float-panel {
+  background: var(--page-bg) !important;
+  border: 2px solid #000 !important;
+}
+:root.dark .dropdown-content,
+:root.dark .float-panel {
+  background: #0a0a0a !important;
+  border-color: #fff !important;
+}
+
+/* ============ 汉堡菜单 ============ */
+.nav-hamburger-btn {
+  color: var(--deep-text);
+}
+.nav-hamburger-btn:hover {
+  color: var(--primary);
+}
+.nav-hamburger-btn .hamburger-icon-close,
+.hamburger-icon-menu {
+  transition: opacity 0.2s ease, transform 0.25s ease;
+}
+.nav-hamburger-btn.hamburger-open .hamburger-icon-menu { display: none; }
+.nav-hamburger-btn.hamburger-open .hamburger-icon-close { display: inline-block; }
+
+/* ============ 去掉导航栏按钮的 hover 背景 ============ */
+#navbar .btn-plain:hover,
+#navbar .btn-plain:active {
+  background: transparent !important;
+}
+
+/* ============ 暗色模式导航栏链接可见性修复 ============ */
+:root.dark #navbar .navbar-link-item,
+:root.dark #navbar .btn-plain {
+  color: oklch(0.95 0 0 / 0.85);
+}
+:root.dark #navbar .navbar-link-item:hover,
+:root.dark #navbar .btn-plain:hover {
+  color: var(--primary);
+}
+:root.dark #navbar .navbar-logo-content {
+  color: oklch(0.95 0 0 / 0.85);
+}
+:root.dark #navbar .admin-entry-btn {
+  color: oklch(0.95 0 0 / 0.85);
+}
+:root.dark #navbar .nav-hamburger-btn {
+  color: oklch(0.95 0 0 / 0.85);
+}
+
+/* 去掉站点 Logo 的 hover/click 阴影 */
+.navbar-logo-link::before {
+  content: none;
+}

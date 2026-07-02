@@ -13,7 +13,7 @@ interface Props {
 
 const { moment } = Astro.props;
 const { Content } = await render(moment);
-const { author, avatar, published, images, tags, location, pinned } =
+const { author, avatar, published, images, tags, location, device, pinned } =
 	moment.data;
 
 // 获取 moments 资产目录下的所有图片
@@ -67,6 +67,7 @@ const getGridCols = (count: number) => {
 	return 3;
 };
 
+const momentId = moment.id;
 const imagesArray = parseImages(images);
 const gridMax = 9;
 
@@ -220,7 +221,7 @@ const formatTimeAgo = (date: Date): string => {
 	 * ============================================ */
 	.moment-card {
 		position: relative;
-		background: #ffffff;
+		background: var(--card-bg);
 		border-radius: var(--radius-large);
 		padding: 1.25rem 1.25rem 1.25rem 2.25rem;
 		border: 2px solid #000;
@@ -232,7 +233,6 @@ const formatTimeAgo = (date: Date): string => {
 	}
 
 	:root.dark .moment-card {
-		background: #18181b;
 		border-color: #3f3f46;
 	}
 
@@ -391,7 +391,7 @@ const formatTimeAgo = (date: Date): string => {
 		border-radius: var(--radius);
 		overflow: hidden;
 		cursor: pointer;
-		background: #f3f4f6;
+		background: var(--bg-secondary);
 		aspect-ratio: 1;
 	}
 
@@ -409,8 +409,8 @@ const formatTimeAgo = (date: Date): string => {
 
 	.hidden-image { display: none !important; }
 .has-more .image-img {
-	filter: brightness(0.6);
-}
+		filter: brightness(0.6);
+	}
 
 	.more-overlay {
 		position: absolute;
@@ -435,7 +435,7 @@ const formatTimeAgo = (date: Date): string => {
 		flex-wrap: wrap;
 		gap: 0.375rem;
 		padding-top: 0.625rem;
-		border-top: 1px solid #e5e7eb;
+		border-top: 1px solid var(--border);
 	}
 
 	.tag-item {
@@ -450,14 +450,6 @@ const formatTimeAgo = (date: Date): string => {
 
 	.tag-item:hover {
 		background: color-mix(in srgb, var(--primary) 10%, transparent);
-	}
-
-	:root.dark .card-tags {
-		border-top-color: #3f3f46;
-	}
-
-	:root.dark .image-item {
-		background: #27272a;
 	}
 
 	/* ============================================

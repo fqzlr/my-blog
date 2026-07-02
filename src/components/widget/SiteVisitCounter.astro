@@ -1,0 +1,74 @@
+---
+import WidgetLayout from "@/components/common/WidgetLayout.astro";
+import I18nKey from "@/i18n/i18nKey";
+import { i18n } from "@/i18n/translation";
+---
+
+<WidgetLayout name={i18n(I18nKey.pageViews) || "访问统计"} id="site-visit-counter">
+  <div class="flex flex-col items-center py-3">
+    <div class="flex items-baseline gap-1">
+      <span class="visit-count" id="site-visit-total" data-server="https://co.tsh520.cn">--</span>
+      <span class="visit-label">次</span>
+    </div>
+    <p class="visit-desc">站点总访问量</p>
+  </div>
+</WidgetLayout>
+
+<style>
+  .visit-count {
+    font-size: 1.75rem;
+    font-weight: 800;
+    font-family: ui-monospace, SFMono-Regular, 'Cascadia Code', monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--deep-text);
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .visit-label {
+    font-size: 0.75rem;
+    color: var(--content-meta);
+    font-weight: 600;
+  }
+  .visit-desc {
+    font-size: 0.6875rem;
+    color: var(--content-meta);
+    margin-top: 0.5rem;
+  }
+</style>
+
+<script is:inline>
+  (function() {
+    var countEl = document.getElementById('site-visit-total');
+    if (!countEl) return;
+
+    var server = countEl.dataset.server || 'https://co.tsh520.cn';
+
+    // 主要路径列表
+    var paths = ['/', '/posts/', '/guestbook/', '/moments/', '/album/', '/books/', '/projects/', '/friends/', '/changelog/'];
+
+    function fetchTotal() {
+      var promises = paths.map(function(path) {
+        return fetch(server + '/api/article?path=' + encodeURIComponent(path))
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            if (data.data && Array.isArray(data.data) && data.data.length > 0) {
+              return Number(data.data[0].time) || 0;
+            }
+            return 0;
+          })
+          .catch(function() { return 0; });
+      });
+
+      Promise.all(promises).then(function(counts) {
+        var total = counts.reduce(function(sum, c) { return sum + c; }, 0);
+        if (total > 0 && countEl) {
+          countEl.textContent = total.toLocaleString();
+        } else if (countEl) {
+          countEl.textContent = '--';
+        }
+      });
+    }
+
+    fetchTotal();
+  })();
+</script>

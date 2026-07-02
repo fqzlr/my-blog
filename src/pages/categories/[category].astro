@@ -1,0 +1,169 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { getCollection } from "astro:content";
+import I18nKey from "@i18n/i18nKey";
+import { i18n } from "@i18n/translation";
+import MainGridLayout from "@layouts/MainGridLayout.astro";
+import type { GetStaticPaths } from "astro";
+import { Icon } from "astro-icon/components";
+import PostCard from "@/components/layout/PostCard.astro";
+import { getCategoryList } from "@/utils/content-utils";
+import { getCategoryPageUrl, getTagUrl } from "@/utils/url-utils";
+
+type PostEntry = CollectionEntry<"posts">;
+
+export const getStaticPaths = (async () => {
+	const categories = await getCategoryList();
+	const allPosts = await getCollection<PostEntry>("posts", ({ data }) => {
+		return import.meta.env.PROD ? data.draft !== true : true;
+	});
+
+	const paths = [];
+
+	for (const category of categories) {
+		// 过滤该分类下的文章
+		const categoryPosts = allPosts.filter((post) => {
+			const postCategory = post.data.category?.trim() || "";
+			const uncategorized = i18n(I18nKey.uncategorized).toLowerCase();
+
+			if (!category.name || category.name.toLowerCase() === uncategorized) {
+				// 未分类：没有分类或分类为空/未分类
+				return !postCategory || postCategory.toLowerCase() === uncategorized;
+			}
+			return postCategory === category.name;
+		});
+
+		// 按日期排序
+		categoryPosts.sort((a, b) => {
+			if (a.data.pinned && !b.data.pinned) return -1;
+			if (!a.data.pinned && b.data.pinned) return 1;
+			return (
+				new Date(b.data.published).getTime() -
+				new Date(a.data.published).getTime()
+			);
+		});
+
+		// 收集该分类下所有标签
+		const tagCountMap: Record<string, number> = {};
+		categoryPosts.forEach((post) => {
+			(post.data.tags || []).forEach((tag) => {
+				tagCountMap[tag] = (tagCountMap[tag] || 0) + 1;
+			});
+		});
+		const tags = Object.entries(tagCountMap)
+			.sort((a, b) => b[1] - a[1])
+			.map(([name, count]) => ({ name, count }));
+
+		paths.push({
+			params: { category: category.name },
+			props: {
+				categoryName: category.name,
+				posts: categoryPosts,
+				totalPosts: categoryPosts.length,
+				tags,
+			},
+		});
+	}
+
+	return paths;
+}) satisfies GetStaticPaths;
+
+const { categoryName } = Astro.props;
+const { posts, totalPosts, tags } = Astro.props;
+
+// 解码分类名称
+const decodedCategory = decodeURIComponent(categoryName);
+---
+
+<MainGridLayout title={`${decodedCategory} - ${i18n(I18nKey.categories)}`}>
+    <!-- 面包屑导航 -->
+    <div class="card-base px-6 py-4 mb-6">
+        <nav class="flex items-center gap-2 text-sm text-30">
+            <a href="/" class="hover:text-(--primary) transition-colors">
+                <Icon name="material-symbols:home" class="inline-block align-middle" />
+            </a>
+            <span class="opacity-50">/</span>
+            <a href={getCategoryPageUrl()} class="hover:text-(--primary) transition-colors">
+                {i18n(I18nKey.categories)}
+            </a>
+            <span class="opacity-50">/</span>
+            <span class="text-90 font-medium">{decodedCategory}</span>
+        </nav>
+    </div>
+
+    <!-- 分类标题 -->
+    <div class="card-base px-8 py-6 mb-6">
+        <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-full bg-(--primary)/10 flex items-center justify-center flex-shrink-0">
+                <Icon name="material-symbols:folder-open" class="text-3xl text-(--primary)" />
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-90">{decodedCategory}</h1>
+                <p class="text-sm text-30 mt-1">
+                    {totalPosts} {i18n(I18nKey.postsCount)}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 标签筛选区域 -->
+    {
+        tags.length > 0 && (
+            <div class="card-base px-6 py-5 mb-6">
+                <div class="flex items-center gap-3 mb-3">
+                    <Icon name="material-symbols:label" class="text-lg text-(--primary)" />
+                    <span class="text-sm font-medium text-90">{i18n(I18nKey.tags)}</span>
+                    <span class="text-xs text-30">({tags.length})</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    {tags.map((tag: { name: string; count: number }) => (
+                        <a
+                            href={getTagUrl(tag.name)}
+                            class="btn-regular px-3 py-1.5 text-sm rounded-md
+                                   transition-all duration-200
+                                   hover:scale-105 hover:bg-(--primary)/20
+                                   active:scale-95"
+                        >
+                            #{tag.name}
+                            <span class="ml-1 text-xs opacity-60">({tag.count})</span>
+                        </a>
+                    ))}
+                </div>
+            </div>
+        )
+    }
+
+    <!-- 文章列表 -->
+    <div class="flex flex-col gap-4 mb-6">
+        {
+            posts.length > 0 ? (
+                posts.map((entry: PostEntry, index: number) => (
+                    <div
+                        class="onload-animation"
+                        style={`animation-delay: calc(var(--content-delay) + ${index * 50}ms);`}
+                    >
+                        <PostCard
+                            entry={entry}
+                            title={entry.data.title}
+                            tags={entry.data.tags || []}
+                            category={entry.data.category || null}
+                            published={entry.data.published}
+                            updated={entry.data.updated}
+                            url={`/posts/${entry.id}/`}
+                            image={entry.data.image || ""}
+                            description={entry.data.description || ""}
+                            draft={entry.data.draft || false}
+                            pinned={entry.data.pinned}
+                            loading={index < 2 ? "eager" : "lazy"}
+                        />
+                    </div>
+                ))
+            ) : (
+                <div class="card-base px-8 py-12 text-center">
+                    <Icon name="material-symbols:article" class="text-5xl text-30 mx-auto mb-4" />
+                    <p class="text-30">{i18n(I18nKey.bangumiNoData)}</p>
+                </div>
+            )
+        }
+    </div>
+</MainGridLayout>

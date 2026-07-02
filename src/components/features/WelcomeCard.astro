@@ -1,0 +1,678 @@
+---
+/**
+ * WelcomeCard.astro
+ * Lanyard 风格悬挂卡片 — 符合 Firefly 极简无色风格
+ */
+import { getCollection } from "astro:content";
+import { externalMomentsConfig } from "@/config/externalMomentsConfig";
+import { externalNotebooksConfig } from "@/config/externalNotebooksConfig";
+import { getPostUrlBySlug } from "@/utils/url-utils";
+
+interface RawItem {
+	type: string;
+	title: string;
+	date: Date;
+	url: string;
+}
+const allItems: RawItem[] = [];
+
+try {
+	const posts = await getCollection("posts", ({ data }) =>
+		import.meta.env.PROD ? data.draft !== true : true,
+	);
+	for (const p of posts)
+		allItems.push({
+			type: "post",
+			title: p.data.title,
+			date: new Date(p.data.published),
+			url: getPostUrlBySlug(p.id),
+		});
+} catch {}
+try {
+	const moments = await getCollection("moments");
+	for (const m of moments) {
+		let t = (m.body || "").replace(/[#*`]/g, "").trim();
+		if (t.length > 40) t = t.substring(0, 40) + "...";
+		if (!t) t = "日常动态";
+		allItems.push({
+			type: "moment",
+			title: t,
+			date: new Date(m.data.published),
+			url: "/moments/",
+		});
+	}
+} catch {}
+try {
+	const bangumi = await getCollection("bangumi");
+	for (const b of bangumi) {
+		let u = b.data.link || "";
+		if (!u) {
+			const s = b.id.replace(/\\/g, "/").replace(/\.(md|mdx|markdown)$/i, "");
+			u =
+				b.data.category === "book"
+					? `/books/${s}/`
+					: b.data.category === "music"
+						? "/music/"
+						: "/movies-games/";
+		}
+		allItems.push({
+			type: b.data.category === "music" ? "music" : "bangumi",
+			title: b.data.title,
+			date: b.data.published ? new Date(b.data.published) : new Date(0),
+			url: u,
+		});
+	}
+} catch {}
+try {
+	const notebooks = await getCollection("notebooks");
+	const nn: Record<string, string> = {};
+	for (const n of notebooks) {
+		if (n.id.includes("_index")) {
+			const f = n.id.replace(/\\/g, "/").replace(/\/_index(\.md|\.json)?$/, "");
+			nn[f] = n.data.name || f;
+		}
+	}
+	for (const n of notebooks) {
+		if (n.id.includes("_index")) continue;
+		const f = n.id.replace(/\\/g, "/").split("/")[0];
+		const nm = nn[f] || f;
+		const s =
+			n.id.replace(/\\/g, "/").split("/").pop()?.replace(/\.md$/, "") || "";
+		allItems.push({
+			type: "notebook",
+			title: `${nm} · ${n.data.name || "未命名"}`,
+			date: n.data.date ? new Date(n.data.date) : new Date(),
+			url: `/life/notebooks/${f}/${s}/`,
+		});
+	}
+} catch {}
+try {
+	const routines = await getCollection("routines");
+	for (const r of routines) {
+		const d = r.data.updatedAt instanceof Date ? r.data.updatedAt : new Date();
+		allItems.push({
+			type: "routine",
+			title: `规划: ${r.data.name}`,
+			date: d,
+			url: "/life/routines/",
+		});
+	}
+} catch {}
+try {
+	const changelog = await getCollection("changelog");
+	for (const c of changelog)
+		allItems.push({
+			type: "changelog",
+			title: c.data.description,
+			date: new Date(c.data.date),
+			url: "/changelog/",
+		});
+} catch {}
+try {
+	const album = await getCollection("album", ({ data }) =>
+		import.meta.env.PROD ? data.draft !== true : true,
+	);
+	for (const a of album) {
+		const s = a.id.replace(/\\/g, "/").replace(/\.(md|mdx|markdown)$/i, "");
+		allItems.push({
+			type: "album",
+			title: a.data.title,
+			date: new Date(a.data.date),
+			url: `/album/${s}/`,
+		});
+	}
+} catch {}
+
+allItems.sort((a, b) => b.date.getTime() - a.date.getTime());
+const recentBrief = allItems.slice(0, 3).map((i) => ({
+	type: i.type,
+	title: i.title,
+	date: i.date.toISOString().substring(0, 10),
+	url: i.url,
+}));
+const recentDetail = allItems.slice(0, 8).map((i) => ({
+	type: i.type,
+	title: i.title,
+	date: i.date.toISOString().substring(0, 10),
+	url: i.url,
+}));
+const totalUpdates = allItems.length;
+// 内联 SVG 图标（Material Symbols 风格，24x24 viewBox）
+const typeIconSVG: Record<string, string> = {
+	post: '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>',
+	moment:
+		'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+	bangumi:
+		'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>',
+	notebook:
+		'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
+	routine:
+		'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+	changelog:
+		'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+	album:
+		'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>',
+	music:
+		'<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>',
+};
+---
+
+<style>
+  #wc-root {
+    position: fixed; inset: 0; z-index: 9998;
+    display: none; background: transparent;
+  }
+  #wc-root.wc-show { display: block; }
+
+  /* SVG 绳子 */
+  #wc-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+  #wc-rope { fill: none; stroke-width: 2; stroke-linecap: round; stroke: var(--line-divider); }
+  #wc-shadow { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke: var(--line-divider); opacity: 0.25; }
+
+  /* 挂钩 */
+  #wc-hook { position: absolute; z-index: 2; pointer-events: none; width: 14px; height: 10px; transform: translate(-50%, -100%); }
+  #wc-hook::before { content: ''; position: absolute; bottom: 0; left: 50%; width: 8px; height: 6px; border: 2px solid var(--line-divider); border-top: none; border-radius: 0 0 4px 4px; transform: translateX(-50%); }
+
+  /* 卡片 */
+  #wc-card {
+    position: absolute; z-index: 3;
+    width: 300px; max-width: 85vw;
+    pointer-events: auto;
+    cursor: grab; touch-action: none; user-select: none;
+    transform-origin: 50% 0;
+    will-change: left, top, transform;
+  }
+  #wc-card:active, #wc-card.wc-dragging { cursor: grabbing; }
+
+  /* 翻转容器 */
+  #wc-inner { position: relative; width: 100%; }
+
+  .wc-face {
+    width: 100%; border-radius: 0; overflow: hidden;
+    background: var(--page-bg);
+    border: 2px solid var(--line-divider);
+    transition: opacity 0.35s ease, transform 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .wc-front { position: relative; z-index: 2; opacity: 1; transform: scale(1) rotateY(0); }
+  .wc-back { position: absolute; top: 0; left: 0; width: 100%; opacity: 0; transform: scale(0.96) rotateY(80deg); pointer-events: none; }
+  #wc-inner.wc-flipped .wc-front { opacity: 0; transform: scale(0.96) rotateY(-80deg); pointer-events: none; }
+  #wc-inner.wc-flipped .wc-back { opacity: 1; transform: scale(1) rotateY(0); pointer-events: auto; }
+
+  /* ===== 正面 ===== */
+  .wc-front-content { padding: 1.75rem 1.5rem 1.25rem; }
+
+  .wc-greeting { text-align: center; margin-bottom: 0.25rem; }
+  .wc-greeting-icon { color: var(--content-meta); display: flex; align-items: center; justify-content: center; margin-bottom: 0.5rem; }
+  .wc-greeting-icon svg { width: 28px; height: 28px; opacity: 0.5; }
+  .wc-greeting-text { font-size: 0.9375rem; font-weight: 700; color: var(--deep-text); line-height: 1.5; letter-spacing: 0.01em; }
+  .wc-greeting-loc { font-weight: 700; }
+
+  .wc-time-greeting { font-size: 0.75rem; color: var(--content-meta); text-align: center; margin-bottom: 1.25rem; }
+
+  .wc-divider {
+    width: 40px; height: 2px; margin: 0 auto 1rem;
+    background: var(--line-divider);
+  }
+
+  .wc-recent-section { margin-bottom: 0.75rem; }
+  .wc-recent-label { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--content-meta); margin-bottom: 0.5rem; text-align: center; }
+
+  .wc-hint {
+    display: flex; gap: 1.25rem; justify-content: center;
+    padding-top: 0.75rem; border-top: 1px solid var(--line-divider);
+  }
+  .wc-hint span { font-size: 0.65rem; color: var(--content-meta); letter-spacing: 0.02em; }
+
+  /* 背面样式在下面的 <style is:global> 中（JS 动态创建的元素需要全局样式） */
+
+  .wc-close-btn {
+    position: absolute; top: 0.5rem; right: 0.5rem;
+    width: 1.5rem; height: 1.5rem;
+    display: flex; align-items: center; justify-content: center;
+    border: none; background: transparent; color: var(--content-meta);
+    opacity: 0.4; cursor: pointer; font-size: 0.875rem;
+    border-radius: 0; transition: all 0.15s ease;
+    padding: 0; line-height: 1; z-index: 10;
+  }
+  .wc-close-btn:hover { opacity: 0.8; color: var(--deep-text); }
+
+  .wc-flip-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0.375rem 1rem; border-radius: 0;
+    font-size: 0.75rem; font-weight: 600;
+    cursor: pointer; transition: all 0.15s ease;
+    text-decoration: none; border: 2px solid var(--line-divider); line-height: 1.4;
+    background: transparent; color: var(--deep-text);
+  }
+  .wc-flip-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+  @media (max-width: 480px) {
+    #wc-card { width: 85vw; }
+    .wc-front-content { padding: 1.5rem 1.25rem 1rem; }
+    .wc-back-content { padding: 1.25rem; }
+    .wc-detail-list { max-height: 200px; }
+  }
+</style>
+
+<style is:global>
+  /* ===== 全局样式（JS 动态创建的元素没有 data-astro-cid，需要 is:global） ===== */
+
+  /* 正面摘要文字 */
+  #wc-root .wc-summary { font-size: 0.8125rem; font-weight: 500; line-height: 1.7; color: var(--deep-text); padding: 0.25rem 0; text-align: center; }
+  :root.dark #wc-root .wc-summary { color: oklch(0.80 0.005 280); }
+
+  /* 背面容器 */
+  #wc-root .wc-back-content { padding: 1rem 1.25rem; }
+  #wc-root .wc-back-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+  #wc-root .wc-back-icon { color: var(--content-meta); display: flex; align-items: center; }
+  #wc-root .wc-back-title { font-size: 0.8rem; font-weight: 600; color: var(--deep-text); }
+
+  /* 列表容器 */
+  #wc-root .wc-detail-list { display: flex; flex-direction: column; margin-bottom: 0.75rem; max-height: 260px; overflow-y: auto; }
+
+  /* 每条：与 RecentItems .recent-item 一致 */
+  #wc-root .wc-detail-item {
+    display: flex; align-items: center; gap: 0.625rem;
+    padding: 0.5rem 0.375rem; border-radius: 8px;
+    text-decoration: none; color: inherit;
+    transition: background-color 0.15s ease;
+  }
+  #wc-root .wc-detail-item:hover { background-color: var(--btn-plain-bg-hover); }
+  :root.dark #wc-root .wc-detail-item:hover { background-color: oklch(0.16 0 0); }
+  #wc-root .wc-detail-item + .wc-detail-item { border-top: 1px solid var(--line-divider); }
+
+  /* 图标方块：与 RecentItems .recent-thumb 一致 */
+  #wc-root .wc-detail-thumb {
+    width: 36px; height: 36px; flex-shrink: 0;
+    border-radius: 8px; overflow: hidden;
+    border: 2px solid #000;
+    display: flex; align-items: center; justify-content: center;
+    transition: border-color 0.2s, transform 0.2s;
+    background: var(--btn-plain-bg-hover);
+    color: var(--content-meta);
+  }
+  :root.dark #wc-root .wc-detail-thumb { border-color: #3f3f46; }
+  #wc-root .wc-detail-item:hover .wc-detail-thumb { border-color: var(--primary); transform: scale(1.08); }
+  :root.dark #wc-root .wc-detail-item:hover .wc-detail-thumb { border-color: #fff; }
+
+  /* 文字区域：与 RecentItems .recent-body 一致 */
+  #wc-root .wc-detail-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+  #wc-root .wc-detail-title {
+    font-size: 0.75rem; font-weight: 600; color: var(--deep-text);
+    line-height: 1.3; overflow: hidden;
+    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical;
+    transition: color 0.15s;
+  }
+  #wc-root .wc-detail-item:hover .wc-detail-title { color: var(--primary); }
+
+  #wc-root .wc-detail-meta {
+    font-size: 0.65rem; color: var(--content-meta);
+    display: flex; align-items: center; gap: 3px;
+  }
+
+  /* 类型徽章：与 RecentItems .recent-badge 一致 */
+  #wc-root .wc-detail-badge {
+    margin-left: auto;
+    display: inline-block; padding: 1px 6px; border-radius: 4px;
+    font-size: 0.55rem; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    background: var(--btn-plain-bg-hover); color: var(--primary);
+    transition: background-color 0.15s;
+  }
+  :root.dark #wc-root .wc-detail-badge { background: oklch(0.20 0 0); }
+  #wc-root .wc-detail-item:hover .wc-detail-badge { background: var(--primary); color: var(--page-bg); }
+  :root.dark #wc-root .wc-detail-item:hover .wc-detail-badge { background: #fff; color: #000; }
+
+  /* 操作按钮 */
+  #wc-root .wc-back-actions {
+    display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+    padding-top: 0.625rem; border-top: 1px solid var(--line-divider);
+  }
+  #wc-root .wc-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0.375rem 0.875rem; border-radius: 0;
+    font-size: 0.75rem; font-weight: 600;
+    cursor: pointer; transition: all 0.15s ease;
+    text-decoration: none; border: 2px solid var(--line-divider); line-height: 1.4;
+    background: transparent; color: var(--deep-text);
+  }
+  #wc-root .wc-btn:hover { border-color: var(--primary); color: var(--primary); }
+  #wc-root .wc-btn-primary { background: var(--primary); color: var(--page-bg); border-color: var(--primary); }
+  #wc-root .wc-btn-primary:hover { opacity: 0.8; }
+</style>
+
+<div id="wc-root">
+  <svg id="wc-svg" xmlns="http://www.w3.org/2000/svg">
+    <path id="wc-shadow" d="" />
+    <path id="wc-rope" d="" />
+  </svg>
+  <div id="wc-hook"></div>
+  <div id="wc-card">
+    <div id="wc-inner">
+      <div class="wc-face wc-front">
+        <button class="wc-close-btn" id="wc-close-front">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="wc-front-content">
+          <div class="wc-greeting">
+            <div class="wc-greeting-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
+            <div class="wc-greeting-text">欢迎来自 <span class="wc-greeting-loc" id="wc-location">远方</span> 的朋友</div>
+          </div>
+          <div class="wc-time-greeting" id="wc-greeting"></div>
+          <div class="wc-divider"></div>
+          <div class="wc-recent-section">
+            <div class="wc-recent-label" id="wc-recent-label">最近更新</div>
+            <div class="wc-summary" id="wc-brief-list"></div>
+          </div>
+          <div style="text-align:center;padding-top:0.75rem;border-top:1px solid var(--line-divider);">
+            <button class="wc-flip-btn" id="wc-flip-front">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+              查看详情
+            </button>
+            <div style="margin-top:0.375rem;font-size:0.625rem;color:var(--content-meta);letter-spacing:0.02em;">↕ 拖拽弹射</div>
+          </div>
+        </div>
+      </div>
+      <div class="wc-face wc-back">
+        <button class="wc-close-btn" id="wc-close-back">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+        <div class="wc-back-content">
+          <div class="wc-back-header">
+            <span class="wc-back-icon"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
+            <span class="wc-back-title">最近更新</span>
+          </div>
+          <div class="wc-detail-list" id="wc-detail-list"></div>
+          <div class="wc-back-actions">
+            <button class="wc-btn" id="wc-flip-back">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+              返回
+            </button>
+            <button class="wc-btn" id="wc-btn-close">关闭</button>
+            <a href="/archive/" class="wc-btn wc-btn-primary" id="wc-btn-link">查看归档</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script is:inline define:vars={{ recentBrief, recentDetail, totalUpdates, typeIconSVG, momentsGistId: externalMomentsConfig.gistId, momentsFileName: externalMomentsConfig.fileName, notebookGists: externalNotebooksConfig.notebookGists }}>
+(function() {
+  'use strict';
+  var DISMISS_KEY = 'wc-dismissed', COOLDOWN = 86400000;
+  try { var d = localStorage.getItem(DISMISS_KEY); if (d && Date.now() - Number(d) < COOLDOWN) return; } catch(e) { return; }
+
+  var root = document.getElementById('wc-root');
+  var ropeEl = document.getElementById('wc-rope');
+  var shadowEl = document.getElementById('wc-shadow');
+  var hookEl = document.getElementById('wc-hook');
+  var card = document.getElementById('wc-card');
+  var inner = document.getElementById('wc-inner');
+  if (!root || !ropeEl || !card || !inner) return;
+
+  function typeIcon(t) { return typeIconSVG[t] || typeIconSVG['post']; }
+  function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  // 正面：最近3天统计
+  var briefEl = document.getElementById('wc-brief-list');
+  if (briefEl) {
+    var now = new Date(), threeDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3);
+    var recent3 = recentDetail.filter(function(it) { return new Date(it.date) >= threeDaysAgo; });
+    var typeCounts = {};
+    recent3.forEach(function(it) { typeCounts[it.type] = (typeCounts[it.type] || 0) + 1; });
+    var typeNames = { post:'篇文章', moment:'条动态', bangumi:'条记录', notebook:'条笔记', routine:'条规划', changelog:'条日志', album:'个相册', music:'首音乐' };
+    var parts = [];
+    for (var t in typeCounts) parts.push(typeCounts[t] + (typeNames[t] || '项'));
+    var lbl = document.getElementById('wc-recent-label');
+    if (lbl) lbl.textContent = '最近 3 天 · ' + recent3.length + ' 条日志';
+    briefEl.textContent = parts.length > 0 ? parts.join('、') : '暂无更新';
+  }
+
+  // 背面：详细列表（与 RecentItems 小组件结构一致）
+  var typeNames = { post:'文章', moment:'动态', bangumi:'记录', notebook:'笔记', routine:'规划', changelog:'更新', album:'相册', music:'音乐' };
+  var detailList = document.getElementById('wc-detail-list');
+  if (detailList) {
+    for (var j = 0; j < recentDetail.length; j++) {
+      var it = recentDetail[j], a = document.createElement('a');
+      a.href = it.url; a.className = 'wc-detail-item';
+      a.innerHTML = '<div class="wc-detail-thumb">' + typeIcon(it.type) + '</div>'
+        + '<div class="wc-detail-body">'
+        + '<span class="wc-detail-title">' + esc(it.title) + '</span>'
+        + '<span class="wc-detail-meta">'
+        + '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> '
+        + it.date
+        + ' <span class="wc-detail-badge">' + (typeNames[it.type] || it.type) + '</span>'
+        + '</span></div>';
+      detailList.appendChild(a);
+    }
+  }
+
+  // ===== 获取远程数据（Gist 后端的说说和笔记） =====
+  var allRemoteItems = [];
+  var remoteFetched = 0;
+  var remoteTotal = 0;
+
+  function mergeRemoteItems() {
+    if (remoteFetched < remoteTotal) return;
+    if (!allRemoteItems.length) return;
+
+    // 合并到 recentDetail 并重新排序
+    var merged = recentDetail.concat(allRemoteItems);
+    merged.sort(function(a, b) { return new Date(b.date) - new Date(a.date); });
+    var top8 = merged.slice(0, 8);
+
+    // 重新渲染背面列表
+    var list = document.getElementById('wc-detail-list');
+    if (list) {
+      list.innerHTML = '';
+      for (var j = 0; j < top8.length; j++) {
+        var it = top8[j], a = document.createElement('a');
+        a.href = it.url; a.className = 'wc-detail-item';
+        a.innerHTML = '<div class="wc-detail-thumb">' + typeIcon(it.type) + '</div>'
+          + '<div class="wc-detail-body">'
+          + '<span class="wc-detail-title">' + esc(it.title) + '</span>'
+          + '<span class="wc-detail-meta">'
+          + '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> '
+          + it.date
+          + ' <span class="wc-detail-badge">' + (typeNames[it.type] || it.type) + '</span>'
+          + '</span></div>';
+        list.appendChild(a);
+      }
+    }
+
+    // 重新渲染正面摘要
+    var now = new Date(), threeDaysAgo = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3);
+    var recent3 = merged.filter(function(it) { return new Date(it.date) >= threeDaysAgo; });
+    var typeCounts = {};
+    recent3.forEach(function(it) { typeCounts[it.type] = (typeCounts[it.type] || 0) + 1; });
+    var typeNamesBrief = { post:'篇文章', moment:'条动态', bangumi:'条记录', notebook:'条笔记', routine:'条规划', changelog:'条日志', album:'个相册', music:'首音乐' };
+    var parts = [];
+    for (var t in typeCounts) parts.push(typeCounts[t] + (typeNamesBrief[t] || '项'));
+    var briefEl = document.getElementById('wc-brief-list');
+    if (briefEl) briefEl.textContent = parts.length > 0 ? parts.join('、') : '暂无更新';
+    var lbl = document.getElementById('wc-recent-label');
+    if (lbl) lbl.textContent = '最近 3 天 · ' + recent3.length + ' 条日志';
+  }
+
+  // 获取远程说说
+  if (momentsGistId) {
+    remoteTotal++;
+    fetch('https://gist.githubusercontent.com/raw/' + momentsGistId + '?t=' + Date.now())
+      .then(function(r) { if (!r.ok) return null; return r.text(); })
+      .then(function(text) {
+        if (!text) return;
+        var moments = [];
+        try { moments = JSON.parse(text); } catch(e) { return; }
+        if (!Array.isArray(moments)) return;
+        moments.forEach(function(m) {
+          var t = (m.content || '').replace(/[#*`]/g, '').trim();
+          if (t.length > 40) t = t.substring(0, 40) + '...';
+          if (!t) t = '日常动态';
+          allRemoteItems.push({ type: 'moment', title: t, date: (m.published || '').substring(0, 10), url: '/moments/' });
+        });
+      })
+      .catch(function() {})
+      .finally(function() { remoteFetched++; mergeRemoteItems(); });
+  }
+
+  // 获取远程笔记
+  if (notebookGists && typeof notebookGists === 'object') {
+    var nbKeys = Object.keys(notebookGists);
+    nbKeys.forEach(function(nbName) {
+      var gistId = notebookGists[nbName];
+      if (!gistId) return;
+      remoteTotal++;
+      fetch('https://gist.githubusercontent.com/raw/' + gistId + '?t=' + Date.now())
+        .then(function(r) { if (!r.ok) return null; return r.text(); })
+        .then(function(text) {
+          if (!text) return;
+          var entries = [];
+          try { entries = JSON.parse(text); } catch(e) { return; }
+          if (!Array.isArray(entries)) return;
+          entries.forEach(function(e) {
+            var slug = (e.id || '').replace(/\.md$/, '');
+            allRemoteItems.push({ type: 'notebook', title: nbName + ' · ' + (e.title || '未命名'), date: (e.date || '').substring(0, 10), url: '/life/notebooks/' + encodeURIComponent(nbName) + '/' });
+          });
+        })
+        .catch(function() {})
+        .finally(function() { remoteFetched++; mergeRemoteItems(); });
+    });
+  }
+
+  var greetEl = document.getElementById('wc-greeting');
+  if (greetEl) { var h = new Date().getHours(); greetEl.textContent = h >= 6 && h < 12 ? '早上好' : h >= 12 && h < 14 ? '中午好' : h >= 14 && h < 18 ? '下午好' : '晚上好'; }
+  var locEl = document.getElementById('wc-location');
+  if (locEl && navigator.onLine) {
+    fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=zh').then(function(r) { return r.json(); }).then(function(data) { var parts = [data.city, data.principalSubdivision, data.countryName].filter(Boolean); var loc = parts.slice(0, 2).join(' '); if (loc) locEl.textContent = loc; }).catch(function() { fetch('https://ipapi.co/json/').then(function(r) { return r.json(); }).then(function(ip) { var loc = [ip.city, ip.region].filter(Boolean).join(' '); if (loc) locEl.textContent = loc; }).catch(function() {}); });
+  }
+
+  // ===== Verlet 物理 =====
+  var NUM_NODES = 6, SEG_LEN = 55, GRAVITY = 1800, DAMPING = 0.985, ITERATIONS = 12;
+  var W = window.innerWidth, H = window.innerHeight, anchorX = W / 2, anchorY = 0;
+  var nodes = [];
+  // 初始位置：屏幕上方外，给一点水平偏移产生自然摆动
+  var startY = -(H + 100);
+  var initSway = 30; // 初始水平偏移量
+  for (var i = 0; i < NUM_NODES; i++) {
+    var sway = initSway * (i / (NUM_NODES - 1)); // 越靠下偏移越大
+    nodes.push({ x: anchorX + sway, y: startY + i * SEG_LEN, ox: anchorX + sway, oy: startY + i * SEG_LEN });
+  }
+
+  var isDragging = false, isFlying = false, dragX = 0, dragY = 0;
+  var flipped = false, pointerDownTime = 0, pointerDownX = 0, pointerDownY = 0, hasMoved = false;
+
+  function cr(a,b,c,d,t) { var t2=t*t,t3=t2*t; return 0.5*((2*b)+(-a+c)*t+(2*a-5*b+4*c-d)*t2+(-a+3*b-3*c+d)*t3); }
+  function buildPath(nl) {
+    var pts = [];
+    for (var idx = 0; idx < nl.length-1; idx++) {
+      var n0=nl[Math.max(0,idx-1)],n1=nl[idx],n2=nl[Math.min(nl.length-1,idx+1)],n3=nl[Math.min(nl.length-1,idx+2)];
+      for (var t=0;t<=1;t+=0.08) pts.push([cr(n0.x,n1.x,n2.x,n3.x,t),cr(n0.y,n1.y,n2.y,n3.y,t)]);
+    }
+    var d = 'M '+pts[0][0].toFixed(1)+' '+pts[0][1].toFixed(1);
+    for (var i=1;i<pts.length;i++) d += ' L '+pts[i][0].toFixed(1)+' '+pts[i][1].toFixed(1);
+    return d;
+  }
+
+  function simulate(dt) {
+    if (isFlying) return;
+    nodes[0].x = anchorX; nodes[0].y = anchorY;
+    for (var i=1;i<nodes.length;i++) { var n=nodes[i]; var vx=(n.x-n.ox)*DAMPING,vy=(n.y-n.oy)*DAMPING; n.ox=n.x;n.oy=n.y;n.x+=vx;n.y+=vy+GRAVITY*dt*dt; }
+    if (isDragging) { var last=nodes[nodes.length-1]; last.x=dragX;last.y=dragY; }
+    for (var iter=0;iter<ITERATIONS;iter++) {
+      nodes[0].x=anchorX;nodes[0].y=anchorY;
+      for (var i=0;i<nodes.length-1;i++) { var a=nodes[i],b=nodes[i+1]; var dx=b.x-a.x,dy=b.y-a.y; var dist=Math.sqrt(dx*dx+dy*dy);if(dist<0.001)dist=0.001; var diff=(SEG_LEN-dist)/dist*0.5; var ox=dx*diff,oy=dy*diff; if(i>0){a.x-=ox;a.y-=oy;} b.x+=ox;b.y+=oy; }
+      if (isDragging) { var last=nodes[nodes.length-1]; last.x=dragX;last.y=dragY; }
+    }
+    // 轻微角阻尼：允许自然摆动
+    if (!isDragging && nodes.length>=3) {
+      var last=nodes[nodes.length-1],prev=nodes[nodes.length-2];
+      var dx = last.x - prev.x;
+      // 只在偏移极小时才归位，否则让物理自然摆动
+      if (Math.abs(dx) < 1) {
+        last.x = prev.x;
+        last.ox = prev.x;
+      }
+    }
+  }
+
+  function render() {
+    var pathD = buildPath(nodes);
+    ropeEl.setAttribute('d', pathD);
+    shadowEl.setAttribute('d', pathD);
+    var hookNode = nodes[1]||nodes[0];
+    hookEl.style.left = hookNode.x+'px'; hookEl.style.top = hookNode.y+'px';
+    var last=nodes[nodes.length-1],prev=nodes[nodes.length-2];
+    var cardW=card.offsetWidth||300;
+    card.style.left=(last.x-cardW/2)+'px'; card.style.top=last.y+'px';
+    // 卡片始终保持垂直，不跟随绳子旋转
+    card.style.transform='rotate(0deg)';
+  }
+
+  root.classList.add('wc-show');
+  var lastTime=performance.now();
+  var loopCount=0;
+  function loop(now) {
+    var dt=Math.min((now-lastTime)/1000,0.033);lastTime=now;
+    simulate(dt);render();
+    loopCount++;
+    // 掉落前几帧不渲染旋转，避免初始歪斜
+    if (loopCount < 8) card.style.transform='rotate(0deg)';
+    if(!isFlying)requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+
+  // 拖拽 + 翻转
+  card.addEventListener('pointerdown', function(e) {
+    if (isFlying) return;
+    if (e.target.closest('button')||e.target.closest('a')) return;
+    e.preventDefault();
+    isDragging=true;hasMoved=false;
+    pointerDownTime=Date.now();pointerDownX=e.clientX;pointerDownY=e.clientY;
+    dragX=e.clientX;dragY=e.clientY;
+    card.classList.add('wc-dragging');
+    card.setPointerCapture(e.pointerId);
+  });
+  card.addEventListener('pointermove', function(e) {
+    if (!isDragging) return; e.preventDefault();
+    if (Math.abs(e.clientX-pointerDownX)>5||Math.abs(e.clientY-pointerDownY)>5) hasMoved=true;
+    dragX=e.clientX;dragY=e.clientY;
+  });
+  card.addEventListener('pointerup', function(e) {
+    if (!isDragging) return; e.preventDefault();
+    isDragging=false; card.classList.remove('wc-dragging');
+    var last=nodes[nodes.length-1];
+    if (last.y<-100||last.x<-100||last.x>W+100||last.y>H+100) { flyAway(last.x,last.y); return; }
+  });
+
+  // 翻转按钮
+  document.getElementById('wc-flip-front').addEventListener('click', function(e) {
+    e.stopPropagation(); flipped=true; inner.classList.add('wc-flipped');
+  });
+  document.getElementById('wc-flip-back').addEventListener('click', function(e) {
+    e.stopPropagation(); flipped=false; inner.classList.remove('wc-flipped');
+  });
+  card.addEventListener('pointercancel', function() { isDragging=false;card.classList.remove('wc-dragging'); });
+
+  function flyAway(x,y) {
+    isFlying=true;
+    ropeEl.style.transition='opacity 0.3s';ropeEl.style.opacity='0';
+    shadowEl.style.transition='opacity 0.3s';shadowEl.style.opacity='0';
+    hookEl.style.transition='opacity 0.3s';hookEl.style.opacity='0';
+    var sx=x,sy=y,vx=(x-W/2)*3,vy=-1000,rot=0,vr=(Math.random()-0.5)*15,t0=performance.now();
+    function fly(now) { var dt=Math.min((now-lastTime)/1000,0.033);lastTime=now;sx+=vx*dt;sy+=vy*dt;vy+=2500*dt;rot+=vr*dt;card.style.left=(sx-(card.offsetWidth||300)/2)+'px';card.style.top=sy+'px';card.style.transform='rotate('+rot+'deg)';card.style.opacity=Math.max(0,1-(now-t0)/500);if(now-t0<600)requestAnimationFrame(fly);else root.remove(); }
+    requestAnimationFrame(fly); markDismissed();
+  }
+
+  function markDismissed() { try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch(e) {} }
+  function closeCard() { markDismissed();isFlying=true;root.style.transition='opacity 0.3s';root.style.opacity='0';setTimeout(function(){root.remove();},350); }
+  document.getElementById('wc-close-front').addEventListener('click', function(e){e.stopPropagation();closeCard();});
+  document.getElementById('wc-close-back').addEventListener('click', function(e){e.stopPropagation();closeCard();});
+  document.getElementById('wc-btn-close').addEventListener('click', function(e){e.stopPropagation();closeCard();});
+  document.getElementById('wc-btn-link').addEventListener('click', function(){markDismissed();});
+  root.addEventListener('click', function(e){if(e.target===root)closeCard();});
+  document.addEventListener('keydown', function(e){if(e.key==='Escape')closeCard();});
+  window.addEventListener('resize', function(){W=window.innerWidth;H=window.innerHeight;anchorX=W/2;});
+})();
+</script>

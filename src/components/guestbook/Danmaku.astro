@@ -1,0 +1,272 @@
+---
+import { getCollection } from "astro:content";
+
+const danmuEntries = await getCollection("danmu");
+const comments = danmuEntries.map((entry) => ({
+	nickname: entry.data.nickname,
+	content: entry.body.trim(),
+	time: entry.data.time,
+}));
+---
+
+<div class="danmaku-section">
+  <div class="danmaku-header">
+    <div class="header-left">
+      <span class="header-title">实时留言</span>
+    </div>
+    <span class="danmaku-count" id="danmaku-count">{comments.length} 条留言</span>
+  </div>
+  
+  <div class="danmaku-viewport" id="danmaku-viewport">
+    <div class="danmaku-track" id="danmaku-track">
+      {comments.map((comment, index) => (
+        <div class="danmaku-item" data-index={index}>
+          <div class="item-content">
+            <span class="item-nickname">{comment.nickname}</span>
+            <span class="item-text">{comment.content}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</div>
+
+<script define:vars={{ comments }}>
+  class DanmakuPlayer {
+    constructor(track, viewport) {
+      this.track = track;
+      this.viewport = viewport;
+      this.items = Array.from(track.querySelectorAll('.danmaku-item'));
+      this.comments = comments;
+      this.currentIndex = 0;
+      this.isPlaying = true;
+      this.itemHeight = 52;
+      this.visibleCount = 4;
+      this.autoScrollInterval = null;
+      
+      this.init();
+    }
+
+    init() {
+      this.showItems(0, this.visibleCount);
+      this.startAutoScroll();
+    }
+
+    showItems(start, count) {
+      this.items.forEach((item, index) => {
+        if (index >= start && index < start + count) {
+          item.classList.add('active');
+          item.style.transform = `translateY(${(index - start) * this.itemHeight}px)`;
+        } else {
+          item.classList.remove('active');
+          item.style.transform = 'translateY(0)';
+        }
+      });
+    }
+
+    startAutoScroll() {
+      this.autoScrollInterval = setInterval(() => {
+        if (!this.isPlaying) return;
+        
+        this.currentIndex++;
+        if (this.currentIndex > this.items.length - this.visibleCount) {
+          this.currentIndex = 0;
+        }
+        this.showItems(this.currentIndex, this.visibleCount);
+        
+        this.items.forEach((item, index) => {
+          if (index >= this.currentIndex && index < this.currentIndex + this.visibleCount) {
+            item.classList.add('highlight');
+            setTimeout(() => item.classList.remove('highlight'), 500);
+          }
+        });
+      }, 3000);
+    }
+
+    pause() {
+      this.isPlaying = false;
+    }
+
+    resume() {
+      this.isPlaying = true;
+    }
+
+    addComment(comment) {
+      const newItem = document.createElement('div');
+      newItem.className = 'danmaku-item active highlight';
+      newItem.innerHTML = `
+        <div class="item-content">
+          <span class="item-nickname">${comment.nickname}</span>
+          <span class="item-text">${comment.content}</span>
+        </div>
+      `;
+      this.track.appendChild(newItem);
+      this.items.push(newItem);
+      
+      const countEl = document.getElementById('danmaku-count');
+      if (countEl) {
+        countEl.textContent = `${this.items.length} 条留言`;
+      }
+      
+      setTimeout(() => newItem.classList.remove('highlight'), 500);
+    }
+  }
+
+  let danmakuPlayer = null;
+
+  function initDanmaku() {
+    const track = document.getElementById('danmaku-track');
+    const viewport = document.getElementById('danmaku-viewport');
+    
+    // 如果元素不存在，跳过
+    if (!track || !viewport) {
+      return;
+    }
+    
+    // 页面过渡后需要重置状态
+    if (danmakuPlayer) {
+      // 清理旧的自动滚动
+      if (danmakuPlayer.autoScrollInterval) {
+        clearInterval(danmakuPlayer.autoScrollInterval);
+      }
+      danmakuPlayer = null;
+    }
+    
+    danmakuPlayer = new DanmakuPlayer(track, viewport);
+    
+    viewport.addEventListener('mouseenter', () => danmakuPlayer?.pause());
+    viewport.addEventListener('mouseleave', () => danmakuPlayer?.resume());
+  }
+
+  // 页面可能已经加载完成，直接初始化
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initDanmaku();
+  }
+
+  // 直接访问页面时使用 DOMContentLoaded
+  document.addEventListener('DOMContentLoaded', initDanmaku);
+
+  // Swup 页面过渡后重新初始化
+  document.addEventListener('swup:content:replace', initDanmaku);
+
+  window.addGuestbookDanmaku = (comment) => {
+    danmakuPlayer?.addComment(comment);
+  };
+</script>
+
+<style>
+  .danmaku-section {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+  }
+
+  .danmaku-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    background: linear-gradient(to right, rgba(13, 148, 136, 0.06), rgba(13, 148, 136, 0.02));
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .header-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-color);
+  }
+
+  .danmaku-count {
+    font-size: 12px;
+    color: var(--content-meta);
+    padding: 4px 10px;
+    background: var(--bg-color);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .danmaku-viewport {
+    height: 208px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .danmaku-track {
+    position: relative;
+    height: 100%;
+    transition: transform 0.5s ease;
+  }
+
+  .danmaku-item {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 18px;
+    height: 52px;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.4s ease;
+  }
+
+  .danmaku-item.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .danmaku-item.highlight {
+    background: rgba(13, 148, 136, 0.08);
+  }
+
+  /* 内容布局调整 */
+  .item-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .item-nickname {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0d9488;
+    white-space: nowrap;
+  }
+
+  .item-text {
+    font-size: 13px;
+    color: var(--text-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-text::before {
+    content: ':';
+    margin-right: 4px;
+    color: var(--content-meta);
+  }
+
+  .danmaku-viewport::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 30px;
+    background: linear-gradient(transparent, var(--card-bg));
+    pointer-events: none;
+  }
+</style>

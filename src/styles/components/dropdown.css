@@ -1,0 +1,93 @@
+/* ===== 下拉菜单样式 ===== */
+@reference "tailwindcss";
+@layer components {
+  .dropdown-container {
+    @apply relative;
+  }
+
+  .dropdown-menu {
+    @apply absolute top-full left-0 pt-2 opacity-0 invisible pointer-events-none
+      transition-all duration-200 ease-out transform translate-y-[-8px] z-50;
+  }
+
+  .dropdown-container:hover .dropdown-menu,
+  .dropdown-container:focus-within .dropdown-menu {
+    @apply opacity-100 visible pointer-events-auto translate-y-0;
+  }
+
+  .dropdown-container:hover .dropdown-arrow,
+  .dropdown-container:focus-within .dropdown-arrow {
+    @apply rotate-180;
+  }
+
+  .dropdown-content,
+  .dropdown-content-wrapper {
+    @apply border border-(--line-divider) py-2 min-w-48;
+    background: color-mix(in oklch, var(--float-panel-bg) 85%, transparent);
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+  }
+
+  .dropdown-item {
+    @apply flex items-center justify-between px-4 py-2.5 text-black/75 dark:text-white/75
+      hover:text-(--primary) hover:bg-(--btn-plain-bg-hover) transition-colors duration-150 font-medium;
+    border: 1.5px solid transparent;
+    background-color: transparent !important;
+  }
+
+  .dropdown-item:hover {
+    border-color: oklch(0.2 0 0);
+    background-color: transparent !important;
+  }
+  :root.dark .dropdown-item:hover {
+    border-color: oklch(0.75 0 0);
+  }
+
+  /* 移动端菜单 */
+  .mobile-submenu {
+    @apply max-h-0 overflow-hidden transition-all duration-300 ease-in-out;
+  }
+
+  .mobile-dropdown[data-expanded="true"] .mobile-submenu {
+    @apply max-h-96;
+  }
+
+  .mobile-dropdown[data-expanded="true"] .mobile-dropdown-arrow {
+    @apply rotate-180;
+  }
+
+  /* 响应式隐藏 */
+  @media (max-width: 768px) {
+    .dropdown-container {
+      @apply hidden;
+    }
+  }
+
+  /* 无障碍支持 */
+  .dropdown-container:focus-within .dropdown-menu {
+    @apply opacity-100 visible pointer-events-auto translate-y-0;
+  }
+
+  .dropdown-item:focus {
+    @apply outline-hidden;
+  }
+
+  .mobile-dropdown button:focus {
+    @apply outline-hidden;
+  }
+
+  /* 浮动面板 */
+  .float-panel {
+    @apply top-21 overflow-hidden bg-(--float-panel-bg) transition-colors duration-150
+      border border-(--line-divider);
+  }
+  .float-panel-closed {
+    @apply -translate-y-1 opacity-0 pointer-events-none;
+  }
+  .float-panel-closed * {
+    @apply pointer-events-none;
+  }
+  .search-panel mark {
+    @apply bg-transparent text-(--primary);
+  }
+}

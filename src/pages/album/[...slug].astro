@@ -1,0 +1,189 @@
+---
+import { getCollection } from "astro:content";
+import { Icon } from "astro-icon/components";
+import Comment from "@/components/comment/index.astro";
+import DomeGallery from "@/components/features/DomeGallery.astro";
+import MainGridLayout from "@/layouts/MainGridLayout.astro";
+
+export async function getStaticPaths() {
+	const albums = await getCollection("album");
+	return albums.map((album) => ({
+		params: { slug: album.id },
+		props: { album },
+	}));
+}
+
+const { album } = Astro.props;
+
+const photos = (album.data.photos || []).map((photo: any, index: number) => {
+	let src, alt, caption, width, height;
+
+	if (typeof photo === "string") {
+		src = photo;
+		alt = "";
+		caption = "";
+		width = 1920;
+		height = 1080;
+	} else {
+		src = photo.src || photo;
+		alt = photo.alt || `${album.data.title} - 照片 ${index + 1}`;
+		caption = photo.caption || "";
+		width = photo.width || 1920;
+		height = photo.height || 1080;
+	}
+
+	return { src, alt, caption, width, height, index };
+});
+
+function getTimeAgo(date: Date): string {
+	const now = new Date();
+	const diff = now.getTime() - date.getTime();
+	const months = Math.floor(diff / (1000 * 60 * 60 * 24 * 30));
+	if (months < 1) return "创建不到1个月前";
+	if (months === 1) return "创建1个月前";
+	if (months < 12) return `创建${months}个月前`;
+	const years = Math.floor(months / 12);
+	return years === 1 ? "创建1年前" : `创建${years}年前`;
+}
+---
+
+<MainGridLayout title={album.data.title} description={album.data.subtitle || `${album.data.title} - 相册`}>
+  <div class="flex flex-col w-full relative min-h-[50vh]">
+    <!-- 头部：返回按钮 + 标题并排 -->
+    <div class="album-header">
+      <div class="flex items-center gap-3 mb-3">
+        <a href="/album/" class="nav-back shrink-0" aria-label="返回相册列表">
+          <Icon name="material-symbols:arrow-left-rounded" class="text-2xl" />
+        </a>
+        <h1 data-pagefind-meta="title" data-pagefind-weight="10" class="text-3xl font-bold text-neutral-900 dark:text-neutral-100">{album.data.title}</h1>
+      </div>
+      {album.data.subtitle && (
+        <p class="text-base text-neutral-500 dark:text-neutral-400 mt-2 mb-4">{album.data.subtitle}</p>
+      )}
+
+      <div class="album-meta">
+        <span class="meta-item">
+          <Icon name="material-symbols:imagesmode" class="text-lg" />
+          {photos.length} 照片
+        </span>
+        <span class="meta-divider"></span>
+        <span class="meta-item">
+          <Icon name="material-symbols:calendar-today" class="text-lg" />
+          {album.data.date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })}
+        </span>
+        <span class="meta-divider"></span>
+        <span class="meta-item">
+          <Icon name="material-symbols:search" class="text-lg" />
+          {getTimeAgo(album.data.date)}
+        </span>
+      </div>
+    </div>
+
+    <!-- 3D 球面照片墙 -->
+    <div class="dome-section">
+      {photos.length > 0 ? (
+        <DomeGallery
+          images={photos.map((p: any) => p.src)}
+          fit={0.5}
+          minRadius={850}
+          segments={25}
+          grayscale={false}
+          imageBorderRadius="16px"
+          openedImageBorderRadius="20px"
+          openedImageWidth="350px"
+          openedImageHeight="500px"
+          overlayBlurColor="rgba(255,255,255,0.85)"
+          maxVerticalRotationDeg={8}
+          dragSensitivity={15}
+        />
+      ) : (
+        <div class="empty-state">
+          <Icon name="material-symbols:photo-album-outline" class="text-6xl text-neutral-300 dark:text-neutral-600 mb-4" />
+          <p class="text-neutral-500 dark:text-neutral-400">这个相册还没有照片哦~</p>
+        </div>
+      )}
+    </div>
+
+    <!-- 评论区 -->
+    <div id="album-comments" class="mt-6">
+      <Comment customPath={`/album/${album.id}/`} />
+    </div>
+  </div>
+
+</MainGridLayout>
+
+
+<style>
+  .nav-back {
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--deep-text);
+    background: var(--card-bg);
+    border: 2px solid #000;
+    border-radius: 12px;
+    transition: all 0.3s;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  :root.dark .nav-back { border-color: #fff; }
+
+  .nav-back:hover {
+    background: #000; color: #fff;
+    border-color: #000; transform: scale(1.05);
+  }
+  :root.dark .nav-back:hover {
+    background: #fff; color: #000;
+    border-color: #fff;
+  }
+
+  .album-header {
+    text-align: left; padding: 0 0 20px 0;
+    margin-bottom: 20px; border-bottom: 1px solid var(--border);
+  }
+
+  .album-meta {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .meta-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 14px; color: var(--content-meta);
+  }
+
+  .meta-item :global(svg) { color: var(--primary); }
+
+  .meta-divider {
+    width: 4px; height: 4px;
+    background: var(--border); border-radius: 50%;
+  }
+
+  .dome-section {
+    width: 100%;
+    height: 70vh;
+    min-height: 500px;
+    border-radius: var(--radius-large);
+    overflow: visible;
+    background: #ffffff;
+  }
+  :root.dark .dome-section {
+    background: #050505;
+  }
+
+  .photo-section { animation: fadeIn 0.5s ease-out; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .empty-state { text-align: center; padding: 60px 20px; }
+
+  @media (max-width: 768px) {
+    .album-header { padding: 0 0 16px 0; }
+    .album-meta { gap: 12px; }
+    .meta-item { font-size: 13px; }
+    .dome-section { height: 60vh; min-height: 400px; }
+  }
+</style>
+
