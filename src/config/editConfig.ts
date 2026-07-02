@@ -1,43 +1,33 @@
 /**
- * 在线编辑 - 各模块 Gist 配置
- * 统一管理各功能模块的 Gist ID 和文件名
+ * 在线编辑 - 各模块配置
  */
 
-export interface EditGistConfig {
-	gistId: string;
+export interface EditConfig {
 	fileName: string;
 	enable: boolean;
 }
 
 // 友链编辑配置
-// 已禁用 Gist - 改用本地 friends.json
-export const friendsEditConfig: EditGistConfig = {
+export const friendsEditConfig: EditConfig = {
 	enable: false,
-	gistId: "",
 	fileName: "friends.json",
 };
 
 // 工具收藏编辑配置
-// 已禁用 Gist
-export const collectionsEditConfig: EditGistConfig = {
+export const collectionsEditConfig: EditConfig = {
 	enable: false,
-	gistId: "",
 	fileName: "collections.json",
 };
 
 // 番剧/影视编辑配置
-// 已禁用 Gist - 改用本地 bangumi.json
-export const bangumiEditConfig: EditGistConfig = {
+export const bangumiEditConfig: EditConfig = {
 	enable: false,
-	gistId: "",
 	fileName: "bangumi.json",
 };
 
 // 说说编辑配置
-// 已禁用 Gist - 改用本地 moments.json
-export const momentsEditConfig: EditGistConfig = {
+export const momentsEditConfig: EditConfig = {
 	enable: false,
-	gistId: "",
 	fileName: "moments.json",
 };
 

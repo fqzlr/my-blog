@@ -384,7 +384,6 @@ async function handleSave(): Promise<boolean> {
 
 // 注册批量提交处理程序
 registerSubmitHandler("places", async (draft) => {
-	if (draft.payload?.type === "gist") return false; // places 不使用 gist
 	if (draft.payload?.places) {
 		places = draft.payload.places;
 		const ok = await handleSave();

@@ -1,6 +1,6 @@
 /**
  * 草稿暂存辅助函数
- * 为 Gist 类型和 Repo 文件类型的编辑器提供统一的草稿保存/恢复/提交逻辑
+ * 为各编辑器提供统一的草稿保存/恢复/提交逻辑
  */
 import {
 	saveDraft,
@@ -8,167 +8,12 @@ import {
 	removeDraft,
 	clearDraftsByPage,
 	registerSubmitHandler,
-	createGist,
-	writeGistFile,
 	updateRepoFile,
 	createRepoFile,
 	getRepoFile,
 	showToast,
 	type DraftChange,
 } from "./editMode";
-
-// ============ Gist 类型编辑器草稿辅助 ============
-
-export interface GistDraftContext<T> {
-	pageKey: string;
-	pageName: string;
-	getData: () => T;
-	setData: (data: T) => void;
-	getOriginalData: () => T;
-	setOriginalData: (data: T) => void;
-	gistConfig: { gistId: string; fileName: string };
-	onSubmitted?: () => void;
-}
-
-export function setupGistDrafts<T>(ctx: GistDraftContext<T>) {
-	const {
-		pageKey,
-		pageName,
-		getData,
-		setData,
-		getOriginalData,
-		setOriginalData,
-		gistConfig,
-		onSubmitted,
-	} = ctx;
-
-	function saveToDrafts(): DraftChange | null {
-		const data = getData();
-		const original = getOriginalData();
-		if (
-			JSON.stringify(data) === JSON.stringify(original) &&
-			getDraftsByPage(pageKey).length === 0
-		) {
-			showToast("没有需要暂存的更改", "info");
-			return null;
-		}
-		clearDraftsByPage(pageKey);
-		const change = saveDraft({
-			pageKey,
-			pageName,
-			description: `更新 ${pageName}`,
-			operation: "update",
-			payload: {
-				type: "gist",
-				gistId: gistConfig.gistId,
-				fileName: gistConfig.fileName,
-				data: JSON.parse(JSON.stringify(data)),
-			},
-		});
-		showToast(`已暂存 ${pageName} 到本地`, "success");
-		return change;
-	}
-
-	function restoreFromDrafts(): boolean {
-		const drafts = getDraftsByPage(pageKey);
-		if (drafts.length === 0) return false;
-		const latest = drafts[drafts.length - 1];
-		if (latest.payload?.type === "gist" && latest.payload.data) {
-			setData(latest.payload.data as T);
-			if (latest.payload.gistId) {
-				gistConfig.gistId = String(latest.payload.gistId);
-			}
-			showToast(`已恢复 ${pageName} 的暂存数据`, "info");
-			return true;
-		}
-		return false;
-	}
-
-	async function doSubmit(data: T, targetGistId: string): Promise<boolean> {
-		const content = JSON.stringify(data, null, 2);
-		let ok = false;
-		let finalGistId = targetGistId;
-		if (!finalGistId) {
-			finalGistId = await createGist(
-				`Blog ${pageName} Data`,
-				gistConfig.fileName,
-				content,
-			);
-			if (!finalGistId) {
-				showToast(`提交 ${pageName} 失败：创建 Gist 失败，请检查权限`, "error");
-				return false;
-			}
-			gistConfig.gistId = finalGistId;
-			ok = true;
-		} else {
-			ok = await writeGistFile(finalGistId, gistConfig.fileName, content);
-		}
-		if (ok) {
-			setOriginalData(JSON.parse(JSON.stringify(data)));
-			showToast(`${pageName} 已提交到 GitHub`, "success");
-		} else {
-			showToast(`提交 ${pageName} 失败`, "error");
-		}
-		return ok;
-	}
-
-	async function submitDrafts(): Promise<boolean> {
-		const drafts = getDraftsByPage(pageKey);
-		let dataToSubmit: T;
-		let gistIdToUse: string;
-		if (drafts.length > 0) {
-			const latest = drafts[drafts.length - 1];
-			if (latest.payload?.type === "gist" && latest.payload.data) {
-				dataToSubmit = latest.payload.data as T;
-				gistIdToUse = String(latest.payload.gistId || gistConfig.gistId);
-			} else {
-				return false;
-			}
-		} else {
-			dataToSubmit = getData();
-			gistIdToUse = gistConfig.gistId;
-		}
-		const original = getOriginalData();
-		if (
-			JSON.stringify(dataToSubmit) === JSON.stringify(original) &&
-			gistIdToUse
-		) {
-			showToast("没有需要提交的更改", "info");
-			return false;
-		}
-		const ok = await doSubmit(dataToSubmit, gistIdToUse);
-		if (ok) {
-			clearDraftsByPage(pageKey);
-			onSubmitted?.();
-		}
-		return ok;
-	}
-
-	registerSubmitHandler(pageKey, async (draft) => {
-		if (draft.payload?.type === "gist" && draft.payload.data) {
-			return doSubmit(
-				draft.payload.data as T,
-				String(draft.payload.gistId || gistConfig.gistId),
-			);
-		}
-		return false;
-	});
-
-	function hasLocalChanges(): boolean {
-		return (
-			getDraftsByPage(pageKey).length > 0 ||
-			JSON.stringify(getData()) !== JSON.stringify(getOriginalData())
-		);
-	}
-
-	return {
-		saveToDrafts,
-		restoreFromDrafts,
-		submitDrafts,
-		hasLocalChanges,
-		clearDrafts: () => clearDraftsByPage(pageKey),
-	};
-}
 
 // ============ Repo 文件类型编辑器草稿辅助 ============
 

@@ -416,7 +416,6 @@ async function handleSave() {
 
 // 注册批量提交处理程序
 registerSubmitHandler("notebooks", async (draft) => {
-	if (draft.payload?.type === "gist") return false; // notebooks 不使用 gist
 	if (draft.payload?.notebooks) {
 		notebooks = draft.payload.notebooks;
 		const ok = await handleSave();

@@ -43,7 +43,7 @@ let hasChanges = $state(false);
 let albums = $state<AlbumItem[]>([]);
 let originalAlbums = $state<AlbumItem[]>([]);
 let editingIndex = $state(-1);
-let gistLoaded = $state(false);
+let dataLoaded = $state(false);
 let originalFileContent = $state("");
 let originalFileSha = $state("");
 
@@ -145,7 +145,7 @@ function handleAdd() {
 
 async function loadGalleryConfig() {
 	if (!hasValidToken()) {
-		gistLoaded = true;
+		dataLoaded = true;
 		return;
 	}
 	try {
@@ -184,7 +184,7 @@ async function loadGalleryConfig() {
 	} catch (e) {
 		console.warn("Failed to load gallery config:", e);
 	}
-	gistLoaded = true;
+	dataLoaded = true;
 }
 
 function handleSaveDraft() {
@@ -334,7 +334,6 @@ function showSSRContent() {
 
 // 注册批量提交处理程序
 registerSubmitHandler("gallery", async (draft) => {
-	if (draft.payload?.type === "gist") return false; // gallery 不使用 gist
 	if (draft.payload?.albums) {
 		albums = draft.payload.albums;
 		const ok = await handleSave();
@@ -361,7 +360,7 @@ registerSubmitHandler("gallery", async (draft) => {
 	/>
 </div>
 
-{#if !gistLoaded}
+{#if !dataLoaded}
 	<div class="loading-hint">
 		<iconify-icon icon="material-symbols:progress-activity-rounded" class="animate-spin mr-2"></iconify-icon>
 		加载数据中...

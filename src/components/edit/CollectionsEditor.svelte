@@ -7,10 +7,8 @@ import {
 	genId,
 	deepClone,
 	ensureIconify,
-	getRepoFile,
 } from "@/utils/editMode";
 import { setupRepoDrafts } from "@/utils/draftHelpers";
-import { collectionsEditConfig } from "@/config/editConfig";
 
 interface CollectionItem {
 	id?: string;
@@ -32,7 +30,6 @@ let saving = $state(false);
 let items = $state<CollectionItem[]>([]);
 let originalItems = $state<CollectionItem[]>([]);
 let editingIndex = $state(-1);
-let gistLoaded = $state(false);
 let activeTab = $state("all");
 let fileSha = $state<string | null>(null);
 
@@ -59,8 +56,7 @@ onMount(() => {
 	ensureIconify();
 	// 从 initialData prop 解析初始数据
 	parseInitialData();
-	// 加载 Gist 数据（外部收藏）
-	loadGistData();
+	drafts.restoreFromDrafts();
 });
 
 function parseInitialData() {
@@ -80,35 +76,6 @@ function parseInitialData() {
 	}
 }
 
-async function loadGistData() {
-	if (!collectionsEditConfig.gistId) {
-		gistLoaded = true;
-		drafts.restoreFromDrafts();
-		return;
-	}
-	try {
-		const existing = await getRepoFile("public/collections.json");
-		if (existing && existing.content) {
-			const repoItems: CollectionItem[] = JSON.parse(existing.content);
-			const existingUrls = new Set(items.map((i) => i.url.replace(/\/$/, "")));
-			for (const g of repoItems) {
-				const url = g.url.replace(/\/$/, "");
-				if (!existingUrls.has(url)) {
-					items = [
-						...items,
-						{ ...g, id: g.id || genId("col"), enabled: g.enabled !== false },
-					];
-					existingUrls.add(url);
-				}
-			}
-			originalItems = deepClone(items);
-		}
-	} catch (e) {
-		console.error("Failed to load repo collections:", e);
-	}
-	gistLoaded = true;
-	drafts.restoreFromDrafts();
-}
 
 const enabledItems = $derived(items.filter((i) => i.enabled !== false));
 const allCategories = $derived([
@@ -343,13 +310,6 @@ function isHttpIcon(icon?: string) {
 		on:cancel={() => handleCancel()}
 	/>
 </div>
-
-{#if !gistLoaded && items.length === 0}
-	<div class="loading-hint">
-		<iconify-icon icon="material-symbols:progress-activity-rounded" class="animate-spin mr-2"></iconify-icon>
-		加载数据中...
-	</div>
-{/if}
 
 <!-- Tab 分类导航 -->
 {#if categories.length > 1}

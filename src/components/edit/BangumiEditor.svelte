@@ -7,10 +7,9 @@ import {
 	genId,
 	deepClone,
 	ensureIconify,
-	getRepoFile,
 } from "@/utils/editMode";
 import { setupRepoDrafts } from "@/utils/draftHelpers";
-import { bangumiEditConfig } from "@/config/editConfig";
+
 
 interface BangumiItem {
 	id: string;
@@ -44,7 +43,6 @@ let saving = $state(false);
 let items = $state<BangumiItem[]>([]);
 let originalItems = $state<BangumiItem[]>([]);
 let editingIndex = $state(-1);
-let gistLoaded = $state(false);
 let activeTab = $state(defaultCategory);
 let fileSha = $state<string | null>(null);
 
@@ -189,7 +187,7 @@ onMount(() => {
 	} else if (!skipDomCollect) {
 		collectFromDOM();
 	}
-	loadGistData();
+	drafts.restoreFromDrafts();
 });
 
 // 从 DOM 收集 SSR 渲染的本地番剧条目
@@ -254,60 +252,7 @@ function collectFromDOM() {
 	originalItems = deepClone(collected);
 }
 
-async function loadGistData() {
-	if (!bangumiEditConfig.gistId) {
-		gistLoaded = true;
-		renderExternalItems();
-		drafts.restoreFromDrafts();
-		return;
-	}
-	try {
-		const existing = await getRepoFile("public/bangumi.json");
-		if (existing && existing.content) {
-			const repoItems: BangumiItem[] = JSON.parse(existing.content);
 
-			// 判断条目是否属于当前页面
-			const isItemForCurrentPage = (item: BangumiItem): boolean => {
-				if (customPageName === "影视游戏") {
-					// 影视游戏页面：保留 anime/game/real 及其子分类
-					return [
-						"anime",
-						"game",
-						"real",
-						"tv",
-						"movie",
-						"documentary",
-					].includes(item.category);
-				} else if (customPageName === "书架") {
-					// 书架页面：只保留 book 分类
-					return item.category === "book";
-				} else {
-					// 默认（番剧页面）：保留所有分类
-					return true;
-				}
-			};
-
-			for (const g of repoItems) {
-				// 如果当前页面有初始数据（skipDomCollect模式），只保留匹配分类的条目
-				if (initialItems.length > 0 && !isItemForCurrentPage(g)) continue;
-				// 用 id 匹配（而非 title|category），避免编辑标题后产生重复条目
-				const existingIdx = g.id ? items.findIndex((i) => i.id === g.id) : -1;
-				if (existingIdx >= 0) {
-					items[existingIdx] = { ...g, _local: false };
-				} else {
-					items = [...items, { ...g, id: g.id || genId("bgm"), _local: false }];
-				}
-			}
-			sortItems();
-			originalItems = deepClone(items);
-		}
-	} catch (e) {
-		console.error("Failed to load repo bangumi:", e);
-	}
-	gistLoaded = true;
-	renderExternalItems();
-	drafts.restoreFromDrafts();
-}
 
 function sortItems() {
 	items = [...items].sort((a, b) => {
@@ -612,13 +557,6 @@ function switchStatusTab(tabId: string) {
 		on:cancel={() => handleCancel()}
 	/>
 </div>
-
-{#if !gistLoaded}
-	<div class="loading-hint">
-		<iconify-icon icon="material-symbols:progress-activity-rounded" class="animate-spin mr-2"></iconify-icon>
-		加载数据中...
-	</div>
-{/if}
 
 <!-- 编辑模式：Svelte 渲染的可编辑网格 -->
 {#if editMode}

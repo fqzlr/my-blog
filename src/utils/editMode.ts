@@ -479,59 +479,6 @@ export function readFileAsText(file: File): Promise<string> {
 	});
 }
 
-// ============ Gist API 灏佽� ============
-
-export async function readGistFile(
-	gistId: string,
-	fileName: string,
-): Promise<string | null> {
-	try {
-		const resp = await proxyRequest("GET", `gists/${gistId}`);
-		if (!resp.ok) return null;
-		const data = await resp.json();
-		const file = data.files?.[fileName];
-		return file?.content || null;
-	} catch {
-		return null;
-	}
-}
-
-export async function writeGistFile(
-	gistId: string,
-	fileName: string,
-	content: string,
-): Promise<boolean> {
-	try {
-		const resp = await proxyRequest("PATCH", `gists/${gistId}`, {
-			files: { [fileName]: { content } },
-		});
-		if (!resp.ok) invalidateToken();
-		return resp.ok;
-	} catch {
-		invalidateToken();
-		return false;
-	}
-}
-
-export async function createGist(
-	description: string,
-	fileName: string,
-	content: string,
-): Promise<string | null> {
-	try {
-		const resp = await proxyRequest("POST", "gists", {
-			description,
-			public: false,
-			files: { [fileName]: { content } },
-		});
-		if (!resp.ok) return null;
-		const data = await resp.json();
-		return data.id || null;
-	} catch {
-		return null;
-	}
-}
-
 // ============ GitHub Repo 鏂囦欢鎿嶄綔 ============
 
 export interface RepoConfig {
@@ -1000,5 +947,3 @@ export function onDraftsChanged(callback: (count: number) => void): () => void {
 	window.addEventListener("edit-mode:drafts-changed", handler);
 	return () => window.removeEventListener("edit-mode:drafts-changed", handler);
 }
-
-// ============ Gist 类型编辑器草稿辅助 ============

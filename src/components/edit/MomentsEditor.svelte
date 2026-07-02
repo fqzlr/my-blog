@@ -44,7 +44,7 @@ let saving = $state(false);
 let moments = $state<MomentItem[]>([]);
 let originalMoments = $state<MomentItem[]>([]);
 let editingIndex = $state(-1);
-let gistLoaded = $state(false);
+let dataLoaded = $state(false);
 
 let {
 	initialItems = [],
@@ -175,7 +175,7 @@ onMount(() => {
 		// 使用页面直接传入的初始数据
 		moments = initialItems.map((item) => ({ ...item }));
 		originalMoments = deepClone(moments);
-		gistLoaded = true;
+		dataLoaded = true;
 	}
 	loadMomentsData();
 });
@@ -185,7 +185,7 @@ async function loadMomentsData() {
 	// 先恢复本地草稿（如果有）
 	const restored = restoreFromDrafts();
 	if (restored && moments.length > 0) {
-		gistLoaded = true;
+		dataLoaded = true;
 		return;
 	}
 	// 没有草稿，通过 GitHub Contents API 加载
@@ -247,7 +247,7 @@ async function loadMomentsData() {
 	} catch (e) {
 		console.error("[MomentsEditor] Failed to load from GitHub:", e);
 	}
-	gistLoaded = true;
+	dataLoaded = true;
 }
 
 // ========== 时间格式化 ==========
@@ -792,7 +792,7 @@ async function handleSubmit() {
 {/if}
 
 <!-- 非编辑模式下加载提示 -->
-{#if !gistLoaded && !editMode}
+{#if !dataLoaded && !editMode}
 	<div class="wx-loading-hint">
 		<iconify-icon icon="material-symbols:progress-activity-rounded" class="animate-spin mr-2"></iconify-icon>
 		加载数据中...
