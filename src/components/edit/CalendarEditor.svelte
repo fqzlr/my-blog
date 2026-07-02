@@ -2,7 +2,7 @@
 import { onMount, onDestroy } from "svelte";
 import { showToast, genId, deepClone, ensureIconify } from "@/utils/editMode";
 import { setupRepoDrafts } from "@/utils/draftHelpers";
-import type { CalendarConfig, BirthdayItem, ScheduleItem } from "@/types/config";
+import type { CalendarConfig, BirthdayItem, ScheduleItem, HolidayItem } from "@/types/config";
 
 // Props
 let { initialConfig }: { initialConfig: CalendarConfig } = $props();
@@ -16,18 +16,21 @@ let editMode = $state(false); // 编辑模式开关
 // 数据副本
 let birthdays = $state<BirthdayItem[]>([]);
 let schedules = $state<ScheduleItem[]>([]);
+let builtinHolidays = $state<HolidayItem[]>([]);
 let originalBirthdays = $state<BirthdayItem[]>([]);
 let originalSchedules = $state<ScheduleItem[]>([]);
+let originalBuiltinHolidays = $state<HolidayItem[]>([]);
 
 // 编辑状态
 let editingBirthdayIndex = $state(-1);
 let editingScheduleIndex = $state(-1);
+let editingHolidayIndex = $state(-1);
 
 // 日历选择
 let selectedDate = $state(""); // YYYY-MM-DD
 
 // Tab
-let activeTab = $state<"birthdays" | "schedules">("birthdays");
+let activeTab = $state<"birthdays" | "schedules" | "holidays">("birthdays");
 
 // 表单字段（生日）
 let birthdayForm = $state({
@@ -52,6 +55,15 @@ let scheduleForm = $state({
 	icon: "material-symbols:event",
 });
 
+// 表单字段（内置节日）
+let holidayForm = $state({
+	name: "",
+	type: "solar" as "solar" | "lunar",
+	month: 1,
+	day: 1,
+	icon: "material-symbols:festival",
+});
+
 // 初始化草稿系统
 const drafts = setupRepoDrafts({
 	pageKey: "calendar",
@@ -62,17 +74,19 @@ const drafts = setupRepoDrafts({
 		if (parsed) {
 			birthdays = parsed.birthdays;
 			schedules = parsed.schedules;
+			builtinHolidays = parsed.builtinHolidays;
 		}
 	},
 	getPath: () => "src/config/calendarConfig.ts",
 	getSha: () => fileSha,
 	setSha: (v) => (fileSha = v),
-	getOriginalContent: () => generateTsContent(originalBirthdays, originalSchedules),
+	getOriginalContent: () => generateTsContent(originalBirthdays, originalSchedules, originalBuiltinHolidays),
 	setOriginalContent: (v) => {
 		const parsed = parseTsContent(v);
 		if (parsed) {
 			originalBirthdays = parsed.birthdays;
 			originalSchedules = parsed.schedules;
+			originalBuiltinHolidays = parsed.builtinHolidays;
 		}
 	},
 	getCommitMsg: (isEdit) =>
@@ -86,10 +100,14 @@ const drafts = setupRepoDrafts({
 function generateTsContent(
 	bd: BirthdayItem[] = birthdays,
 	sc: ScheduleItem[] = schedules,
+	hl: HolidayItem[] = builtinHolidays,
 ): string {
 	const bdJson = JSON.stringify(bd, null, 2);
 	const scJson = JSON.stringify(sc, null, 2);
+	const hlJson = JSON.stringify(hl, null, 2);
 	return `// 此文件由编辑器自动生成，请勿手动修改
+
+export const builtinHolidays: HolidayItem[] = ${hlJson};
 
 export const birthdays: BirthdayItem[] = ${bdJson};
 
@@ -101,14 +119,17 @@ export const schedules: ScheduleItem[] = ${scJson};
 function parseTsContent(content: string): {
 	birthdays: BirthdayItem[];
 	schedules: ScheduleItem[];
+	builtinHolidays: HolidayItem[];
 } | null {
 	try {
 		const bdMatch = content.match(/export\s+const\s+birthdays\s*[:=]\s*(\[[\s\S]*?\])\s*;/m);
 		const scMatch = content.match(/export\s+const\s+schedules\s*[:=]\s*(\[[\s\S]*?\])\s*;/m);
+		const hlMatch = content.match(/export\s+const\s+builtinHolidays\s*[:=]\s*(\[[\s\S]*?\])\s*;/m);
 		if (bdMatch && scMatch) {
 			return {
 				birthdays: JSON.parse(bdMatch[1]),
 				schedules: JSON.parse(scMatch[1]),
+				builtinHolidays: hlMatch ? JSON.parse(hlMatch[1]) : [],
 			};
 		}
 		return null;
@@ -123,9 +144,11 @@ onMount(() => {
 	if (!restored) {
 		birthdays = deepClone(initialConfig.birthdays || []);
 		schedules = deepClone(initialConfig.schedules || []);
+		builtinHolidays = deepClone(initialConfig.builtinHolidays || []);
 	}
 	originalBirthdays = deepClone(birthdays);
 	originalSchedules = deepClone(schedules);
+	originalBuiltinHolidays = deepClone(builtinHolidays);
 	dataLoaded = true;
 
 	// 监听 EditToolbar 的模式切换事件
@@ -314,6 +337,81 @@ function moveDownSchedule(index: number) {
 	else if (editingScheduleIndex === index + 1) editingScheduleIndex = index;
 }
 
+// ==================== 内置节日管理 ====================
+
+function startAddHoliday() {
+	editingHolidayIndex = -1;
+	holidayForm = {
+		name: "",
+		type: "solar",
+		month: 1,
+		day: 1,
+		icon: "material-symbols:festival",
+	};
+}
+
+function startEditHoliday(index: number) {
+	editingHolidayIndex = index;
+	const h = builtinHolidays[index];
+	holidayForm = {
+		name: h.name,
+		type: h.date.type,
+		month: h.date.month,
+		day: h.date.day,
+		icon: h.icon || "material-symbols:festival",
+	};
+}
+
+function saveHoliday() {
+	if (!holidayForm.name.trim()) {
+		showToast("请输入名称", "warning");
+		return;
+	}
+	const item: HolidayItem = {
+		name: holidayForm.name.trim(),
+		date: {
+			type: holidayForm.type,
+			month: holidayForm.month,
+			day: holidayForm.day,
+		},
+		icon: holidayForm.icon.trim() || "material-symbols:festival",
+	};
+	if (editingHolidayIndex >= 0) {
+		builtinHolidays[editingHolidayIndex] = item;
+	} else {
+		builtinHolidays.push(item);
+	}
+	editingHolidayIndex = -1;
+	showToast(editingHolidayIndex >= 0 ? "已更新" : "已添加", "success");
+}
+
+function cancelEditHoliday() {
+	editingHolidayIndex = -1;
+}
+
+function deleteHoliday(index: number) {
+	const h = builtinHolidays[index];
+	if (!confirm(`确定要删除「${h.name}」吗？`)) return;
+	builtinHolidays.splice(index, 1);
+	if (editingHolidayIndex === index) editingHolidayIndex = -1;
+	else if (editingHolidayIndex > index) editingHolidayIndex--;
+	showToast("已删除，记得点击保存", "info");
+}
+
+function moveUpHoliday(index: number) {
+	if (index <= 0) return;
+	[builtinHolidays[index - 1], builtinHolidays[index]] = [builtinHolidays[index], builtinHolidays[index - 1]];
+	if (editingHolidayIndex === index) editingHolidayIndex = index - 1;
+	else if (editingHolidayIndex === index - 1) editingHolidayIndex = index;
+}
+
+function moveDownHoliday(index: number) {
+	if (index >= builtinHolidays.length - 1) return;
+	[builtinHolidays[index + 1], builtinHolidays[index]] = [builtinHolidays[index], builtinHolidays[index + 1]];
+	if (editingHolidayIndex === index) editingHolidayIndex = index + 1;
+	else if (editingHolidayIndex === index + 1) editingHolidayIndex = index;
+}
+
 // ==================== 提交 ====================
 
 async function handleSubmit() {
@@ -324,6 +422,10 @@ async function handleSubmit() {
 	if (editingScheduleIndex >= 0) {
 		saveSchedule();
 		if (editingScheduleIndex >= 0) return;
+	}
+	if (editingHolidayIndex >= 0) {
+		saveHoliday();
+		if (editingHolidayIndex >= 0) return;
 	}
 	saving = true;
 	try {
@@ -374,7 +476,6 @@ function getScheduleDescription(s: ScheduleItem): string {
 }
 </script>
 
-{#if editMode}
 <div class="calendar-editor">
 	<!-- Tab 切换 -->
 	<div class="tab-bar">
@@ -393,6 +494,14 @@ function getScheduleDescription(s: ScheduleItem): string {
 		>
 			<iconify-icon icon="material-symbols:event"></iconify-icon>
 			自定义日程 ({schedules.length})
+		</button>
+		<button
+			class="tab-btn"
+			class:active={activeTab === "holidays"}
+			onclick={() => (activeTab = "holidays")}
+		>
+			<iconify-icon icon="material-symbols:festival"></iconify-icon>
+			内置节日 ({builtinHolidays.length})
 		</button>
 	</div>
 
@@ -488,7 +597,9 @@ function getScheduleDescription(s: ScheduleItem): string {
 					</div>
 				</div>
 			{/if}
-		{:else}
+		{/if}
+
+		{#if activeTab === "schedules"}
 			<div class="list-panel">
 				<h3>自定义日程列表</h3>
 				{#if schedules.length === 0}
@@ -606,9 +717,100 @@ function getScheduleDescription(s: ScheduleItem): string {
 				</div>
 			{/if}
 		{/if}
+
+		{#if activeTab === "holidays"}
+			<div class="list-panel">
+				<h3>内置节日列表</h3>
+				{#if builtinHolidays.length === 0}
+					<p class="empty-hint">暂无内置节日，点击下方按钮添加</p>
+				{:else}
+					{#each builtinHolidays as h, i}
+						<div class="item-card">
+							<div class="item-header">
+								<span class="item-name">{h.name}</span>
+								<div class="item-actions">
+									<button
+										class="action-btn action-move"
+										onclick={() => moveUpHoliday(i)}
+										disabled={i === 0}
+										title="上移"
+									>
+										<iconify-icon icon="material-symbols:arrow-upward"></iconify-icon>
+									</button>
+									<button
+										class="action-btn action-move"
+										onclick={() => moveDownHoliday(i)}
+										disabled={i === builtinHolidays.length - 1}
+										title="下移"
+									>
+										<iconify-icon icon="material-symbols:arrow-downward"></iconify-icon>
+									</button>
+									<button
+										class="action-btn action-edit"
+										onclick={() => startEditHoliday(i)}
+										title="编辑"
+									>
+										<iconify-icon icon="material-symbols:edit"></iconify-icon>
+									</button>
+									<button
+										class="action-btn action-delete"
+										onclick={() => deleteHoliday(i)}
+										title="删除"
+									>
+										<iconify-icon icon="material-symbols:delete"></iconify-icon>
+									</button>
+								</div>
+							</div>
+							<div class="item-detail">
+								{h.date.type === "lunar" ? "农历" : "公历"} {h.date.month}月{h.date.day}日
+								{#if h.icon}
+									· <iconify-icon icon={h.icon}></iconify-icon>
+								{/if}
+							</div>
+						</div>
+					{/each}
+				{/if}
+				<button class="btn-add" onclick={startAddHoliday}>
+					<iconify-icon icon="material-symbols:add"></iconify-icon>
+					添加节日
+				</button>
+			</div>
+
+			{#if editingHolidayIndex >= 0 || builtinHolidays.length === 0 || editingHolidayIndex === -2}
+				<div class="form-panel">
+					<h3>{editingHolidayIndex >= 0 ? "编辑节日" : "新增节日"}</h3>
+					<div class="form-group">
+						<label>名称</label>
+						<input type="text" bind:value={holidayForm.name} placeholder="如：春节" />
+					</div>
+					<div class="form-group">
+						<label>日期类型</label>
+						<select bind:value={holidayForm.type}>
+							<option value="solar">公历</option>
+							<option value="lunar">农历</option>
+						</select>
+					</div>
+					<div class="form-group">
+						<label>月</label>
+						<input type="number" min="1" max="12" bind:value={holidayForm.month} />
+					</div>
+					<div class="form-group">
+						<label>日</label>
+						<input type="number" min="1" max="31" bind:value={holidayForm.day} />
+					</div>
+					<div class="form-group">
+						<label>图标（Iconify）</label>
+						<input type="text" bind:value={holidayForm.icon} placeholder="material-symbols:festival" />
+					</div>
+					<div class="form-actions">
+						<button class="btn-secondary" onclick={cancelEditHoliday}>取消</button>
+						<button class="btn-primary" onclick={saveHoliday}>保存</button>
+					</div>
+				</div>
+			{/if}
+		{/if}
 	</div>
 </div>
-{/if}
 
 <style>
 	.calendar-editor {

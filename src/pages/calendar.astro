@@ -106,13 +106,12 @@ const detailProps = { holidays, posts, birthdays, schedules, years, showPosts };
 		}
 	}
 
-	/* 编辑区域默认隐藏 */
+	/* 编辑区域默认隐藏，当 EditToolbar 进入编辑模式时显示 */
 	.calendar-edit-section {
 		display: none;
 	}
 
-	/* 当 EditToolbar 处于编辑模式时显示 */
-	.edit-mode-active .calendar-edit-section {
+	.calendar-page:has(.edit-mode-toolbar) .calendar-edit-section {
 		display: block;
 		margin-top: 1rem;
 	}
