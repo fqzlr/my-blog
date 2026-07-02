@@ -1,19 +1,19 @@
 // 此文件由编辑器自动生成，请勿手动修改
 export const booksConfig = [
   {
-    "id": "/bangumi/book/个人成长/人性的弱点/",
-    "title": "111人性的弱点（卡耐基经典励志系列）",
-    "name_cn": "222人性的弱点（卡耐基经典励志系列）",
+    "id": "/bangumi/book/哲学宗教/强者思维/",
+    "title": "3333强者思维",
+    "name_cn": "3333强者思维",
     "category": "book",
     "status": 2,
     "score": 0,
-    "image": "https://cdn.weread.qq.com/weread/cover/35/YueWen_918483/t6_YueWen_918483.jpg",
+    "image": "https://cdn.weread.qq.com/weread/cover/50/cpplatform_ohulsqfabtcppehqdqtmcr/t6_cpplatform_ohulsqfabtcppehqdqtmcr1696758968.jpg",
     "tags": [
-      "个人成长-沟通表达",
-      "卡耐基"
+      "哲学宗教-思维科学",
+      "陈宇"
     ],
     "comment": "",
-    "updated_at": "2026-07-02T11:20:53.305Z"
+    "updated_at": "2026-07-02T11:23:23.045Z"
   },
   {
     "id": "/bangumi/book/心理/认知觉醒开启自我改变的原动力/",
@@ -29,6 +29,21 @@ export const booksConfig = [
     ],
     "comment": "",
     "updated_at": "2026-07-01T22:45:41.594Z"
+  },
+  {
+    "id": "/bangumi/book/个人成长/人性的弱点/",
+    "title": "人性的弱点（卡耐基经典励志系列）",
+    "name_cn": "人性的弱点（卡耐基经典励志系列）",
+    "category": "book",
+    "status": 2,
+    "score": 0,
+    "image": "https://cdn.weread.qq.com/weread/cover/35/YueWen_918483/t6_YueWen_918483.jpg",
+    "tags": [
+      "个人成长-沟通表达",
+      "卡耐基"
+    ],
+    "comment": "",
+    "updated_at": "2026-05-10T00:00:00.000Z"
   },
   {
     "id": "/bangumi/book/经济理财/冯唐成事心法/",
@@ -104,21 +119,6 @@ export const booksConfig = [
     ],
     "comment": "",
     "updated_at": "2025-04-12T00:00:00.000Z"
-  },
-  {
-    "id": "/bangumi/book/哲学宗教/强者思维/",
-    "title": "强者思维",
-    "name_cn": "强者思维",
-    "category": "book",
-    "status": 2,
-    "score": 0,
-    "image": "https://cdn.weread.qq.com/weread/cover/50/cpplatform_ohulsqfabtcppehqdqtmcr/t6_cpplatform_ohulsqfabtcppehqdqtmcr1696758968.jpg",
-    "tags": [
-      "哲学宗教-思维科学",
-      "陈宇"
-    ],
-    "comment": "",
-    "updated_at": "2025-03-10T00:00:00.000Z"
   },
   {
     "id": "/bangumi/book/乖摸摸头/",
