@@ -121,6 +121,12 @@ export type SiteConfig = {
 		lifeNotebooks: boolean;
 	};
 
+	// 说说页面封面配置
+	momentsCover?: {
+		enable: boolean; // 是否显示封面区域
+		image: string; // 封面图片URL
+	};
+
 	// 分类导航栏开关
 	categoryBar?: boolean;
 

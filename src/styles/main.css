@@ -53,6 +53,7 @@
 @import './widgets/announcement.css';
 
 /* === 功能特性层 === */
+@import './features/moments.css';
 @import './features/movies-games.css';
 
 /* === 页面层 === */

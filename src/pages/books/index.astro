@@ -67,9 +67,8 @@ const bangumiInitialItems = customBangumi
 <MainGridLayout title={i18n(I18nKey.booksTitle)} description={i18n(I18nKey.booksSubtitle)}>
 	<div class="books-page-wrapper flex w-full overflow-hidden relative min-h-32">
 		<div data-pagefind-body class="card-base z-10 px-6 pt-8 pb-8 relative w-full">
-					<!-- Page header -->
-		<header class="books-header relative w-full mb-6 flex justify-between items-start gap-4 flex-wrap">
-			<div class="flex-1 min-w-0">
+			<!-- Page header -->
+			<header class="books-header relative w-full mb-6">
 				<div class="flex items-center gap-3 mb-3">
 					<div class="w-12 h-12 rounded-2xl bg-black dark:bg-white flex items-center justify-center">
 						<Icon name="material-symbols:auto-stories" class="text-[1.4rem] text-white dark:text-black" />
@@ -102,21 +101,18 @@ const bangumiInitialItems = customBangumi
 						</span>
 					</div>
 				</div>
+			</header>
+
+			<div data-no-swup>
+				<BangumiEditor
+					client:only
+					defaultCategory="book"
+					skipDomCollect={true}
+					customPageName="书架"
+					initialItems={bangumiInitialItems}
+				/>
 			</div>
-			<div class="page-header-toolbar-slot flex-shrink-0"></div>
-		</header>
 
-		<div data-no-swup>
-			<BangumiEditor
-				client:only
-				defaultCategory="book"
-				skipDomCollect={true}
-				customPageName="书架"
-				initialItems={bangumiInitialItems}
-			/>
-		</div>
-
-		<div class="bangumi-section">
 			{bookItems.length > 0 ? (
 				<Bookshelf books={bookItems} />
 			) : (
@@ -125,7 +121,6 @@ const bangumiInitialItems = customBangumi
 					<p class="text-neutral-500 dark:text-neutral-400">{i18n(I18nKey.booksNoData)}</p>
 				</div>
 			)}
-		</div>
 		</div>
 	</div>
 
@@ -151,15 +146,6 @@ const bangumiInitialItems = customBangumi
 	@keyframes fadeSlideIn {
 		from { opacity: 0; transform: translateY(8px); }
 		to { opacity: 1; transform: translateY(0); }
-	}
-
-	@media (max-width: 768px) {
-		:has(> .page-header-toolbar-slot) {
-			flex-direction: column;
-		}
-		.page-header-toolbar-slot {
-			width: 100%;
-		}
 	}
 
 	@media (max-width: 640px) {

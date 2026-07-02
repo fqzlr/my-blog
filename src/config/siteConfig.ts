@@ -203,6 +203,13 @@ export const siteConfig: SiteConfig = {
 		lifeNotebooks: true,
 	},
 
+	// 说说页面封面配置（微信朋友圈风格）
+	momentsCover: {
+		enable: true,
+		image:
+			"https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640",
+	},
+
 	// 分类导航栏开关，在首页和归档页顶部显示分类快捷导航
 	categoryBar: true,
 

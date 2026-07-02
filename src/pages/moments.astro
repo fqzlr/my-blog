@@ -3,17 +3,12 @@ import { Image } from "astro:assets";
 import { getCollection } from "astro:content";
 import { Icon } from "astro-icon/components";
 import Comment from "@/components/comment/index.astro";
-import PageTitle from "@/components/common/PageTitle.astro";
+import MomentCard from "@/components/moments/MomentCard.astro";
 import MomentsCover from "@/components/moments/MomentsCover.astro";
 import MomentsEditor from "@/components/edit/MomentsEditor.svelte";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
 
-import "@/styles/components/moment-card.css";
-
-// 从 Content Collections 读取说说数据
 const moments = await getCollection("moments");
-
-// 排序：按发布时间降序
 const sortedMoments = moments
 	.filter((m) => !m.data.pinned)
 	.sort((a, b) => b.data.published.getTime() - a.data.published.getTime());
@@ -29,17 +24,27 @@ const momentAssets = import.meta.glob<{ default: ImageMetadata }>(
 	{ eager: true },
 );
 
-// 解析图片路径（与 tianshihao2003 的实现一致）
+// 解析图片路径
 const parseImages = (imagesData: any): (string | ImageMetadata)[] => {
 	let rawPaths: string[] = [];
 	if (Array.isArray(imagesData)) {
-		rawPaths = imagesData.map((img) => (typeof img === "string" ? img : img.src || img));
+		rawPaths = imagesData.map((img) =>
+			typeof img === "string" ? img : img.src || img,
+		);
 	} else if (typeof imagesData === "string" && imagesData.trim()) {
-		rawPaths = imagesData.split(/[,;]/).map((img) => img.trim()).filter((img) => img);
+		rawPaths = imagesData
+			.split(/[,;]/)
+			.map((img) => img.trim())
+			.filter((img) => img);
 	}
+
 	return Array.from(new Set(rawPaths))
 		.map((img) => {
-			if (img.startsWith("http://") || img.startsWith("https://") || img.startsWith("/")) {
+			if (
+				img.startsWith("http://") ||
+				img.startsWith("https://") ||
+				img.startsWith("/")
+			) {
 				return img;
 			}
 			const cleanPath = img.replace(/^\.\//, "");
@@ -62,357 +67,187 @@ const pinnedData = pinnedMoments.map((m) => ({
 	body: m.body || "",
 	date: m.data.published,
 }));
-
-// SSR 时间格式化（与客户端 formatTime 一致）
-function formatTime(date: Date): string {
-	const now = new Date();
-	const diff = now.getTime() - date.getTime();
-	const minutes = Math.floor(diff / 60000);
-	const hours = Math.floor(diff / 3600000);
-	const days = Math.floor(diff / 86400000);
-
-	if (minutes < 1) return "刚刚";
-	if (minutes < 60) return `${minutes}分钟前`;
-	if (hours < 24) return `${hours}小时前`;
-	if (days < 7) return `${days}天前`;
-
-	return date.toLocaleString("zh-CN", {
-		year: "numeric",
-		month: "2-digit",
-		day: "2-digit",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-}
 ---
 
 <MainGridLayout title="动态" description="记录生活中的点点滴滴">
-	<!-- 微信朋友圈风格封面 -->
-	<MomentsCover />
+  <!-- 微信朋友圈风格封面 -->
+  <MomentsCover />
 
-	<!-- 页面标题 -->
-	<div class="mb-4 flex justify-between items-start gap-4 flex-wrap">
-		<div class="flex-1 min-w-0">
-			<PageTitle title="动态" eyebrow="Moments" variant="stacked" />
-			<p class="text-base text-neutral-500 dark:text-neutral-400 leading-relaxed mt-3">记录生活中的点点滴滴</p>
-		</div>
-		<div class="page-header-toolbar-slot flex-shrink-0"></div>
-	</div>
+  <!-- 说说编辑器（Svelte 组件，保留编辑功能） -->
+  <div data-no-swup>
+    <MomentsEditor client:only />
+  </div>
 
-	<!-- 说说编辑器（Svelte 组件） -->
-	<div data-no-swup>
-		<MomentsEditor client:only />
-	</div>
+  <!-- 置顶说说（始终渲染容器，JS 可动态追加外部置顶） -->
+  <a href="/moments/pinned/" class="wx-pinned" id="pinned-block" style={pinnedData.length === 0 ? 'display:none' : ''}>
+    <div class="wx-pinned-tag">
+      <span>置顶</span>
+    </div>
+    <div class="wx-pinned-items" id="pinned-items">
+      {pinnedData.map((item) => (
+        <div class="wx-pinned-preview">
+          {item.images.length > 0 ? (
+            <div class={`wx-pimgs wx-pimgs-${Math.min(item.images.length, 9)}`}>
+              {item.images.slice(0, 9).map((img) => (
+                typeof img === "string" ? (
+                  <img src={img} alt="" class="wx-pinned-img" loading="lazy" />
+                ) : (
+                  <Image src={img} alt="" class="wx-pinned-img" loading="lazy" />
+                )
+              ))}
+            </div>
+          ) : (
+            <p class="wx-ptxt">{item.body.slice(0, 60)}{item.body.length > 60 ? '...' : ''}</p>
+          )}
+        </div>
+      ))}
+    </div>
+  </a>
 
-	<!-- 置顶说说 -->
-	{pinnedData.length > 0 && (
-		<a href="/moments/pinned/" class="wx-pinned" id="pinned-block">
-			<div class="wx-pinned-tag">
-				<span>置顶</span>
-			</div>
-			<div class="wx-pinned-items" id="pinned-items">
-				{pinnedData.map((item) => (
-					<div class="wx-pinned-preview">
-						{item.images.length > 0 ? (
-							<div class={`wx-pimgs wx-pimgs-${Math.min(item.images.length, 9)}`}>
-								{item.images.slice(0, 9).map((img) =>
-									typeof img === "string" ? (
-										<img src={img} alt="" class="wx-pinned-img" loading="lazy" />
-									) : (
-										<Image src={img} alt="" class="wx-pinned-img" loading="lazy" />
-									),
-								)}
-							</div>
-						) : (
-							<p class="wx-ptxt">{item.body.slice(0, 60)}{item.body.length > 60 ? "..." : ""}</p>
-						)}
-					</div>
-				))}
-			</div>
-		</a>
-	)}
+  <!-- 说说列表（本地 + 外部合并，按时间排序） -->
+  <div class="wx-feed" id="moments-feed">
+    {sortedMoments.length > 0 ? (
+      sortedMoments.map((moment) => (
+        <div class="wx-feed-item" data-published={moment.data.published.toISOString()}>
+          <MomentCard moment={moment} />
+        </div>
+      ))
+    ) : (
+      <div class="wx-empty" id="moments-empty">
+        <div class="wx-empty-icon">
+          <Icon name="material-symbols:sentiment-neutral-outline" />
+        </div>
+        <h3>还没有发布任何说说</h3>
+        <p>快去记录你的生活点滴吧</p>
+      </div>
+    )}
+  </div>
 
-	<!-- 说说列表（SSR 渲染） -->
-	<div class="wx-feed" id="moments-feed">
-		{sortedMoments.length > 0 ? (
-			sortedMoments.map((moment) => {
-				const images = parseImages(moment.data.images);
-				return (
-					<div class="wx-feed-item" data-published={moment.data.published.toISOString()}>
-						<!-- 头像和作者信息 -->
-						<div class="wx-header">
-							<img
-								src={moment.data.avatar || "https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640"}
-								alt={moment.data.author || "fqzlr"}
-								class="wx-avatar"
-							/>
-							<div class="wx-author-info">
-								<span class="wx-author-name">{moment.data.author || "fqzlr"}</span>
-								<span class="wx-time">{formatTime(moment.data.published)}</span>
-							</div>
-						</div>
+  <!-- 评论区 -->
+  <div id="moments-comments">
+    <Comment customPath="/moments/" />
+  </div>
 
-						<!-- 内容 -->
-						<div class="wx-content">{moment.body}</div>
-
-						<!-- 图片网格 -->
-						{images.length > 0 && (
-							<div class={`wx-images wx-images-${Math.min(images.length, 9)}`}>
-								{images.map((img) =>
-									typeof img === "string" ? (
-										<img src={img} alt="" class="wx-image" loading="lazy" />
-									) : (
-										<Image src={img} alt="" class="wx-image" loading="lazy" />
-									),
-								)}
-							</div>
-						)}
-
-						<!-- 标签和位置 -->
-						{(moment.data.tags.length > 0 || moment.data.location) && (
-							<div class="wx-meta">
-								{moment.data.location && <span class="wx-location">{moment.data.location}</span>}
-								{moment.data.tags.map((tag) => (
-									<span class="wx-tag">#{tag}</span>
-								))}
-							</div>
-						)}
-					</div>
-				);
-			})
-		) : (
-			<div class="wx-empty" id="moments-empty">
-				<div class="wx-empty-icon">
-					<Icon name="material-symbols:sentiment-neutral-outline" />
-				</div>
-				<h3>还没有发布任何说说</h3>
-				<p>快去记录你的生活点滴吧</p>
-			</div>
-		)}
-	</div>
-
-	<!-- 评论区 -->
-	<div id="moments-comments">
-		<Comment customPath="/moments/" />
-	</div>
-
-	<!-- 访客统计 -->
-	<div class="wx-visitor">
-		<Icon name="material-symbols:visibility-outline" class="wx-visitor-icon" />
-		<span class="waline-count" data-path="/moments/">-</span>
-		<span>次浏览</span>
-	</div>
+  <!-- 访客统计 -->
+  <div class="wx-visitor">
+    <Icon name="material-symbols:visibility-outline" class="wx-visitor-icon" />
+    <span class="waline-count" data-path="/moments/">-</span>
+    <span>次浏览</span>
+  </div>
 </MainGridLayout>
 
 <script is:inline>
-	// ========== 访客统计 ==========
-	var countElements = document.querySelectorAll('.waline-count[data-path="/moments/"]');
-	if (countElements.length > 0) {
-		var serverURL = "https://co.tsh520.cn";
-		fetch(serverURL + "/api/uv?path=/moments/")
-			.then(function (res) {
-				return res.json();
-			})
-			.then(function (data) {
-				var count = data.data ? data.data.unique_visitor || data.uv || 0 : data.uv || 0;
-				countElements.forEach(function (el) {
-					el.textContent = String(count);
-				});
-			})
-			.catch(function () {
-				countElements.forEach(function (el) {
-					el.textContent = "-";
-				});
-			});
-	}
-
+  var countElements = document.querySelectorAll('.waline-count[data-path="/moments/"]');
+  if (countElements.length > 0) {
+    var serverURL = "https://co.tsh520.cn";
+    fetch(serverURL + "/api/uv?path=/moments/")
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        var count = data.data ? data.data.unique_visitor || data.uv || 0 : (data.uv || 0);
+        countElements.forEach(function(el) { el.textContent = String(count); });
+      })
+      .catch(function() {
+        countElements.forEach(function(el) { el.textContent = "-"; });
+      });
+  }
 </script>
 
+
 <style>
-	/* ============================================
-   说说列表样式（复刻 tianshihao2003 的实现）
-   ============================================ */
-	.wx-feed {
-		display: flex;
-		flex-direction: column;
-		gap: 1.5rem;
-		padding: 1rem 0 2rem;
-	}
+  /* 置顶块样式在底部 <style is:global> 中，
+     因为 JS 动态创建的外部置顶元素没有 Astro scoped 属性 */
 
-	.wx-feed-item {
-		position: relative;
-		background: var(--card-bg);
-		border: 1px solid var(--border);
-		border-radius: 12px;
-		padding: 1rem;
-	}
+  /* ============================================
+   * 说说列表
+   * ============================================ */
+  .wx-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1rem 0 2rem;
+  }
 
-	.wx-feed-item + .wx-feed-item::before {
-		content: "";
-		position: absolute;
-		top: -0.75rem;
-		left: 1rem;
-		right: 1rem;
-		height: 1px;
-		background: var(--border);
-		opacity: 0.7;
-	}
+  .wx-feed-item {
+    position: relative;
+  }
 
-	/* 头像和作者 */
-	.wx-header {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		margin-bottom: 0.75rem;
-	}
+  .wx-feed-item + .wx-feed-item::before {
+    content: '';
+    position: absolute;
+    top: -0.75rem;
+    left: 1rem;
+    right: 1rem;
+    height: 1px;
+    background: var(--border);
+    opacity: 0.7;
+  }
 
-	.wx-avatar {
-		width: 2.5rem;
-		height: 2.5rem;
-		border-radius: 50%;
-		object-fit: cover;
-	}
+  /* 空状态 */
+  .wx-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    background: #ffffff;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 12px;
+  }
+  :root.dark .wx-empty {
+    background: #18181b;
+    border-color: #3f3f46;
+  }
 
-	.wx-author-info {
-		display: flex;
-		flex-direction: column;
-		gap: 0.125rem;
-	}
+  .wx-empty-icon {
+    width: 4rem;
+    height: 4rem;
+    margin: 0 auto 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--btn-regular-bg);
+    border-radius: 50%;
+    color: var(--content-meta);
+    font-size: 2rem;
+  }
 
-	.wx-author-name {
-		font-weight: 600;
-		font-size: 0.9375rem;
-		color: var(--text-color);
-	}
+  .wx-empty h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 0.375rem;
+  }
 
-	.wx-time {
-		font-size: 0.75rem;
-		color: var(--content-meta);
-	}
+  .wx-empty p {
+    font-size: 0.875rem;
+    color: var(--content-meta);
+    margin: 0;
+  }
 
-	/* 内容 */
-	.wx-content {
-		font-size: 0.9375rem;
-		line-height: 1.6;
-		color: var(--text-color);
-		margin-bottom: 0.75rem;
-		word-break: break-word;
-	}
+  /* 访客统计 */
+  .wx-visitor {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    margin: 1.5rem auto 0;
+    padding: 0.75rem;
+    color: var(--content-meta);
+    font-size: 0.8125rem;
+  }
 
-	/* 图片网格 */
-	.wx-images {
-		display: grid;
-		gap: 0.25rem;
-		margin-bottom: 0.75rem;
-	}
+  .wx-visitor-icon {
+    font-size: 1rem;
+  }
 
-	.wx-images-1 {
-		grid-template-columns: 1fr;
-		max-width: 60%;
-	}
+  /* 响应式 */
+  @media (max-width: 480px) {
+    .wx-feed {
+      gap: 1.25rem;
+      padding: 0.75rem 0 1.5rem;
+    }
 
-	.wx-images-2,
-	.wx-images-4 {
-		grid-template-columns: repeat(2, 1fr);
-	}
-
-	.wx-images-3,
-	.wx-images-6,
-	.wx-images-9 {
-		grid-template-columns: repeat(3, 1fr);
-	}
-
-	.wx-image {
-		width: 100%;
-		aspect-ratio: 1;
-		object-fit: cover;
-		border-radius: 4px;
-		cursor: pointer;
-	}
-
-	/* 元信息 */
-	.wx-meta {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		font-size: 0.75rem;
-		color: var(--content-meta);
-	}
-
-	.wx-location::before {
-		content: "📍 ";
-	}
-
-	.wx-tag {
-		color: hsl(var(--theme-hue, 165), 70%, 50%);
-	}
-
-	/* 空状态 */
-	.wx-empty {
-		text-align: center;
-		padding: 3rem 1rem;
-		background: var(--card-bg);
-		border: 1px solid var(--border);
-		border-radius: 12px;
-	}
-
-	.wx-empty-icon {
-		width: 4rem;
-		height: 4rem;
-		margin: 0 auto 1rem;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		background: var(--btn-regular-bg);
-		border-radius: 50%;
-		color: var(--content-meta);
-		font-size: 2rem;
-	}
-
-	.wx-empty h3 {
-		font-size: 1rem;
-		font-weight: 600;
-		color: var(--text-color);
-		margin-bottom: 0.375rem;
-	}
-
-	.wx-empty p {
-		font-size: 0.875rem;
-		color: var(--content-meta);
-		margin: 0;
-	}
-
-	/* 访客统计 */
-	.wx-visitor {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 0.375rem;
-		margin: 1.5rem auto 0;
-		padding: 0.75rem;
-		color: var(--content-meta);
-		font-size: 0.8125rem;
-	}
-
-	.wx-visitor-icon {
-		font-size: 1rem;
-	}
-
-	/* 响应式 */
-	@media (max-width: 480px) {
-		.wx-feed {
-			gap: 1.25rem;
-			padding: 0.75rem 0 1.5rem;
-		}
-
-		.wx-feed-item + .wx-feed-item::before {
-			top: -0.625rem;
-			left: 0.75rem;
-			right: 0.75rem;
-		}
-
-		.wx-images-1 {
-			max-width: 80%;
-		}
-	}
+    .wx-feed-item + .wx-feed-item::before {
+      top: -0.625rem;
+      left: 0.75rem;
+      right: 0.75rem;
+    }
+  }
 </style>
