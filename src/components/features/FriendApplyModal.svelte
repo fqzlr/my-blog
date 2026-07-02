@@ -221,7 +221,7 @@ async function handleSubmit() {
 			<!-- 左下角审核按钮（仅管理员可见） -->
 			<a href="/friends/review" class="fa-btn fa-btn-review">
 				<iconify-icon icon="material-symbols:checklist-rounded"></iconify-icon>
-				审核申请
+				站长审核
 			</a>
 			<div class="fa-footer-right">
 				<button type="button" class="fa-btn fa-btn-cancel" onclick={closeModal} disabled={submitting}>

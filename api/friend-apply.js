@@ -1,4 +1,8 @@
-import { getInstallationTokenServer } from "@/workers/github-auth.js";
+import { getInstallationTokenServer } from "../src/workers/github-auth.js";
+
+export const config = {
+	runtime: "edge",
+};
 
 const GH_API = "https://api.github.com";
 const PENDING_FILE = "data/pending-friends.json";
@@ -9,7 +13,7 @@ function genId() {
 	return `fa-${ts}-${rand}`;
 }
 
-function isValidUrl(str: string) {
+function isValidUrl(str) {
 	try {
 		const u = new URL(str);
 		return u.protocol === "http:" || u.protocol === "https:";
@@ -18,9 +22,9 @@ function isValidUrl(str: string) {
 	}
 }
 
-async function ghRequest(method: string, path: string, token: string, body: any = null) {
+async function ghRequest(method, path, token, body = null) {
 	const url = path.startsWith("http") ? path : `${GH_API}/${path.replace(/^\//, "")}`;
-	const opts: RequestInit = {
+	const opts = {
 		method,
 		headers: {
 			Authorization: `Bearer ${token}`,
@@ -36,12 +40,19 @@ async function ghRequest(method: string, path: string, token: string, body: any 
 	return fetch(url, opts);
 }
 
-export async function POST({ request }: { request: Request }) {
+export default async function handler(request) {
+	if (request.method !== "POST") {
+		return new Response(JSON.stringify({ error: "Method not allowed" }), {
+			status: 405,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+
 	const env = {
-		PUBLIC_GITHUB_APP_ID: import.meta.env.PUBLIC_GITHUB_APP_ID || "",
-		GH_PRIVATE_KEY: import.meta.env.GH_PRIVATE_KEY || "",
-		PUBLIC_GITHUB_OWNER: import.meta.env.PUBLIC_GITHUB_OWNER || "",
-		PUBLIC_GITHUB_REPO: import.meta.env.PUBLIC_GITHUB_REPO || "",
+		PUBLIC_GITHUB_APP_ID: process.env.PUBLIC_GITHUB_APP_ID || "",
+		GH_PRIVATE_KEY: process.env.GH_PRIVATE_KEY || "",
+		PUBLIC_GITHUB_OWNER: process.env.PUBLIC_GITHUB_OWNER || "",
+		PUBLIC_GITHUB_REPO: process.env.PUBLIC_GITHUB_REPO || "",
 	};
 
 	// 检查服务端认证是否可用
@@ -53,13 +64,13 @@ export async function POST({ request }: { request: Request }) {
 		env.GH_PRIVATE_KEY.includes("...")
 	) {
 		return new Response(
-			JSON.stringify({ error: "Friend apply service is not configured: 请在 .env 中配置真实的 GitHub App 凭证" }),
+			JSON.stringify({ error: "Friend apply service is not configured: 请在 Vercel 环境变量中配置真实的 GitHub App 凭证" }),
 			{ status: 503, headers: { "Content-Type": "application/json" } },
 		);
 	}
 
 	// 解析请求体
-	let body: any;
+	let body;
 	try {
 		body = await request.json();
 	} catch {
@@ -104,11 +115,11 @@ export async function POST({ request }: { request: Request }) {
 	if (desc.length > 500) return new Response(JSON.stringify({ error: "描述过长" }), { status: 400, headers: { "Content-Type": "application/json" } });
 
 	const cleanTags = Array.isArray(tags)
-		? tags.filter((t: any) => typeof t === "string" && t.length <= 20).slice(0, 3)
+		? tags.filter((t) => typeof t === "string" && t.length <= 20).slice(0, 3)
 		: ["Blog"];
 
 	// 获取 GitHub Token
-	let token: string | null;
+	let token;
 	try {
 		token = await getInstallationTokenServer(env);
 	} catch (e) {
@@ -117,7 +128,7 @@ export async function POST({ request }: { request: Request }) {
 	}
 	if (!token) {
 		return new Response(
-			JSON.stringify({ error: "GitHub 认证失败，请检查 .env 中的 GitHub App 配置是否正确" }),
+			JSON.stringify({ error: "GitHub 认证失败，请检查 Vercel 环境变量中的 GitHub App 配置" }),
 			{ status: 503, headers: { "Content-Type": "application/json" } },
 		);
 	}
@@ -127,8 +138,8 @@ export async function POST({ request }: { request: Request }) {
 	const branch = "master";
 
 	// 读取现有的 pending-friends.json
-	let pendingFriends: any[] = [];
-	let fileSha: string | null = null;
+	let pendingFriends = [];
+	let fileSha = null;
 
 	const getResp = await ghRequest(
 		"GET",
@@ -181,7 +192,7 @@ export async function POST({ request }: { request: Request }) {
 	const content = JSON.stringify(pendingFriends, null, 2);
 	const encoded = btoa(unescape(encodeURIComponent(content)));
 
-	const putBody: any = {
+	const putBody = {
 		message: `chore: friend apply from ${title.trim()}`,
 		content: encoded,
 		branch,
