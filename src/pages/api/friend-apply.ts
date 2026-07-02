@@ -1,26 +1,7 @@
-import { getInstallationTokenServer } from "../src/workers/github-auth.js";
-
-export const config = {
-	runtime: "edge",
-};
+import { getInstallationTokenServer } from "@/workers/github-auth.js";
 
 const GH_API = "https://api.github.com";
 const PENDING_FILE = "data/pending-friends.json";
-
-function corsHeaders() {
-	return {
-		"Access-Control-Allow-Origin": "*",
-		"Access-Control-Allow-Methods": "POST, OPTIONS",
-		"Access-Control-Allow-Headers": "Content-Type",
-	};
-}
-
-function json(data, status = 200) {
-	return new Response(JSON.stringify(data), {
-		status,
-		headers: { "Content-Type": "application/json", ...corsHeaders() },
-	});
-}
 
 function genId() {
 	const ts = Date.now();
@@ -28,7 +9,7 @@ function genId() {
 	return `fa-${ts}-${rand}`;
 }
 
-function isValidUrl(str) {
+function isValidUrl(str: string) {
 	try {
 		const u = new URL(str);
 		return u.protocol === "http:" || u.protocol === "https:";
@@ -37,9 +18,9 @@ function isValidUrl(str) {
 	}
 }
 
-async function ghRequest(method, path, token, body = null) {
+async function ghRequest(method: string, path: string, token: string, body: any = null) {
 	const url = path.startsWith("http") ? path : `${GH_API}/${path.replace(/^\//, "")}`;
-	const opts = {
+	const opts: RequestInit = {
 		method,
 		headers: {
 			Authorization: `Bearer ${token}`,
@@ -49,21 +30,13 @@ async function ghRequest(method, path, token, body = null) {
 		},
 	};
 	if (body) {
-		opts.headers["Content-Type"] = "application/json";
+		opts.headers = { ...opts.headers, "Content-Type": "application/json" };
 		opts.body = JSON.stringify(body);
 	}
 	return fetch(url, opts);
 }
 
-export default async function handler(request) {
-	if (request.method === "OPTIONS") {
-		return new Response(null, { status: 204, headers: corsHeaders() });
-	}
-
-	if (request.method !== "POST") {
-		return json({ error: "Method not allowed" }, 405);
-	}
-
+export async function POST({ request }: { request: Request }) {
 	const env = {
 		PUBLIC_GITHUB_APP_ID: import.meta.env.PUBLIC_GITHUB_APP_ID || "",
 		GH_PRIVATE_KEY: import.meta.env.GH_PRIVATE_KEY || "",
@@ -73,50 +46,68 @@ export default async function handler(request) {
 
 	// 检查服务端认证是否可用
 	if (!env.PUBLIC_GITHUB_APP_ID || !env.GH_PRIVATE_KEY) {
-		return json(
-			{ error: "Friend apply service is not configured" },
-			503,
+		return new Response(
+			JSON.stringify({ error: "Friend apply service is not configured" }),
+			{ status: 503, headers: { "Content-Type": "application/json" } },
 		);
 	}
 
 	// 解析请求体
-	let body;
+	let body: any;
 	try {
 		body = await request.json();
 	} catch {
-		return json({ error: "Invalid JSON" }, 400);
+		return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+			status: 400,
+			headers: { "Content-Type": "application/json" },
+		});
 	}
 
 	const { title, siteurl, imgurl, desc, tags } = body;
 
 	// 验证必填字段
 	if (!title || typeof title !== "string" || title.trim().length === 0) {
-		return json({ error: "站点名称不能为空" }, 400);
+		return new Response(JSON.stringify({ error: "站点名称不能为空" }), {
+			status: 400,
+			headers: { "Content-Type": "application/json" },
+		});
 	}
 	if (!siteurl || typeof siteurl !== "string" || !isValidUrl(siteurl)) {
-		return json({ error: "请填写有效的站点链接" }, 400);
+		return new Response(JSON.stringify({ error: "请填写有效的站点链接" }), {
+			status: 400,
+			headers: { "Content-Type": "application/json" },
+		});
 	}
 	if (!imgurl || typeof imgurl !== "string") {
-		return json({ error: "请填写头像链接" }, 400);
+		return new Response(JSON.stringify({ error: "请填写头像链接" }), {
+			status: 400,
+			headers: { "Content-Type": "application/json" },
+		});
 	}
 	if (!desc || typeof desc !== "string") {
-		return json({ error: "请填写站点描述" }, 400);
+		return new Response(JSON.stringify({ error: "请填写站点描述" }), {
+			status: 400,
+			headers: { "Content-Type": "application/json" },
+		});
 	}
 
 	// 长度限制
-	if (title.length > 100) return json({ error: "站点名称过长" }, 400);
-	if (siteurl.length > 500) return json({ error: "链接过长" }, 400);
-	if (imgurl.length > 500) return json({ error: "头像链接过长" }, 400);
-	if (desc.length > 500) return json({ error: "描述过长" }, 400);
+	if (title.length > 100) return new Response(JSON.stringify({ error: "站点名称过长" }), { status: 400, headers: { "Content-Type": "application/json" } });
+	if (siteurl.length > 500) return new Response(JSON.stringify({ error: "链接过长" }), { status: 400, headers: { "Content-Type": "application/json" } });
+	if (imgurl.length > 500) return new Response(JSON.stringify({ error: "头像链接过长" }), { status: 400, headers: { "Content-Type": "application/json" } });
+	if (desc.length > 500) return new Response(JSON.stringify({ error: "描述过长" }), { status: 400, headers: { "Content-Type": "application/json" } });
 
 	const cleanTags = Array.isArray(tags)
-		? tags.filter((t) => typeof t === "string" && t.length <= 20).slice(0, 3)
+		? tags.filter((t: any) => typeof t === "string" && t.length <= 20).slice(0, 3)
 		: ["Blog"];
 
 	// 获取 GitHub Token
 	const token = await getInstallationTokenServer(env);
 	if (!token) {
-		return json({ error: "服务暂时不可用，请稍后再试" }, 503);
+		return new Response(JSON.stringify({ error: "服务暂时不可用，请稍后再试" }), {
+			status: 503,
+			headers: { "Content-Type": "application/json" },
+		});
 	}
 
 	const owner = env.PUBLIC_GITHUB_OWNER || "fqzlr";
@@ -124,8 +115,8 @@ export default async function handler(request) {
 	const branch = "master";
 
 	// 读取现有的 pending-friends.json
-	let pendingFriends = [];
-	let fileSha = null;
+	let pendingFriends: any[] = [];
+	let fileSha: string | null = null;
 
 	const getResp = await ghRequest(
 		"GET",
@@ -137,16 +128,17 @@ export default async function handler(request) {
 		const data = await getResp.json();
 		fileSha = data.sha;
 		try {
-			const content = decodeURIComponent(
-				escape(atob(data.content.replace(/\n/g, ""))),
-			);
+			const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
 			pendingFriends = JSON.parse(content);
 			if (!Array.isArray(pendingFriends)) pendingFriends = [];
 		} catch {
 			pendingFriends = [];
 		}
 	} else if (getResp.status !== 404) {
-		return json({ error: "读取申请列表失败" }, 500);
+		return new Response(JSON.stringify({ error: "读取申请列表失败" }), {
+			status: 500,
+			headers: { "Content-Type": "application/json" },
+		});
 	}
 
 	// 检查是否已有相同 URL 的待审核申请
@@ -155,7 +147,10 @@ export default async function handler(request) {
 		(f) => f.siteurl.replace(/\/+$/, "").toLowerCase() === normalizedUrl,
 	);
 	if (duplicate) {
-		return json({ error: "该站点已提交过申请，请勿重复提交" }, 409);
+		return new Response(JSON.stringify({ error: "该站点已提交过申请，请勿重复提交" }), {
+			status: 409,
+			headers: { "Content-Type": "application/json" },
+		});
 	}
 
 	// 添加新申请
@@ -174,7 +169,7 @@ export default async function handler(request) {
 	const content = JSON.stringify(pendingFriends, null, 2);
 	const encoded = btoa(unescape(encodeURIComponent(content)));
 
-	const putBody = {
+	const putBody: any = {
 		message: `chore: friend apply from ${title.trim()}`,
 		content: encoded,
 		branch,
@@ -192,13 +187,19 @@ export default async function handler(request) {
 		const errText = await putResp.text().catch(() => "");
 		console.error("[friend-apply] PUT failed:", putResp.status, errText);
 		if (putResp.status === 409) {
-			return json({ error: "提交冲突，请稍后重试" }, 409);
+			return new Response(JSON.stringify({ error: "提交冲突，请稍后重试" }), {
+				status: 409,
+				headers: { "Content-Type": "application/json" },
+			});
 		}
-		return json({ error: "提交申请失败" }, 500);
+		return new Response(JSON.stringify({ error: "提交申请失败" }), {
+			status: 500,
+			headers: { "Content-Type": "application/json" },
+		});
 	}
 
-	return json(
-		{ ok: true, message: "申请已提交，等待站长审核", id: newApply.id },
-		201,
+	return new Response(
+		JSON.stringify({ ok: true, message: "申请已提交，等待站长审核", id: newApply.id }),
+		{ status: 201, headers: { "Content-Type": "application/json" } },
 	);
 }

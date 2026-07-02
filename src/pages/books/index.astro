@@ -39,11 +39,17 @@ try {
 		repoItems
 			.filter(
 				(r) =>
-					r.id && r.id !== "undefined" && (r.category === "book" || r.id.includes("/book/") || r.id.startsWith("book/")),
+					r.id &&
+					r.id !== "undefined" &&
+					(r.category === "book" ||
+						r.id.includes("/book/") ||
+						r.id.startsWith("book/")),
 			)
 			.map((r) => {
 				// 规范化 ID：将 book/xxx 转换为 /bangumi/book/xxx/ 格式
-				const normalizedId = r.id.startsWith("/bangumi/") ? r.id : `/bangumi/${r.id.replace(/^\//, "")}${r.id.endsWith("/") ? "" : "/"}`;
+				const normalizedId = r.id.startsWith("/bangumi/")
+					? r.id
+					: `/bangumi/${r.id.replace(/^\//, "")}${r.id.endsWith("/") ? "" : "/"}`;
 				return [normalizedId, r];
 			}),
 	);

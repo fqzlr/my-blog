@@ -2,14 +2,8 @@
 import { onMount } from "svelte";
 import EditToolbar from "./EditToolbar.svelte";
 import EditToast from "./EditToast.svelte";
-import {
-	showToast,
-	genId,
-	deepClone,
-	ensureIconify,
-} from "@/utils/editMode";
+import { showToast, genId, deepClone, ensureIconify } from "@/utils/editMode";
 import { setupRepoDrafts } from "@/utils/draftHelpers";
-
 
 interface BangumiItem {
 	id: string;
@@ -50,11 +44,12 @@ let editingIndex = $state(-1);
 let activeTab = $state(defaultCategory);
 let fileSha = $state<string | null>(null);
 
-const currentPageKey = customPageName === "书架"
-	? "books"
-	: customPageName === "影视游戏"
-		? "movies-games"
-		: "bangumi";
+const currentPageKey =
+	customPageName === "书架"
+		? "books"
+		: customPageName === "影视游戏"
+			? "movies-games"
+			: "bangumi";
 
 // TS 配置文件内容生成与解析
 function generateTsContent(data: BangumiItem[]): string {
@@ -65,7 +60,9 @@ function generateTsContent(data: BangumiItem[]): string {
 function parseTsContent(content: string): BangumiItem[] | null {
 	try {
 		// 匹配 export const xxx = [...]; 或 export const xxx = [...] as const;
-		const match = content.match(/export\s+const\s+\w+\s*=\s*(\[[\s\S]*\])\s*(?:as\s+const)?;?\s*$/m);
+		const match = content.match(
+			/export\s+const\s+\w+\s*=\s*(\[[\s\S]*\])\s*(?:as\s+const)?;?\s*$/m,
+		);
 		if (match) return JSON.parse(match[1]);
 		// 回退：尝试直接解析为 JSON
 		return JSON.parse(content);
@@ -79,7 +76,8 @@ const isJsonFile = configPath.endsWith(".json");
 const drafts = setupRepoDrafts({
 	pageKey: currentPageKey,
 	pageName: customPageName,
-	getContent: () => isJsonFile ? JSON.stringify(items, null, 2) : generateTsContent(items),
+	getContent: () =>
+		isJsonFile ? JSON.stringify(items, null, 2) : generateTsContent(items),
 	setContent: (v) => {
 		if (isJsonFile) {
 			items = JSON.parse(v);
@@ -91,7 +89,10 @@ const drafts = setupRepoDrafts({
 	getPath: () => configPath,
 	getSha: () => fileSha,
 	setSha: (v) => (fileSha = v),
-	getOriginalContent: () => isJsonFile ? JSON.stringify(originalItems, null, 2) : generateTsContent(originalItems),
+	getOriginalContent: () =>
+		isJsonFile
+			? JSON.stringify(originalItems, null, 2)
+			: generateTsContent(originalItems),
 	setOriginalContent: (v) => {
 		if (isJsonFile) {
 			originalItems = JSON.parse(v);
@@ -101,7 +102,9 @@ const drafts = setupRepoDrafts({
 		}
 	},
 	getCommitMsg: (isEdit) =>
-		isEdit ? `chore: update ${customPageName} config` : `chore: create ${customPageName} config`,
+		isEdit
+			? `chore: update ${customPageName} config`
+			: `chore: create ${customPageName} config`,
 	onSubmitted: () => {
 		waitForDeployAndReload();
 	},
@@ -289,8 +292,6 @@ function collectFromDOM() {
 	items = collected;
 	originalItems = deepClone(collected);
 }
-
-
 
 function sortItems() {
 	items = [...items].sort((a, b) => {

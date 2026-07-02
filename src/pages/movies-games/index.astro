@@ -65,7 +65,11 @@ interface MgItem {
 }
 
 const mgItems: MgItem[] = customBangumi
-	.filter((item) => ["anime", "game", "real", "tv", "movie", "documentary"].includes(item.data.category))
+	.filter((item) =>
+		["anime", "game", "real", "tv", "movie", "documentary"].includes(
+			item.data.category,
+		),
+	)
 	.map((item) => {
 		const { data, id } = item;
 		const imageSrc =
@@ -126,9 +130,7 @@ const mgItems: MgItem[] = customBangumi
 try {
 	const repoItems = moviesGamesConfig;
 	const repoMap = new Map(
-		repoItems
-			.filter((r) => r.id && r.id !== "undefined")
-			.map((r) => [r.id, r]),
+		repoItems.filter((r) => r.id && r.id !== "undefined").map((r) => [r.id, r]),
 	);
 
 	for (let i = 0; i < mgItems.length; i++) {
@@ -137,9 +139,13 @@ try {
 		const repoItem = repoMap.get(repoId);
 		if (repoItem) {
 			// 将 category 保存到 _subcategory 字段，供 getItemSubcategory 使用
-			const subcategory = repoItem.category && ["anime", "tv", "movie", "documentary", "game"].includes(repoItem.category)
-				? repoItem.category
-				: undefined;
+			const subcategory =
+				repoItem.category &&
+				["anime", "tv", "movie", "documentary", "game"].includes(
+					repoItem.category,
+				)
+					? repoItem.category
+					: undefined;
 			mgItems[i] = {
 				...mgItem,
 				rate: repoItem.score ?? mgItem.rate,
@@ -163,7 +169,7 @@ try {
 function getItemSubcategory(item: MgItem): string {
 	// 优先使用 _subcategory 字段（从 config 的 category 转换而来）
 	if (item._subcategory) return item._subcategory;
-	
+
 	const tags = item.tags || [];
 	if (tags.some((t: string) => t.includes("纪录"))) return "documentary";
 	if (tags.some((t: string) => t.includes("动漫") || t.includes("动画")))

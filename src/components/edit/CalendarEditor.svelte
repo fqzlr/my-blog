@@ -2,7 +2,12 @@
 import { onMount, onDestroy } from "svelte";
 import { showToast, genId, deepClone, ensureIconify } from "@/utils/editMode";
 import { setupRepoDrafts } from "@/utils/draftHelpers";
-import type { CalendarConfig, BirthdayItem, ScheduleItem, HolidayItem } from "@/types/config";
+import type {
+	CalendarConfig,
+	BirthdayItem,
+	ScheduleItem,
+	HolidayItem,
+} from "@/types/config";
 
 // Props
 let { initialConfig }: { initialConfig: CalendarConfig } = $props();
@@ -80,7 +85,12 @@ const drafts = setupRepoDrafts({
 	getPath: () => "src/config/calendarConfig.ts",
 	getSha: () => fileSha,
 	setSha: (v) => (fileSha = v),
-	getOriginalContent: () => generateTsContent(originalBirthdays, originalSchedules, originalBuiltinHolidays),
+	getOriginalContent: () =>
+		generateTsContent(
+			originalBirthdays,
+			originalSchedules,
+			originalBuiltinHolidays,
+		),
 	setOriginalContent: (v) => {
 		const parsed = parseTsContent(v);
 		if (parsed) {
@@ -122,9 +132,15 @@ function parseTsContent(content: string): {
 	builtinHolidays: HolidayItem[];
 } | null {
 	try {
-		const bdMatch = content.match(/export\s+const\s+birthdays\s*[:=]\s*(\[[\s\S]*?\])\s*;/m);
-		const scMatch = content.match(/export\s+const\s+schedules\s*[:=]\s*(\[[\s\S]*?\])\s*;/m);
-		const hlMatch = content.match(/export\s+const\s+builtinHolidays\s*[:=]\s*(\[[\s\S]*?\])\s*;/m);
+		const bdMatch = content.match(
+			/export\s+const\s+birthdays\s*[:=]\s*(\[[\s\S]*?\])\s*;/m,
+		);
+		const scMatch = content.match(
+			/export\s+const\s+schedules\s*[:=]\s*(\[[\s\S]*?\])\s*;/m,
+		);
+		const hlMatch = content.match(
+			/export\s+const\s+builtinHolidays\s*[:=]\s*(\[[\s\S]*?\])\s*;/m,
+		);
 		if (bdMatch && scMatch) {
 			return {
 				birthdays: JSON.parse(bdMatch[1]),
@@ -152,11 +168,17 @@ onMount(() => {
 	dataLoaded = true;
 
 	// 监听 EditToolbar 的模式切换事件
-	window.addEventListener("edit:modeChange", handleEditModeChange as EventListener);
+	window.addEventListener(
+		"edit:modeChange",
+		handleEditModeChange as EventListener,
+	);
 });
 
 onDestroy(() => {
-	window.removeEventListener("edit:modeChange", handleEditModeChange as EventListener);
+	window.removeEventListener(
+		"edit:modeChange",
+		handleEditModeChange as EventListener,
+	);
 });
 
 function handleEditModeChange(e: Event) {
@@ -230,14 +252,20 @@ function deleteBirthday(index: number) {
 
 function moveUpBirthday(index: number) {
 	if (index <= 0) return;
-	[birthdays[index - 1], birthdays[index]] = [birthdays[index], birthdays[index - 1]];
+	[birthdays[index - 1], birthdays[index]] = [
+		birthdays[index],
+		birthdays[index - 1],
+	];
 	if (editingBirthdayIndex === index) editingBirthdayIndex = index - 1;
 	else if (editingBirthdayIndex === index - 1) editingBirthdayIndex = index;
 }
 
 function moveDownBirthday(index: number) {
 	if (index >= birthdays.length - 1) return;
-	[birthdays[index + 1], birthdays[index]] = [birthdays[index], birthdays[index + 1]];
+	[birthdays[index + 1], birthdays[index]] = [
+		birthdays[index],
+		birthdays[index + 1],
+	];
 	if (editingBirthdayIndex === index) editingBirthdayIndex = index + 1;
 	else if (editingBirthdayIndex === index + 1) editingBirthdayIndex = index;
 }
@@ -325,14 +353,20 @@ function deleteSchedule(index: number) {
 
 function moveUpSchedule(index: number) {
 	if (index <= 0) return;
-	[schedules[index - 1], schedules[index]] = [schedules[index], schedules[index - 1]];
+	[schedules[index - 1], schedules[index]] = [
+		schedules[index],
+		schedules[index - 1],
+	];
 	if (editingScheduleIndex === index) editingScheduleIndex = index - 1;
 	else if (editingScheduleIndex === index - 1) editingScheduleIndex = index;
 }
 
 function moveDownSchedule(index: number) {
 	if (index >= schedules.length - 1) return;
-	[schedules[index + 1], schedules[index]] = [schedules[index], schedules[index + 1]];
+	[schedules[index + 1], schedules[index]] = [
+		schedules[index],
+		schedules[index + 1],
+	];
 	if (editingScheduleIndex === index) editingScheduleIndex = index + 1;
 	else if (editingScheduleIndex === index + 1) editingScheduleIndex = index;
 }
@@ -400,14 +434,20 @@ function deleteHoliday(index: number) {
 
 function moveUpHoliday(index: number) {
 	if (index <= 0) return;
-	[builtinHolidays[index - 1], builtinHolidays[index]] = [builtinHolidays[index], builtinHolidays[index - 1]];
+	[builtinHolidays[index - 1], builtinHolidays[index]] = [
+		builtinHolidays[index],
+		builtinHolidays[index - 1],
+	];
 	if (editingHolidayIndex === index) editingHolidayIndex = index - 1;
 	else if (editingHolidayIndex === index - 1) editingHolidayIndex = index;
 }
 
 function moveDownHoliday(index: number) {
 	if (index >= builtinHolidays.length - 1) return;
-	[builtinHolidays[index + 1], builtinHolidays[index]] = [builtinHolidays[index], builtinHolidays[index + 1]];
+	[builtinHolidays[index + 1], builtinHolidays[index]] = [
+		builtinHolidays[index],
+		builtinHolidays[index + 1],
+	];
 	if (editingHolidayIndex === index) editingHolidayIndex = index + 1;
 	else if (editingHolidayIndex === index + 1) editingHolidayIndex = index;
 }

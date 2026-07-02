@@ -2,12 +2,7 @@
 import { onMount } from "svelte";
 import EditToolbar from "./EditToolbar.svelte";
 import EditToast from "./EditToast.svelte";
-import {
-	showToast,
-	genId,
-	deepClone,
-	ensureIconify,
-} from "@/utils/editMode";
+import { showToast, genId, deepClone, ensureIconify } from "@/utils/editMode";
 import { setupRepoDrafts } from "@/utils/draftHelpers";
 
 interface CollectionItem {
@@ -75,7 +70,6 @@ function parseInitialData() {
 		originalItems = [];
 	}
 }
-
 
 const enabledItems = $derived(items.filter((i) => i.enabled !== false));
 const allCategories = $derived([

@@ -2,12 +2,7 @@
 import { onMount } from "svelte";
 import EditToolbar from "./EditToolbar.svelte";
 import EditToast from "./EditToast.svelte";
-import {
-	showToast,
-	genId,
-	deepClone,
-	ensureIconify,
-} from "@/utils/editMode";
+import { showToast, genId, deepClone, ensureIconify } from "@/utils/editMode";
 import { setupRepoDrafts } from "@/utils/draftHelpers";
 
 interface MomentItem {
@@ -51,7 +46,9 @@ function generateTsContent(data: MomentItem[]): string {
 
 function parseTsContent(content: string): MomentItem[] | null {
 	try {
-		const match = content.match(/export\s+const\s+\w+\s*[:=]\s*(\[[\s\S]*\])\s*(?:as\s+const)?;?\s*$/m);
+		const match = content.match(
+			/export\s+const\s+\w+\s*[:=]\s*(\[[\s\S]*\])\s*(?:as\s+const)?;?\s*$/m,
+		);
 		if (match) return JSON.parse(match[1]);
 		return JSON.parse(content);
 	} catch {
