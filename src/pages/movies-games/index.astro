@@ -565,6 +565,12 @@ const bangumiInitialItems = mgItems.map((item) => {
       return validSections.indexOf(cat) !== -1 ? cat : "movie";
     }
 
+    // 检查是否是影视游戏相关的数据（排除书籍、音乐等）
+    function isValidItem(item) {
+      var cat = item.category || "";
+      return ["movie", "tv", "anime", "documentary", "game", "real"].indexOf(cat) !== -1;
+    }
+
     function esc(t) { var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
 
     function createCard(item) {
@@ -618,7 +624,10 @@ const bangumiInitialItems = mgItems.map((item) => {
       if (document.querySelector('[data-ext-bangumi]')) return;
       window.__bangumiInserted = true;
 
-      var enabledItems = items;
+      // 过滤掉非影视游戏相关的数据（如书籍、音乐等）
+      var enabledItems = items.filter(function(item) {
+        return isValidItem(item);
+      });
       if (!enabledItems.length) return;
 
       // 按更新时间排序（新的在前）
