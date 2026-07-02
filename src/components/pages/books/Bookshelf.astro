@@ -11,14 +11,15 @@ interface BookData {
 
 interface Props {
 	books: BookData[];
+	'data-section'?: string;
 }
 
-const { books } = Astro.props;
+const { books, 'data-section': dataSection } = Astro.props;
 ---
 
-<div class="bookshelf">
+<div class="bookshelf" data-section={dataSection}>
 	{books.length > 0 ? (
-		<div class="shelf-grid">
+		<div class="shelf-grid bangumi-grid">
 			{books.map((book, index) => (
 				<BookCard
 					title={book.title}
@@ -27,6 +28,7 @@ const { books } = Astro.props;
 					status={book.status}
 					score={book.score}
 					index={index}
+					id={book.id || `book-${index}`}
 				/>
 			))}
 		</div>

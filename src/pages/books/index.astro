@@ -107,20 +107,12 @@ const bangumiInitialItems = customBangumi
 				<BangumiEditor
 					client:only
 					defaultCategory="book"
-					skipDomCollect={true}
 					customPageName="书架"
 					initialItems={bangumiInitialItems}
 				/>
 			</div>
 
-			{bookItems.length > 0 ? (
-				<Bookshelf books={bookItems} />
-			) : (
-				<div class="w-full p-12 text-center">
-					<Icon name="material-symbols:auto-stories" class="text-6xl text-neutral-300 dark:text-neutral-600 mb-4" />
-					<p class="text-neutral-500 dark:text-neutral-400">{i18n(I18nKey.booksNoData)}</p>
-				</div>
-			)}
+			<Bookshelf books={bookItems} data-section="book" />
 		</div>
 	</div>
 
