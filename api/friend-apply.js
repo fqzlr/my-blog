@@ -65,10 +65,10 @@ export default async function handler(request) {
 	}
 
 	const env = {
-		PUBLIC_GITHUB_APP_ID: process.env.PUBLIC_GITHUB_APP_ID || "",
-		GH_PRIVATE_KEY: process.env.GH_PRIVATE_KEY || "",
-		PUBLIC_GITHUB_OWNER: process.env.PUBLIC_GITHUB_OWNER || "",
-		PUBLIC_GITHUB_REPO: process.env.PUBLIC_GITHUB_REPO || "",
+		PUBLIC_GITHUB_APP_ID: import.meta.env.PUBLIC_GITHUB_APP_ID || "",
+		GH_PRIVATE_KEY: import.meta.env.GH_PRIVATE_KEY || "",
+		PUBLIC_GITHUB_OWNER: import.meta.env.PUBLIC_GITHUB_OWNER || "",
+		PUBLIC_GITHUB_REPO: import.meta.env.PUBLIC_GITHUB_REPO || "",
 	};
 
 	// 检查服务端认证是否可用

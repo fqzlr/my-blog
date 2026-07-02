@@ -10,6 +10,7 @@ import {
 	getRepoFile,
 	updateRepoFile,
 	createRepoFile,
+	hasValidCredentials,
 } from "@/utils/editMode";
 import { setupRepoDrafts } from "@/utils/draftHelpers";
 
@@ -49,6 +50,10 @@ let pendingFriends = $state<PendingFriend[]>([]);
 let pendingFileSha = $state<string | null>(null);
 let pendingLoading = $state(false);
 let pendingActionId = $state<string | null>(null);
+let selectedPendingIds = $state<Set<string>>(new Set());
+
+// 认证状态（与 EditToolbar 同步）
+let authed = $state(hasValidCredentials());
 
 // 从 TypeScript 配置文件中解析友链数组
 function parseFriendsFromTS(tsContent: string): FriendItem[] {
@@ -630,6 +635,144 @@ async function rejectFriend(index: number) {
 
 	pendingActionId = null;
 }
+
+// ============ 批量审核功能 ============
+
+function toggleSelectPending(id: string) {
+	const newSet = new Set(selectedPendingIds);
+	if (newSet.has(id)) {
+		newSet.delete(id);
+	} else {
+		newSet.add(id);
+	}
+	selectedPendingIds = newSet;
+}
+
+function selectAllPending() {
+	selectedPendingIds = new Set(pendingFriends.map((pf) => pf.id));
+}
+
+function clearSelection() {
+	selectedPendingIds = new Set();
+}
+
+async function batchApprovePending() {
+	if (!authed) {
+		showToast("请先导入 GitHub App 私钥", "warning");
+		return;
+	}
+	if (selectedPendingIds.size === 0) {
+		showToast("请先选择要批准的申请", "warning");
+		return;
+	}
+
+	const selectedCount = selectedPendingIds.size;
+	if (!confirm(`确定要批准选中的 ${selectedCount} 条友链申请吗？`)) return;
+
+	pendingLoading = true;
+
+	try {
+		// 1. 将所有选中的申请添加到 friends 数组
+		const approvedFriends: FriendItem[] = [];
+		for (const id of selectedPendingIds) {
+			const pf = pendingFriends.find((p) => p.id === id);
+			if (pf) {
+				approvedFriends.push({
+					id: genId("fr"),
+					title: pf.title,
+					imgurl: pf.imgurl,
+					desc: pf.desc,
+					siteurl: pf.siteurl,
+					tags: pf.tags || ["Blog"],
+					weight: 10,
+					enabled: true,
+				});
+			}
+		}
+
+		friends = [...friends, ...approvedFriends];
+
+		// 2. 更新 friendsConfig.ts
+		const newConfigContent = buildFriendsConfigTS(friends, originalTS);
+		let configOk = false;
+		if (fileSha) {
+			configOk = await updateRepoFile(
+				"src/config/friendsConfig.ts",
+				newConfigContent,
+				fileSha,
+				`chore: batch approve ${selectedCount} friends`,
+			);
+		}
+
+		if (configOk) {
+			const fresh = await getRepoFile("src/config/friendsConfig.ts");
+			if (fresh) fileSha = fresh.sha;
+			originalTS = newConfigContent;
+			originalFriends = deepClone(friends);
+		}
+
+		// 3. 从 pending-friends.json 移除已批准的申请
+		const updatedPending = pendingFriends.filter(
+			(pf) => !selectedPendingIds.has(pf.id),
+		);
+		const pendingOk = await commitPendingFile(
+			updatedPending,
+			`chore: remove ${selectedCount} approved friends from pending`,
+		);
+
+		if (configOk && pendingOk) {
+			pendingFriends = updatedPending;
+			selectedPendingIds = new Set();
+			showToast(`已批准 ${selectedCount} 条友链申请`, "success");
+		} else {
+			showToast("操作部分失败，请检查 GitHub 权限", "error");
+		}
+	} catch (err) {
+		console.error("Batch approve error:", err);
+		showToast("批量批准失败", "error");
+	} finally {
+		pendingLoading = false;
+	}
+}
+
+async function batchRejectPending() {
+	if (!authed) {
+		showToast("请先导入 GitHub App 私钥", "warning");
+		return;
+	}
+	if (selectedPendingIds.size === 0) {
+		showToast("请先选择要拒绝的申请", "warning");
+		return;
+	}
+
+	const selectedCount = selectedPendingIds.size;
+	if (!confirm(`确定要拒绝选中的 ${selectedCount} 条友链申请吗？`)) return;
+
+	pendingLoading = true;
+
+	try {
+		const updatedPending = pendingFriends.filter(
+			(pf) => !selectedPendingIds.has(pf.id),
+		);
+		const ok = await commitPendingFile(
+			updatedPending,
+			`chore: reject ${selectedCount} friend applications`,
+		);
+
+		if (ok) {
+			pendingFriends = updatedPending;
+			selectedPendingIds = new Set();
+			showToast(`已拒绝 ${selectedCount} 条友链申请`, "info");
+		} else {
+			showToast("操作失败，请检查 GitHub 权限", "error");
+		}
+	} catch (err) {
+		console.error("Batch reject error:", err);
+		showToast("批量拒绝失败", "error");
+	} finally {
+		pendingLoading = false;
+	}
+}
 </script>
 
 <EditToast />
@@ -667,11 +810,58 @@ async function rejectFriend(index: number) {
 				<iconify-icon icon="material-symbols:pending-actions-rounded"></iconify-icon>
 				<h3>待审核申请</h3>
 				<span class="pending-count">{pendingFriends.length}</span>
+				{#if selectedPendingIds.size > 0}
+					<div class="pending-batch-actions">
+						<button
+							class="pending-btn pending-btn-approve"
+							onclick={batchApprovePending}
+							disabled={pendingLoading}
+							title="批量批准选中的申请"
+						>
+							<iconify-icon icon="material-symbols:check-circle-outline-rounded"></iconify-icon>
+							批准 ({selectedPendingIds.size})
+						</button>
+						<button
+							class="pending-btn pending-btn-reject"
+							onclick={batchRejectPending}
+							disabled={pendingLoading}
+							title="批量拒绝选中的申请"
+						>
+							<iconify-icon icon="material-symbols:cancel-outline-rounded"></iconify-icon>
+							拒绝 ({selectedPendingIds.size})
+						</button>
+						<button
+							class="pending-btn pending-btn-clear"
+							onclick={clearSelection}
+							disabled={pendingLoading}
+							title="清空选择"
+						>
+							<iconify-icon icon="material-symbols:close-rounded"></iconify-icon>
+						</button>
+					</div>
+				{:else}
+					<button
+						class="pending-btn pending-btn-select-all"
+						onclick={selectAllPending}
+						disabled={pendingLoading}
+						title="全选所有申请"
+					>
+						<iconify-icon icon="material-symbols:select-all-rounded"></iconify-icon>
+						全选
+					</button>
+				{/if}
 			</div>
 			<div class="pending-grid">
 				{#each pendingFriends as pf, pi (pf.id)}
-					<div class="pending-card">
+					<div class="pending-card" class:selected={selectedPendingIds.has(pf.id)}>
 						<div class="pending-card-info">
+							<input
+								type="checkbox"
+								class="pending-checkbox"
+								checked={selectedPendingIds.has(pf.id)}
+								onchange={() => toggleSelectPending(pf.id)}
+								disabled={pendingLoading || pendingActionId === pf.id}
+							/>
 							{#if pf.imgurl}
 								<img src={pf.imgurl} alt={pf.title} class="pending-avatar" loading="lazy" onerror={(e) => ((e.target as HTMLImageElement).style.opacity = '0')} />
 							{:else}
@@ -1185,6 +1375,46 @@ async function rejectFriend(index: number) {
 		font-weight: 700;
 	}
 
+	/* 批量操作按钮 */
+	.pending-batch-actions {
+		display: flex;
+		gap: 8px;
+		margin-left: auto;
+	}
+	.pending-btn-select-all,
+	.pending-btn-clear {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		padding: 4px 10px;
+		border-radius: 6px;
+		border: 1px solid var(--border, rgba(0,0,0,0.1));
+		background: transparent;
+		color: var(--text-color, #374151);
+		font-size: 12px;
+		font-weight: 500;
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+	.pending-btn-select-all:hover:not(:disabled),
+	.pending-btn-clear:hover:not(:disabled) {
+		background: var(--btn-regular-bg, #f3f4f6);
+	}
+	:global(.dark) .pending-btn-select-all,
+	:global(.dark) .pending-btn-clear {
+		border-color: rgba(255,255,255,0.1);
+		color: #d1d5db;
+	}
+	:global(.dark) .pending-btn-select-all:hover:not(:disabled),
+	:global(.dark) .pending-btn-clear:hover:not(:disabled) {
+		background: rgba(255,255,255,0.05);
+	}
+	.pending-btn-select-all:disabled,
+	.pending-btn-clear:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
 	.pending-loading {
 		display: flex;
 		align-items: center;
@@ -1216,11 +1446,29 @@ async function rejectFriend(index: number) {
 		border-color: rgba(245, 158, 11, 0.4);
 		box-shadow: 0 4px 16px rgba(245, 158, 11, 0.08);
 	}
+	.pending-card.selected {
+		border-color: #f59e0b;
+		box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+	}
+	:global(.dark) .pending-card.selected {
+		border-color: #fbbf24;
+		box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.2);
+	}
 
 	.pending-card-info {
 		display: flex;
 		gap: 12px;
 		padding: 14px;
+	}
+
+	/* 复选框 */
+	.pending-checkbox {
+		width: 18px;
+		height: 18px;
+		flex-shrink: 0;
+		margin-top: 2px;
+		cursor: pointer;
+		accent-color: #f59e0b;
 	}
 
 	.pending-avatar {
