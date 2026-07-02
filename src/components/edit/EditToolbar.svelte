@@ -30,6 +30,7 @@ let {
 	startInEditMode = false,
 	persistentEdit = false,
 	mountTo,
+	mainBtnClass,
 }: {
 	pageName: string;
 	pageKey?: string;
@@ -39,6 +40,7 @@ let {
 	startInEditMode?: boolean;
 	persistentEdit?: boolean;
 	mountTo?: string;
+	mainBtnClass?: string;
 } = $props();
 
 let editMode = $state(false);
@@ -120,7 +122,9 @@ function enterEdit() {
 	editMode = true;
 	dispatch("modeChange", { editing: true });
 	// 发送全局事件供其他组件监听
-	window.dispatchEvent(new CustomEvent("edit:modeChange", { detail: { editing: true } }));
+	window.dispatchEvent(
+		new CustomEvent("edit:modeChange", { detail: { editing: true } }),
+	);
 }
 
 function cancelEdit() {
@@ -134,7 +138,9 @@ function cancelEdit() {
 		editMode = false;
 		dispatch("modeChange", { editing: false });
 		// 发送全局事件供其他组件监听
-		window.dispatchEvent(new CustomEvent("edit:modeChange", { detail: { editing: false } }));
+		window.dispatchEvent(
+			new CustomEvent("edit:modeChange", { detail: { editing: false } }),
+		);
 	}
 	dispatch("cancel");
 }
@@ -299,7 +305,7 @@ function closeHelpModal() {
 
 <div class="edit-toolbar" bind:this={toolbarRootEl} class:edit-toolbar--mounted={mountedExternally} class:edit-mode-toolbar={editMode}>
 	{#if !editMode}
-		<button class="edit-main-btn" onclick={enterEdit} title={`编辑${pageName}`}>
+		<button class={mainBtnClass || "edit-main-btn"} onclick={enterEdit} title={`编辑${pageName}`}>
 			<iconify-icon icon="material-symbols:edit-rounded" class="text-base"></iconify-icon>
 			<span class="btn-text">编辑{pageName}</span>
 		</button>
@@ -455,28 +461,34 @@ function closeHelpModal() {
 
 <!-- 清除草稿确认弹窗 -->
 {#if showClearConfirmModal}
-	<div class="clear-modal-overlay" onclick={closeClearModal}>
-		<div class="clear-modal-panel" onclick={(e) => e.stopPropagation()}>
-			<div class="clear-modal-header">
-				<div class="clear-modal-icon">
+	<div class="fa-modal">
+		<div class="fa-overlay" onclick={closeClearModal}></div>
+		<div class="fa-panel fa-panel-sm">
+			<!-- 头部 -->
+			<div class="fa-header">
+				<div class="fa-icon-danger">
 					<iconify-icon icon="material-symbols:delete-outline-rounded"></iconify-icon>
 				</div>
-				<h2 class="clear-modal-title">清除所有草稿</h2>
-				<button class="clear-modal-close" onclick={closeClearModal}>
+				<h2 class="fa-title">清除所有草稿</h2>
+				<button type="button" class="fa-close" onclick={closeClearModal} aria-label="关闭">
 					<iconify-icon icon="material-symbols:close-rounded" class="text-xl"></iconify-icon>
 				</button>
 			</div>
-			<div class="clear-modal-body">
-				<p class="clear-modal-desc">
+
+			<!-- 内容 -->
+			<div class="fa-body">
+				<p class="fa-notice">
 					确定要清除所有草稿吗？此操作不可恢复。
 				</p>
-				<p class="clear-modal-hint">
+				<div class="fa-hint">
 					当前共有 <strong>{totalDraftCount}</strong> 条草稿将被删除。
-				</p>
+				</div>
 			</div>
-			<div class="clear-modal-footer">
-				<button class="clear-modal-btn clear-modal-btn-cancel" onclick={closeClearModal}>取消</button>
-				<button class="clear-modal-btn clear-modal-btn-danger" onclick={confirmClearDrafts}>
+
+			<!-- 底部按钮 -->
+			<div class="fa-footer">
+				<button type="button" class="fa-btn fa-btn-cancel" onclick={closeClearModal}>取消</button>
+				<button type="button" class="fa-btn fa-btn-danger" onclick={confirmClearDrafts}>
 					<iconify-icon icon="material-symbols:delete-rounded" class="text-sm"></iconify-icon>
 					确认清除
 				</button>
@@ -1008,6 +1020,10 @@ function closeHelpModal() {
 		max-width: 400px;
 	}
 
+	.fa-panel-sm {
+		max-width: 28rem;
+	}
+
 	.modal-header {
 		display: flex;
 		align-items: center;
@@ -1098,47 +1114,70 @@ function closeHelpModal() {
 		color: #555;
 	}
 	.modal-btn-cancel:hover {
-		background: rgba(0, 0, 0, 0.06);
+		background: var(--btn-plain-bg-hover, rgba(0, 0, 0, 0.06));
 		border-color: rgba(0, 0, 0, 0.3);
 	}
 	:global(.dark) .modal-btn-cancel {
 		border-color: rgba(255, 255, 255, 0.15);
-		color: #bbb;
+		color: oklch(0.7 0 0);
 	}
 	:global(.dark) .modal-btn-cancel:hover {
 		background: rgba(255, 255, 255, 0.08);
 		border-color: rgba(255, 255, 255, 0.3);
 	}
-	.modal-btn-ok {
-		background: hsl(var(--theme-hue, 165), 70%, 50%);
-		color: white;
-		border-color: hsl(var(--theme-hue, 165), 70%, 50%);
+
+	.fa-icon-danger {
+		width: 2.25rem;
+		height: 2.25rem;
+		border-radius: 0.625rem;
+		background: rgba(239, 68, 68, 0.1);
+		color: #dc2626;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 1.25rem;
+		flex-shrink: 0;
 	}
-	.modal-btn-ok:hover:not(:disabled) {
-		background: hsl(var(--theme-hue, 165), 75%, 45%);
-		border-color: hsl(var(--theme-hue, 165), 75%, 45%);
-	}
-	.modal-btn-ok:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
+	:global(.dark) .fa-icon-danger {
+		background: rgba(248, 113, 113, 0.15);
+		color: #f87171;
 	}
 
-	.modal-btn-danger {
-		background: #dc2626;
-		color: white;
-		border-color: #dc2626;
+	.fa-hint {
+		font-size: 0.8125rem;
+		color: oklch(0.5 0 0);
+		margin-top: 0.75rem;
+		padding: 0.75rem 1rem;
+		background: oklch(0.97 0 0);
+		border-radius: 0.625rem;
+		border: 1px solid oklch(0.92 0 0);
 	}
-	.modal-btn-danger:hover:not(:disabled) {
-		background: #b91c1c;
-		border-color: #b91c1c;
+	:global(.dark) .fa-hint {
+		color: oklch(0.6 0 0);
+		background: oklch(0.2 0 0);
+		border-color: oklch(0.28 0 0);
 	}
-	:global(.dark) .modal-btn-danger {
-		background: #ef4444;
-		border-color: #ef4444;
+	.fa-hint strong {
+		color: #dc2626;
+		font-weight: 700;
 	}
-	:global(.dark) .modal-btn-danger:hover:not(:disabled) {
-		background: #dc2626;
-		border-color: #dc2626;
+	:global(.dark) .fa-hint strong {
+		color: #f87171;
+	}
+
+	.fa-btn-danger {
+		background: oklch(0.55 0.2 25);
+		color: oklch(1 0 0);
+	}
+	.fa-btn-danger:hover:not(:disabled) {
+		background: oklch(0.5 0.2 25);
+	}
+	:global(.dark) .fa-btn-danger {
+		background: oklch(0.65 0.2 25);
+		color: oklch(0.15 0 0);
+	}
+	:global(.dark) .fa-btn-danger:hover:not(:disabled) {
+		background: oklch(0.6 0.2 25);
 	}
 
 	.help-body h4 {
@@ -1176,201 +1215,12 @@ function closeHelpModal() {
 		color: hsl(var(--theme-hue, 165), 70%, 65%);
 	}
 
-	/* ====== 清除草稿弹窗（友链弹窗风格） ====== */
-	.clear-modal-overlay {
-		position: fixed;
-		inset: 0;
-		background: oklch(0 0 0 / 0.5);
-		backdrop-filter: blur(4px);
-		z-index: 9998;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 1rem;
-		animation: clearFadeIn 0.2s ease-out;
-	}
-	@keyframes clearFadeIn {
-		from { opacity: 0; }
-		to { opacity: 1; }
-	}
-
-	.clear-modal-panel {
-		background: oklch(1 0 0);
-		border: 1px solid var(--line-divider, rgba(0, 0, 0, 0.08));
-		border-radius: 1rem;
-		box-shadow: 0 25px 50px -12px oklch(0 0 0 / 0.25);
-		max-width: 28rem;
-		width: 100%;
-		animation: clearSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-	}
-	:global(.dark) .clear-modal-panel {
-		background: oklch(0.15 0 0);
-		border-color: var(--line-divider, rgba(255, 255, 255, 0.08));
-		box-shadow: 0 25px 50px -12px oklch(0 0 0 / 0.6);
-	}
-	@keyframes clearSlideIn {
-		from { opacity: 0; transform: translateY(-0.75rem) scale(0.97); }
-		to { opacity: 1; transform: translateY(0) scale(1); }
-	}
-
-	.clear-modal-header {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		padding: 1.25rem 1.5rem;
-		border-bottom: 1px solid var(--line-divider, rgba(0, 0, 0, 0.08));
-	}
-	:global(.dark) .clear-modal-header {
-		border-bottom-color: var(--line-divider, rgba(255, 255, 255, 0.08));
-	}
-
-	.clear-modal-icon {
-		width: 2.25rem;
-		height: 2.25rem;
-		border-radius: 0.625rem;
-		background: rgba(239, 68, 68, 0.1);
-		color: #dc2626;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 1.25rem;
-		flex-shrink: 0;
-	}
-	:global(.dark) .clear-modal-icon {
-		background: rgba(248, 113, 113, 0.15);
-		color: #f87171;
-	}
-
-	.clear-modal-title {
-		font-size: 1.125rem;
-		font-weight: 700;
-		color: oklch(0.2 0 0);
-		margin: 0;
-		flex: 1;
-	}
-	:global(.dark) .clear-modal-title { color: oklch(0.9 0 0); }
-
-	.clear-modal-close {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 2.25rem;
-		height: 2.25rem;
-		border-radius: 0.5rem;
-		border: none;
-		background: transparent;
-		color: oklch(0.5 0 0);
-		cursor: pointer;
-		transition: background 0.15s, color 0.15s;
-	}
-	.clear-modal-close:hover {
-		background: var(--btn-plain-bg-hover, rgba(0, 0, 0, 0.06));
-		color: oklch(0.2 0 0);
-	}
-	:global(.dark) .clear-modal-close { color: oklch(0.6 0 0); }
-	:global(.dark) .clear-modal-close:hover { color: oklch(0.9 0 0); }
-
-	.clear-modal-body {
-		padding: 1.5rem;
-	}
-
-	.clear-modal-desc {
-		font-size: 0.9375rem;
-		color: oklch(0.35 0 0);
-		margin: 0 0 0.75rem 0;
-		line-height: 1.6;
-	}
-	:global(.dark) .clear-modal-desc { color: oklch(0.7 0 0); }
-
-	.clear-modal-hint {
-		font-size: 0.8125rem;
-		color: oklch(0.5 0 0);
-		margin: 0;
-		padding: 0.75rem 1rem;
-		background: oklch(0.97 0 0);
-		border-radius: 0.625rem;
-		border: 1px solid oklch(0.92 0 0);
-	}
-	:global(.dark) .clear-modal-hint {
-		color: oklch(0.6 0 0);
-		background: oklch(0.2 0 0);
-		border-color: oklch(0.28 0 0);
-	}
-	.clear-modal-hint strong {
-		color: #dc2626;
-		font-weight: 700;
-	}
-	:global(.dark) .clear-modal-hint strong {
-		color: #f87171;
-	}
-
-	.clear-modal-footer {
-		display: flex;
-		gap: 0.75rem;
-		padding: 1.25rem 1.5rem;
-		border-top: 1px solid var(--line-divider, rgba(0, 0, 0, 0.08));
-		justify-content: flex-end;
-	}
-	:global(.dark) .clear-modal-footer {
-		border-top-color: var(--line-divider, rgba(255, 255, 255, 0.08));
-	}
-
-	.clear-modal-btn {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.625rem 1.25rem;
-		border-radius: 0.625rem;
-		font-size: 0.875rem;
-		font-weight: 500;
-		cursor: pointer;
-		transition: all 0.15s;
-		border: none;
-		line-height: 1;
-	}
-
-	.clear-modal-btn-cancel {
-		background: transparent;
-		border: 1px solid var(--line-divider, rgba(0, 0, 0, 0.15));
-		color: oklch(0.4 0 0);
-	}
-	.clear-modal-btn-cancel:hover {
-		background: var(--btn-plain-bg-hover, rgba(0, 0, 0, 0.06));
-		border-color: rgba(0, 0, 0, 0.3);
-	}
-	:global(.dark) .clear-modal-btn-cancel {
-		border-color: rgba(255, 255, 255, 0.15);
-		color: oklch(0.7 0 0);
-	}
-	:global(.dark) .clear-modal-btn-cancel:hover {
-		background: rgba(255, 255, 255, 0.08);
-		border-color: rgba(255, 255, 255, 0.3);
-	}
-
-	.clear-modal-btn-danger {
-		background: oklch(0.55 0.2 25);
-		color: oklch(1 0 0);
-	}
-	.clear-modal-btn-danger:hover {
-		background: oklch(0.5 0.2 25);
-	}
-	:global(.dark) .clear-modal-btn-danger {
-		background: oklch(0.65 0.2 25);
-		color: oklch(0.15 0 0);
-	}
-	:global(.dark) .clear-modal-btn-danger:hover {
-		background: oklch(0.6 0.2 25);
-	}
-
 	@media (max-width: 640px) {
-		.clear-modal-panel {
+		.fa-panel {
 			max-width: calc(100% - 1.5rem);
+			max-height: 90vh;
 		}
-		.clear-modal-footer {
-			flex-direction: column;
-		}
-		.clear-modal-btn {
-			justify-content: center;
-		}
+		.fa-footer { flex-direction: column; }
+		.fa-btn { justify-content: center; }
 	}
 </style>

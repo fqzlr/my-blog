@@ -4,6 +4,7 @@ import Comment from "@components/comment/index.astro";
 import Icon from "@components/common/Icon.astro";
 import FriendCard from "@components/features/FriendCard.astro";
 import FriendRulesModal from "@components/features/FriendRulesModal.astro";
+import FriendApplyModal from "@/components/features/FriendApplyModal.svelte";
 import PageTitle from "@/components/common/PageTitle.astro";
 import FriendsEditor from "@/components/edit/FriendsEditor.svelte";
 import {
@@ -60,11 +61,17 @@ const description =
           }
         </div>
         <div class="page-header-toolbar-slot flex-shrink-0 flex items-center gap-2 flex-wrap">
+            <button
+              data-open-friend-apply
+              class="fa-btn fa-btn-outline"
+            >
+              <Icon name="material-symbols:person-add-rounded" class="text-base" />
+              自助申请
+            </button>
             {friendsPageConfig.applyLink && (
                 <button
                   data-open-friend-rules
-                  class="edit-main-btn-style rounded-lg border border-neutral-900 dark:border-neutral-100 text-neutral-900 dark:text-neutral-100 hover:bg-neutral-900 hover:text-neutral-100 dark:hover:bg-neutral-100 dark:hover:text-neutral-900 transition-colors duration-200 font-medium flex items-center gap-1.5 cursor-pointer"
-                  style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:8px;border:1px solid rgba(0,0,0,0.9);background:transparent;color:rgba(0,0,0,0.9);font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;line-height:1;height:32px;box-sizing:border-box;"
+                  class="fa-btn fa-btn-outline"
                 >
                   <Icon name="material-symbols:help-outline-rounded" class="text-base" />
                   如何申请友链
@@ -105,6 +112,11 @@ const description =
 
   <!-- 友链申请指南弹窗 -->
   <FriendRulesModal applyLink={friendsPageConfig.applyLink} />
+
+  <!-- 自助申请友链弹窗 -->
+  <div data-no-swup>
+    <FriendApplyModal client:only />
+  </div>
 </MainGridLayout>
 
 <style>
@@ -113,43 +125,44 @@ const description =
     margin-bottom: 0 !important;
   }
 
-  /* 完全复制 EditToolbar 中 .edit-main-btn 的样式 */
-  .edit-main-btn-style {
+  /* 与 EditToolbar .edit-main-btn 保持一致的按钮样式 */
+  :global(.fa-btn) {
     display: inline-flex !important;
     align-items: center !important;
-    gap: 6px !important;
-    padding: 6px 12px !important;
-    border-radius: 8px !important;
-    border: 1px solid rgba(0, 0, 0, 0.9) !important;
-    background: transparent !important;
-    color: rgba(0, 0, 0, 0.9) !important;
+    gap: 0.5rem !important;
+    padding: 0.625rem 1.25rem !important;
+    border-radius: 0.625rem !important;
     font-size: 13px !important;
     font-weight: 500 !important;
     cursor: pointer !important;
-    transition: background-color 0.2s, color 0.2s !important;
-    white-space: nowrap !important;
+    transition: opacity 0.15s, background 0.15s, color 0.15s !important;
+    text-decoration: none !important;
+    border: none !important;
     line-height: 1 !important;
-    height: 32px !important;
+    white-space: nowrap !important;
     box-sizing: border-box !important;
   }
 
-  .edit-main-btn-style:hover {
-    background: rgba(0, 0, 0, 0.9);
-    color: white;
+  :global(.fa-btn-outline) {
+    background: transparent !important;
+    color: oklch(0.3 0 0) !important;
+    box-shadow: inset 0 0 0 1px oklch(0.85 0 0) !important;
   }
 
-  :global(.dark) .edit-main-btn-style {
-    border-color: rgba(255, 255, 255, 0.9);
-    color: rgba(255, 255, 255, 0.9);
+  :global(.fa-btn-outline:hover) {
+    background: oklch(0.95 0 0) !important;
   }
 
-  :global(.dark) .edit-main-btn-style:hover {
-    background: rgba(255, 255, 255, 0.9);
-    color: rgba(0, 0, 0, 0.9);
+  :root:global(.dark .fa-btn-outline) {
+    color: oklch(0.85 0 0) !important;
+    box-shadow: inset 0 0 0 1px oklch(0.35 0 0) !important;
   }
 
-  /* 确保图标垂直居中 */
-  .edit-main-btn-style Icon {
+  :root:global(.dark .fa-btn-outline:hover) {
+    background: oklch(0.2 0 0) !important;
+  }
+
+  :global(.fa-btn astro-icon) {
     display: inline-flex;
     align-items: center;
     justify-content: center;

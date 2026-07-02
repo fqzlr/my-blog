@@ -8,8 +8,20 @@ import {
 	deepClone,
 	ensureIconify,
 	getRepoFile,
+	updateRepoFile,
+	createRepoFile,
 } from "@/utils/editMode";
 import { setupRepoDrafts } from "@/utils/draftHelpers";
+
+interface PendingFriend {
+	id: string;
+	title: string;
+	siteurl: string;
+	imgurl: string;
+	desc: string;
+	tags?: string[];
+	appliedAt: string;
+}
 
 interface FriendItem {
 	id?: string;
@@ -31,6 +43,12 @@ let editingIndex = $state(-1);
 let repoLoaded = $state(false);
 let fileSha = $state<string | null>(null);
 let originalTS = $state<string>("");
+
+// 待审核友链申请
+let pendingFriends = $state<PendingFriend[]>([]);
+let pendingFileSha = $state<string | null>(null);
+let pendingLoading = $state(false);
+let pendingActionId = $state<string | null>(null);
 
 // 从 TypeScript 配置文件中解析友链数组
 function parseFriendsFromTS(tsContent: string): FriendItem[] {
@@ -246,6 +264,7 @@ onMount(() => {
 	ensureIconify();
 	collectFromDOM();
 	loadRepoData();
+	loadPendingFriends();
 });
 
 async function loadRepoData() {
@@ -489,6 +508,128 @@ function updateField(index: number, field: keyof FriendItem, value: string) {
 function getTagColor(tag: string) {
 	return typeColors[tag] || typeColors.Blog;
 }
+
+// ============ 待审核友链申请 ============
+
+async function loadPendingFriends() {
+	pendingLoading = true;
+	const result = await getRepoFile("data/pending-friends.json");
+	if (result && result.content) {
+		try {
+			pendingFriends = JSON.parse(result.content);
+			pendingFileSha = result.sha;
+		} catch {
+			pendingFriends = [];
+		}
+	} else {
+		pendingFriends = [];
+		pendingFileSha = null;
+	}
+	pendingLoading = false;
+}
+
+async function commitPendingFile(
+	updated: PendingFriend[],
+	message: string,
+): Promise<boolean> {
+	const content = JSON.stringify(updated, null, 2);
+	let ok: boolean;
+	if (pendingFileSha) {
+		ok = await updateRepoFile(
+			"data/pending-friends.json",
+			content,
+			pendingFileSha,
+			message,
+		);
+	} else {
+		ok = await createRepoFile("data/pending-friends.json", content, message);
+	}
+	if (ok) {
+		const fresh = await getRepoFile("data/pending-friends.json");
+		if (fresh) pendingFileSha = fresh.sha;
+	}
+	return ok;
+}
+
+async function approveFriend(index: number) {
+	const pf = pendingFriends[index];
+	if (!pf) return;
+
+	pendingActionId = pf.id;
+
+	// 添加到本地 friends 数组
+	const newFriend: FriendItem = {
+		id: genId("fr"),
+		title: pf.title,
+		imgurl: pf.imgurl,
+		desc: pf.desc,
+		siteurl: pf.siteurl,
+		tags: pf.tags || ["Blog"],
+		weight: 10,
+		enabled: true,
+	};
+	friends = [...friends, newFriend];
+
+	// 从 pending 列表移除
+	const updatedPending = pendingFriends.filter((_, i) => i !== index);
+
+	// 提交 friendsConfig.ts
+	const newConfigContent = buildFriendsConfigTS(friends, originalTS);
+	const configOk = fileSha
+		? await updateRepoFile(
+				"src/config/friendsConfig.ts",
+				newConfigContent,
+				fileSha,
+				`chore: approve friend ${pf.title}`,
+			)
+		: false;
+
+	if (configOk) {
+		// 更新本地 SHA
+		const fresh = await getRepoFile("src/config/friendsConfig.ts");
+		if (fresh) fileSha = fresh.sha;
+		originalTS = newConfigContent;
+		originalFriends = deepClone(friends);
+	}
+
+	// 更新 pending-friends.json
+	const pendingOk = await commitPendingFile(
+		updatedPending,
+		`chore: remove approved friend ${pf.title}`,
+	);
+
+	if (configOk && pendingOk) {
+		pendingFriends = updatedPending;
+		showToast(`已批准「${pf.title}」并添加到友链`, "success");
+	} else {
+		showToast("操作部分失败，请检查 GitHub 权限", "error");
+	}
+
+	pendingActionId = null;
+}
+
+async function rejectFriend(index: number) {
+	const pf = pendingFriends[index];
+	if (!pf) return;
+	if (!confirm(`确定要拒绝「${pf.title}」的申请吗？`)) return;
+
+	pendingActionId = pf.id;
+
+	const updatedPending = pendingFriends.filter((_, i) => i !== index);
+	const ok = await commitPendingFile(
+		updatedPending,
+		`chore: reject friend ${pf.title}`,
+	);
+
+	if (ok) {
+		pendingFriends = updatedPending;
+		showToast(`已拒绝「${pf.title}」的申请`, "info");
+	} else {
+		showToast("操作失败，请检查 GitHub 权限", "error");
+	}
+
+	pendingActionId = null;
+}
 </script>
 
 <EditToast />
@@ -499,6 +640,7 @@ function getTagColor(tag: string) {
 		pageKey="friends"
 		pageName="友链"
 		mountTo=".page-header-toolbar-slot"
+		mainBtnClass="fa-btn"
 		{saving}
 		{hasChanges}
 		on:modeChange={(e) => handleModeChange(e)}
@@ -511,6 +653,76 @@ function getTagColor(tag: string) {
 
 <!-- 编辑模式：Svelte渲染的可编辑网格 -->
 {#if editMode}
+	<!-- 待审核友链申请区域 -->
+	{#if pendingLoading}
+		<div class="pending-section">
+			<div class="pending-loading">
+				<iconify-icon icon="material-symbols:progress-activity-rounded" class="animate-spin"></iconify-icon>
+				<span>加载待审核申请...</span>
+			</div>
+		</div>
+	{:else if pendingFriends.length > 0}
+		<div class="pending-section">
+			<div class="pending-header">
+				<iconify-icon icon="material-symbols:pending-actions-rounded"></iconify-icon>
+				<h3>待审核申请</h3>
+				<span class="pending-count">{pendingFriends.length}</span>
+			</div>
+			<div class="pending-grid">
+				{#each pendingFriends as pf, pi (pf.id)}
+					<div class="pending-card">
+						<div class="pending-card-info">
+							{#if pf.imgurl}
+								<img src={pf.imgurl} alt={pf.title} class="pending-avatar" loading="lazy" onerror={(e) => ((e.target as HTMLImageElement).style.opacity = '0')} />
+							{:else}
+								<div class="pending-avatar-placeholder">
+									<iconify-icon icon="material-symbols:person-outline"></iconify-icon>
+								</div>
+							{/if}
+							<div class="pending-details">
+								<h4 class="pending-title">{pf.title}</h4>
+								<p class="pending-url">{pf.siteurl}</p>
+								<p class="pending-desc">{pf.desc}</p>
+								<div class="pending-meta">
+									<span class="pending-tag" style="background-color:{getTagColor(pf.tags?.[0] || 'Blog').bg};color:{getTagColor(pf.tags?.[0] || 'Blog').text}">{pf.tags?.[0] || 'Blog'}</span>
+									<span class="pending-time">{new Date(pf.appliedAt).toLocaleDateString('zh-CN')}</span>
+								</div>
+							</div>
+						</div>
+						<div class="pending-actions">
+							<button
+								class="pending-btn pending-btn-approve"
+								onclick={() => approveFriend(pi)}
+								disabled={pendingActionId === pf.id}
+								title="批准并添加到友链"
+							>
+								{#if pendingActionId === pf.id}
+									<iconify-icon icon="material-symbols:progress-activity-rounded" class="animate-spin"></iconify-icon>
+								{:else}
+									<iconify-icon icon="material-symbols:check-circle-outline-rounded"></iconify-icon>
+									批准
+								{/if}
+							</button>
+							<button
+								class="pending-btn pending-btn-reject"
+								onclick={() => rejectFriend(pi)}
+								disabled={pendingActionId === pf.id}
+								title="拒绝此申请"
+							>
+								{#if pendingActionId === pf.id}
+									<iconify-icon icon="material-symbols:progress-activity-rounded" class="animate-spin"></iconify-icon>
+								{:else}
+									<iconify-icon icon="material-symbols:cancel-outline-rounded"></iconify-icon>
+									拒绝
+								{/if}
+							</button>
+						</div>
+					</div>
+				{/each}
+			</div>
+		</div>
+	{/if}
+
 	<div class="edit-friends-grid" id="edit-friends-grid">
 		{#each friends as friend, i (i + "-" + (friend.id || friend.siteurl))}
 			<div
@@ -922,5 +1134,220 @@ function getTagColor(tag: string) {
 		padding: 48px 20px;
 		color: var(--content-meta, #9ca3af);
 		font-size: 14px;
+	}
+
+	/* ============ 待审核申请区域 ============ */
+
+	.pending-section {
+		margin-bottom: 20px;
+		padding: 16px;
+		border-radius: 16px;
+		background: rgba(245, 158, 11, 0.05);
+		border: 1.5px dashed rgba(245, 158, 11, 0.3);
+	}
+	:global(.dark) .pending-section {
+		background: rgba(245, 158, 11, 0.08);
+		border-color: rgba(245, 158, 11, 0.2);
+	}
+
+	.pending-header {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 14px;
+		font-size: 15px;
+		font-weight: 700;
+		color: #d97706;
+	}
+	:global(.dark) .pending-header {
+		color: #fbbf24;
+	}
+	.pending-header iconify-icon {
+		font-size: 20px;
+		display: flex;
+	}
+	.pending-header h3 {
+		margin: 0;
+		font-size: 15px;
+		font-weight: 700;
+	}
+	.pending-count {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 22px;
+		height: 22px;
+		padding: 0 6px;
+		border-radius: 999px;
+		background: #f59e0b;
+		color: white;
+		font-size: 12px;
+		font-weight: 700;
+	}
+
+	.pending-loading {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		padding: 20px;
+		color: var(--content-meta, #9ca3af);
+		font-size: 14px;
+	}
+
+	.pending-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+		gap: 12px;
+	}
+
+	.pending-card {
+		border-radius: 12px;
+		background: var(--card-bg, white);
+		border: 1px solid var(--border, rgba(0,0,0,0.08));
+		overflow: hidden;
+		transition: all 0.2s;
+	}
+	:global(.dark) .pending-card {
+		background: rgba(23, 23, 23, 0.8);
+		border-color: rgba(255,255,255,0.08);
+	}
+	.pending-card:hover {
+		border-color: rgba(245, 158, 11, 0.4);
+		box-shadow: 0 4px 16px rgba(245, 158, 11, 0.08);
+	}
+
+	.pending-card-info {
+		display: flex;
+		gap: 12px;
+		padding: 14px;
+	}
+
+	.pending-avatar {
+		width: 40px;
+		height: 40px;
+		border-radius: 10px;
+		object-fit: cover;
+		flex-shrink: 0;
+		background: var(--btn-regular-bg, #f3f4f6);
+	}
+	:global(.dark) .pending-avatar {
+		background: rgba(255,255,255,0.05);
+	}
+	.pending-avatar-placeholder {
+		width: 40px;
+		height: 40px;
+		border-radius: 10px;
+		flex-shrink: 0;
+		background: var(--btn-regular-bg, #f3f4f6);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--content-meta, #9ca3af);
+		font-size: 20px;
+	}
+	:global(.dark) .pending-avatar-placeholder {
+		background: rgba(255,255,255,0.05);
+	}
+
+	.pending-details {
+		flex: 1;
+		min-width: 0;
+	}
+	.pending-title {
+		margin: 0 0 2px;
+		font-size: 14px;
+		font-weight: 700;
+		color: var(--text-color, #1f2937);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	:global(.dark) .pending-title {
+		color: #f0f0f0;
+	}
+	.pending-url {
+		margin: 0 0 4px;
+		font-size: 11px;
+		color: hsl(var(--theme-hue, 165), 60%, 50%);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.pending-desc {
+		margin: 0 0 6px;
+		font-size: 12px;
+		color: var(--text-secondary, #6b7280);
+		line-height: 1.4;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+		overflow: hidden;
+	}
+	:global(.dark) .pending-desc {
+		color: #9ca3af;
+	}
+	.pending-meta {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+	.pending-tag {
+		display: inline-block;
+		padding: 1px 8px;
+		border-radius: 999px;
+		font-size: 10px;
+		font-weight: 600;
+	}
+	.pending-time {
+		font-size: 11px;
+		color: var(--content-meta, #9ca3af);
+	}
+
+	.pending-actions {
+		display: flex;
+		border-top: 1px solid var(--border, rgba(0,0,0,0.06));
+	}
+	:global(.dark) .pending-actions {
+		border-color: rgba(255,255,255,0.06);
+	}
+
+	.pending-btn {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 4px;
+		padding: 8px;
+		border: none;
+		background: none;
+		font-size: 13px;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.15s;
+	}
+	.pending-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+	.pending-btn iconify-icon {
+		font-size: 16px;
+		display: flex;
+	}
+	.pending-btn-approve {
+		color: #16a34a;
+	}
+	.pending-btn-approve:hover:not(:disabled) {
+		background: rgba(34, 197, 94, 0.1);
+	}
+	.pending-btn-reject {
+		color: #dc2626;
+		border-left: 1px solid var(--border, rgba(0,0,0,0.06));
+	}
+	:global(.dark) .pending-btn-reject {
+		border-left-color: rgba(255,255,255,0.06);
+	}
+	.pending-btn-reject:hover:not(:disabled) {
+		background: rgba(239, 68, 68, 0.1);
 	}
 </style>
