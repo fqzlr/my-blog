@@ -10,30 +10,34 @@ export interface EditGistConfig {
 }
 
 // 友链编辑配置
+// 已禁用 Gist - 改用本地 friends.json
 export const friendsEditConfig: EditGistConfig = {
-	enable: true,
-	gistId: "a55519b0f88adac957889eddd6c1db53",
+	enable: false,
+	gistId: "",
 	fileName: "friends.json",
 };
 
 // 工具收藏编辑配置
+// 已禁用 Gist
 export const collectionsEditConfig: EditGistConfig = {
-	enable: true,
-	gistId: "", // 首次编辑时自动创建
+	enable: false,
+	gistId: "",
 	fileName: "collections.json",
 };
 
 // 番剧/影视编辑配置
+// 已禁用 Gist - 改用本地 bangumi.json
 export const bangumiEditConfig: EditGistConfig = {
-	enable: true,
-	gistId: "6045e8306c907fbe7962f507c45dc1dc",
+	enable: false,
+	gistId: "",
 	fileName: "bangumi.json",
 };
 
 // 说说编辑配置
+// 已禁用 Gist - 改用本地 moments.json
 export const momentsEditConfig: EditGistConfig = {
-	enable: true,
-	gistId: "562ca26ed50f406e0814cd5fd06866d3",
+	enable: false,
+	gistId: "",
 	fileName: "moments.json",
 };
 
