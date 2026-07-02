@@ -29,6 +29,8 @@ export type SiteConfig = {
 	card: {
 		// 是否开启卡片边框和阴影立体效果
 		border: boolean;
+		// 是否让卡片风格跟随主题色相
+		followTheme?: boolean;
 	};
 
 	// 字体配置
@@ -37,44 +39,22 @@ export type SiteConfig = {
 	// 站点开始日期，用于计算运行天数
 	siteStartDate?: string; // 格式: "YYYY-MM-DD"
 
-	// 门户区配置
-	portal?: {
-		// 公告跑马灯
-		announcement?: {
-			enable: boolean;
-			text: string;
-		};
-		// 每日一言
-		dailyQuote?: {
-			enable: boolean;
-			quotes: { text: string; source: string }[];
-		};
-		// 最近文章预览数量
-		recentPostsCount?: number;
-		// 最近说说预览数量
-		recentMomentsCount?: number;
-	};
-
 	// 可选：站点时区，使用 IANA 时区标识，例如 "Asia/Shanghai"、"UTC"
 	timezone?: string;
-	workHours?: { start: number; end: number; workDays: number[] };
 
 	// 提醒框配置
 	rehypeCallouts: {
 		theme: "github" | "obsidian" | "vitepress";
 	};
 
-	// 添加bangumi配置
+	// bangumi配置
 	bangumi?: {
 		userId?: string; // Bangumi用户ID
-	};
-
-	// 添加豆瓣配置
-	douban?: {
-		userId?: string; // 豆瓣用户ID
+		categoryOrder?: ("anime" | "game" | "book" | "music" | "real")[]; // 条目类型排序顺序
 	};
 
 	generateOgImages: boolean;
+	defaultOgImage?: string;
 	favicon: Array<{
 		src: string;
 		theme?: "light" | "dark";
@@ -90,7 +70,30 @@ export type SiteConfig = {
 		};
 		title?: string; // 导航栏标题，如果不设置则使用 title
 		widthFull?: boolean; // 导航栏是否占满屏幕宽度
+		menuAlign?: "left" | "center"; // 导航菜单对齐方式（仅桌面端菜单）
 		followTheme?: boolean; // 导航栏图标和标题是否跟随主题色
+		stickyNavbar?: boolean; // 导航栏是否固定在顶部始终可见
+		/**
+		 * 自定义导航链接配置（完全控制导航栏链接）
+		 * 每个条目可以是预设链接或自定义链接，指定所属分组和顺序
+		 * parent: "top"顶级导航 | "posts"文章下拉 | "contact"联系我下拉 | "my"我的下拉 | "hidden"隐藏
+		 */
+		navItems?: {
+			/** 唯一标识：预设链接用key（如"home","about","friends"），自定义用"custom-xxx" */
+			id: string;
+			/** 链接类型：preset预设链接，custom自定义链接 */
+			type: "preset" | "custom";
+			/** 所属分组 */
+			parent: "top" | "posts" | "contact" | "my" | "hidden";
+			/** 自定义链接名称（type=custom时必填） */
+			name?: string;
+			/** 自定义链接URL（type=custom时必填） */
+			url?: string;
+			/** 图标（Iconify名称） */
+			icon?: string;
+			/** 是否为外部链接 */
+			external?: boolean;
+		}[];
 	};
 
 	showLastModified: boolean; // 控制"上次编辑"卡片显示的开关
@@ -99,13 +102,29 @@ export type SiteConfig = {
 
 	// 页面开关配置
 	pages: {
+		friends: boolean; // 友链页面开关
 		sponsor: boolean; // 赞助页面开关
 		guestbook: boolean; // 留言板页面开关
+		gallery: boolean; // 相册页面开关
+		collections: boolean; // 收藏API页面开关
+		stats: boolean; // 统计页面开关
+		calendar: boolean;
 		bangumi: boolean;
-		books: boolean; // 书架页面开关
-		moviesGames: boolean; // 影视与游戏页面开关
-		musicPage: boolean; // 音乐页面开关
-		changelog: boolean; // 更新日志页面开关
+		books: boolean;
+		moviesGames: boolean;
+		musicPage: boolean;
+		changelog: boolean;
+		moments: boolean;
+		admin: boolean;
+		lifeRoutines: boolean;
+		lifePlaces: boolean;
+		lifeNotebooks: boolean;
+	};
+
+	// 说说页面封面配置
+	momentsCover?: {
+		enable: boolean; // 是否显示封面区域
+		image: string; // 封面图片URL
 	};
 
 	// 分类导航栏开关
@@ -114,13 +133,16 @@ export type SiteConfig = {
 	// 文章列表布局配置
 	postListLayout: {
 		defaultMode: "list" | "grid"; // 默认布局模式：list=列表模式，grid=网格模式
+		mobileDefaultMode?: "list" | "grid"; // 移动端默认布局模式（视口宽度<780px时使用），不设置则跟随 defaultMode
+		showTags: boolean; // 是否在文章列表中显示标签
+		descriptionLines?: number; // 文章简介显示行数，0 表示不截断，默认 2
 		allowSwitch: boolean; // 是否允许用户切换布局
 		grid: {
 			// 网格布局配置，仅在 defaultMode 为 "grid" 或允许切换布局时生效
 			// 是否开启瀑布流布局
 			masonry: boolean;
-			// 网格模式列数：2 或 3，默认为 2。注意：3列模式仅在单侧边栏（或无侧边栏）且屏幕宽度足够时生效
-			columns?: 2 | 3;
+			// 网格模式卡片最小宽度(px)，浏览器根据容器宽度自动计算列数，默认 320
+			columnWidth?: number;
 		};
 	};
 
@@ -134,15 +156,49 @@ export type SiteConfig = {
 		googleAnalyticsId?: string; // Google Analytics ID
 		microsoftClarityId?: string; // Microsoft Clarity ID
 		umamiAnalytics?: {
-			websiteId: string; // Umami Website ID
-			scriptUrl?: string; // Umami 脚本地址，默认 https://cloud.umami.is/script.js
+			websiteId?: string; // Umami Website ID
+			shareId?: string; // Umami 分享页 ID，用于客户端直接获取统计
+			scriptUrl?: string; // Umami JS地址，支持使用自建
+			trackOutboundLinks?: boolean; // 是否追踪出站链接点击事件，默认 true
+			collectWebVitals?: boolean; // 是否自动收集访客浏览器核心网页指标，默认 false
+			relpays?: {
+				enabled?: boolean; // 是否启用会话回放，默认 false
+				sampleRate?: number; // 录制会话采样率，范围 0-1，默认 0.15
+				maskLevel?: "moderate" | "strict"; // 隐私遮罩级别，默认 moderate
+				maxDuration?: number; // 单次录制最大时长（毫秒），默认 300000
+				blockSelector?: string; // 需要完全排除录制的元素 CSS 选择器
+			};
+		};
+		la51Analytics?: {
+			Id?: string; // 51la 统计 ID
+			sdkUrl?: string; // 自定义 SDK 地址，防止 DNS 污染，默认为 "//sdk.51.la/js-sdk-pro.min.js"
+			ck?: string; // 多个统计 ID 的数据分离标识，默认与 id 相同
+			autoTrack?: boolean; // 开启事件分析功能，默认 true
+			hashMode?: boolean; // 单页面应用统计（Vue/React 等），默认 false
+			screenRecord?: boolean; // 开启网站录屏功能，默认 true
 		};
 	};
 
-	// 说说页面封面配置
-	momentsCover?: {
-		enable: boolean; // 是否显示封面区域
-		image: string; // 封面图片URL
+	// 上下班时间配置（24小时制），用于首页头像涟漪动效和状态按钮
+	workHours?: {
+		start: number; // 上班时间，例如 9 表示 9:00
+		end: number; // 下班时间，例如 18 表示 18:00
+		// 工作日范围，0=周日 1=周一 ... 6=周六，默认 [1,2,3,4,5]（周一到周五）
+		workDays?: number[];
+	};
+
+	// 备案号配置（留空则不显示）
+	beian?: string;
+
+	// 公安网备号配置（留空则不显示）
+	policeBeian?: string;
+
+	// 热力图配置
+	heatmap?: {
+		github?: {
+			enabled: boolean; // 是否启用 GitHub 贡献热力图
+			username: string; // GitHub 用户名，为空则不渲染
+		};
 	};
 
 	// 图片优化配置
@@ -159,41 +215,13 @@ export type SiteConfig = {
 		 * 值越低体积越小但质量越差，推荐 70-85
 		 */
 		quality?: number;
-	};
-
-	// 地图配置（支持 Leaflet 或高德地图）
-	mapConfig?: {
 		/**
-		 * 高德地图 Web端 JS API Key（可选）
-		 * 申请地址: https://console.amap.com/dev/key/app
-		 * 如果未设置，将使用 Leaflet + OpenStreetMap（完全免费）
+		 * 为特定域名的图片添加 referrerpolicy="no-referrer" 属性
+		 * 开启后可解决指定域名图片加载时的 403 问题（如防盗链图片）
+		 * 示例：["i0.hdslb.com", "*.bilibili.com"] 支持通配符 *
+		 * 仅影响匹配域名的图片标签，不影响其他链接的 referrer 行为
 		 */
-		amapKey?: string;
-		/**
-		 * 地图初始中心点 [经度, 纬度]
-		 * 默认: [104.195, 35.861] (中国地理中心)
-		 */
-		center?: [number, number];
-		/**
-		 * 初始缩放级别
-		 * 默认: 4
-		 */
-		zoom?: number;
-		/**
-		 * 最小缩放级别
-		 * 默认: 3
-		 */
-		minZoom?: number;
-		/**
-		 * 最大缩放级别
-		 * 默认: 18
-		 */
-		maxZoom?: number;
-		/**
-		 * 是否显示地图标记点
-		 * 默认: true
-		 */
-		showMarkers?: boolean;
+		noReferrerDomains?: string[];
 	};
 };
 
@@ -211,11 +239,28 @@ export enum LinkPreset {
 	Sponsor = 4,
 	Guestbook = 5,
 	Bangumi = 6,
-	Books = 7,
-	MoviesGames = 8,
-	MusicPage = 9,
-	Changelog = 10,
-	Posts = 11,
+	Gallery = 7,
+	Collections = 8,
+	Stats = 9,
+	Calendar = 10,
+	Categories = 11,
+	Tags = 12,
+	PostList = 13,
+	Fhome = 14,
+	ContactMe = 15,
+	QQGroup = 16,
+	NavPosts = 17,
+	NavMy = 18,
+	Fnote = 19,
+	Books = 20,
+	MoviesGames = 21,
+	MusicPage = 22,
+	Changelog = 23,
+	Moments = 24,
+	Admin = 25,
+	Routines = 26,
+	Places = 27,
+	Notebooks = 28,
 }
 
 export type NavBarLink = {
@@ -223,6 +268,7 @@ export type NavBarLink = {
 	url: string;
 	external?: boolean;
 	icon?: string; // 菜单项图标
+	action?: string; // 可选：点击时触发的自定义事件名（不跳转页面）
 	children?: (NavBarLink | LinkPreset)[]; // 支持子菜单，可以是NavBarLink或LinkPreset
 };
 
@@ -240,10 +286,11 @@ export type NavBarConfig = {
 
 export type ProfileConfig = {
 	avatar?: string;
-	name: string;
-	displayName?: string;
-	occupation?: string;
 	avatarOffWork?: string;
+	name: string;
+	displayName?: string; // 首页展示名字（如 MmMing）
+	nameBadge?: string; // 名字旁边的徽章（如 QQ 号）
+	occupation?: string; // 职业/身份标签（如 后端开发 / 技术博主）
 	bio?: string | string[];
 	links: {
 		name: string;
@@ -275,6 +322,7 @@ export type CommentConfig = {
 	waline?: {
 		serverURL: string;
 		lang?: string;
+		emoji: string[];
 		login?: "enable" | "force" | "disable";
 		visitorCount?: boolean; // 是否统计访问量，true 启用访问量，false 关闭
 	};
@@ -348,6 +396,12 @@ export type ExpressiveCodeConfig = {
 	lightTheme: string;
 	/** 代码块折叠插件配置 */
 	pluginCollapsible?: PluginCollapsibleConfig;
+	/** 语言徽章插件配置 */
+	pluginLanguageBadge?: PluginLanguageBadgeConfig;
+};
+
+export type PluginLanguageBadgeConfig = {
+	enable: boolean; // 是否启用语言徽章
 };
 
 export type PluginCollapsibleConfig = {
@@ -357,19 +411,38 @@ export type PluginCollapsibleConfig = {
 	defaultCollapsed: boolean; // 默认是否折叠
 };
 
+/**
+ * PlantUML 图表渲染配置
+ *
+ * 控制 markdown 文章中 ` ```plantuml ` 代码块到 PlantUML 服务器 SVG 图片的
+ * 构建时编码与客户端渲染行为。
+ */
+export type PlantUMLConfig = {
+	/** 是否启用 PlantUML 渲染能力；关闭时 plantuml 代码块退化为普通代码高亮 */
+	enable: boolean;
+	/** PlantUML 服务器地址，尾部斜杠会自动归一化；默认使用官方公共服务器 */
+	server: string;
+	/** 亮色模式下注入的 PlantUML 主题名；空字符串表示不注入 */
+	lightTheme: string;
+	/** 暗色模式下注入的 PlantUML 主题名；空字符串表示不注入 */
+	darkTheme: string;
+};
+
+export type AnnouncementItem = {
+	tag: string; // 类型标签，如「维护」「上新」
+	title: string; // 公告标题
+	content: string; // 公告正文
+	time: string; // 发布时间，如 "2025-06-10"
+	link?: string; // 可选跳转链接
+	sort: number; // 排序权重，越大越靠前
+};
+
 export type AnnouncementConfig = {
 	// enable属性已移除，现在通过sidebarLayoutConfig统一控制
 	title?: string; // 公告栏标题
-	content: string; // 公告栏内容
+	items: AnnouncementItem[]; // 公告列表
 	icon?: string; // 公告栏图标
-	type?: "info" | "warning" | "success" | "error"; // 公告类型
 	closable?: boolean; // 是否可关闭
-	link?: {
-		enable: boolean; // 是否启用链接
-		text: string; // 链接文字
-		url: string; // 链接地址
-		external?: boolean; // 是否外部链接
-	};
 };
 
 // 单个字体配置
@@ -421,27 +494,11 @@ export type WidgetComponentType =
 	| "announcement"
 	| "categories"
 	| "tags"
-	| "postDirectory"
 	| "sidebarToc"
 	| "advertisement"
 	| "stats"
 	| "calendar"
-	| "music"
-	| "relationship"
-	| "recentItems"
-	| "lifeStats"
-	| "siteHeatmap"
-	| "quoteOfTheDay";
-
-// 恋爱计时小组件配置
-export type RelationshipConfig = {
-	startDate: string; // 格式: "YYYY-MM-DD"
-	name1: string;
-	name2: string;
-	avatar1: string;
-	avatar2: string;
-	title?: string;
-};
+	| "music";
 
 export type WidgetComponentConfig = {
 	type: WidgetComponentType; // 组件类型
@@ -544,6 +601,7 @@ export type SpineModelConfig = {
 // Live2D 看板娘配置
 export type Live2DModelConfig = {
 	enable: boolean; // 是否启用 Live2D 看板娘
+	defaultVisible?: boolean; // 首次访问时是否默认显示并加载模型，默认true
 	model: {
 		path: string; // 模型文件夹路径或model3.json文件路径
 	};
@@ -556,11 +614,16 @@ export type Live2DModelConfig = {
 		width?: number; // 容器宽度，默认280px
 		height?: number; // 容器高度，默认250px
 	};
+	resolution?: number; // 渲染分辨率倍率，默认使用 window.devicePixelRatio（上限2），值越大越清晰但越耗性能
 	interactive?: {
 		enabled?: boolean; // 是否启用交互功能，默认true
 		// motions 和 expressions 将从模型 JSON 文件中自动读取
 		clickMessages?: string[]; // 点击时随机显示的文字消息
 		messageDisplayTime?: number; // 文字显示时间（毫秒），默认3000
+	};
+	author?: {
+		name: string; // 作者名字
+		url?: string; // 作者主页或视频链接
 	};
 	responsive?: {
 		hideOnMobile?: boolean; // 是否在移动端隐藏，默认false
@@ -640,6 +703,11 @@ export type BackgroundWallpaperConfig = {
 			enableBlur?: boolean; // 是否开启毛玻璃模糊效果
 			blur?: number; // 毛玻璃模糊度
 		};
+		carousel?: {
+			enable: boolean; // 是否启用横幅图片轮播
+			interval?: number; // 轮播间隔时间，单位毫秒
+			switchable?: boolean; // 是否允许用户通过控制面板切换横幅轮播
+		};
 		waves?: {
 			enable:
 				| boolean
@@ -652,9 +720,17 @@ export type BackgroundWallpaperConfig = {
 	};
 	// 全屏透明覆盖模式特有配置
 	overlay?: {
+		switchable?:
+			| boolean
+			| {
+					opacity?: boolean; // 是否允许用户在控制面板调整壁纸透明度
+					blur?: boolean; // 是否允许用户在控制面板调整背景模糊度
+					cardOpacity?: boolean; // 是否允许用户在控制面板调整卡片透明度
+			  }; // 透明模式参数是否可在控制面板调整，支持统一开关或分项开关
 		zIndex?: number; // 层级，确保壁纸在合适的层级显示
 		opacity?: number; // 壁纸透明度，0-1之间
 		blur?: number; // 背景模糊程度，单位px
+		cardOpacity?: number; // 卡片背景透明度，0-1之间
 	};
 };
 
@@ -696,8 +772,28 @@ export type FriendLink = {
 	enabled: boolean; // 是否启用
 };
 
+export type FriendSiteInfo = {
+	name: string; // 站点名称
+	desc: string; // 站点描述
+	url: string; // 站点链接
+	avatar: string; // 头像链接
+	email: string; // 联系邮箱
+};
+
+export type FriendNote = {
+	title: string; // 注意事项标题
+	content: string; // 注意事项内容
+};
+
 export type FriendsPageConfig = {
-	columns: 2 | 3; // 显示列数：2列或3列
+	title?: string; // 页面标题，留空则使用 i18n 中的翻译
+	description?: string; // 页面描述，留空则使用 i18n 中的翻译
+	showCustomContent?: boolean; // 是否显示自定义内容（friends.mdx）
+	showComment?: boolean; // 是否显示评论区，默认 true
+	randomizeSort?: boolean; // 是否打乱排序，如果为 true，将忽略 weight，随机排序
+	applyLink?: string; // 友链申请链接，跳转到 GitHub Issue 等
+	siteInfo?: FriendSiteInfo; // 本站信息，用于友链申请指南弹窗
+	notes?: FriendNote[]; // 注意事项，用于友链申请指南弹窗
 };
 
 // 音乐播放器配置
@@ -748,54 +844,6 @@ export type MusicPlayerConfig = {
 			lrc?: string; // 歌词内容，支持 LRC 格式
 		}>;
 	};
-
-	// 3D 可视化器配置
-	visualizer?: MusicVisualizerConfig;
-};
-
-// 3D 可视化器主题配置
-export type MusicVisualizerThemeConfig = {
-	base1: string;
-	base2: string;
-	coolCore: string;
-	coolEdge: string;
-	warmCore: string;
-	warmEdge: string;
-	rippleColor: string;
-	fogColor: string;
-	glowIntensity: number;
-};
-
-// 3D 可视化器地形高度配置
-export type MusicVisualizerHeightConfig = {
-	idle: number;
-	subBass: number;
-	bass: number;
-	lowMid: number;
-	mid: number;
-	highMid: number;
-	energy: number;
-	ripple: number;
-	rippleAccent: number;
-};
-
-// 3D 可视化器配置
-export type MusicVisualizerConfig = {
-	background?: {
-		dark: string;
-		light: string;
-	};
-	camera?: {
-		position?: {
-			x: number;
-			y: number;
-			z: number;
-		};
-	};
-	autoRotate?: boolean;
-	autoRotateSpeed?: number;
-	height?: MusicVisualizerHeightConfig;
-	theme?: MusicVisualizerThemeConfig;
 };
 
 // 赞助方式类型
@@ -813,7 +861,7 @@ export type SponsorItem = {
 	name: string; // 赞助者名称，如果想显示匿名，可以直接设置为"匿名"或使用 i18n
 	amount?: string; // 赞助金额（可选）
 	date?: string; // 赞助日期（可选，ISO 格式）
-	message?: string; // 留言（可选）
+	avatar?: string; // 头像图片URL或路径（可选）
 };
 
 // 赞助配置
@@ -824,6 +872,7 @@ export type SponsorConfig = {
 	methods: SponsorMethod[]; // 赞助方式列表
 	sponsors?: SponsorItem[]; // 赞助者列表（可选）
 	showSponsorsList?: boolean; // 是否显示赞助者列表，默认 true
+	showComment?: boolean; // 是否显示评论区，默认 false
 	showButtonInPost?: boolean; // 是否在文章详情页底部显示赞助按钮，默认 true
 };
 
@@ -832,3 +881,122 @@ export type ResponsiveImageLayout = "constrained" | "full-width" | "none";
 
 // 图像格式类型
 export type ImageFormat = "avif" | "webp" | "png" | "jpg" | "jpeg" | "gif";
+
+// 相册元信息（用户在配置文件中填写）
+export type GalleryAlbum = {
+	id: string; // URL slug + 目录名，如 "japan-2025"
+	name: string; // 相册名称
+	description?: string; // 相册描述
+	date?: string; // 日期
+	location?: string; // 拍摄地点
+	tags?: string[]; // 标签（用于首页筛选）
+	cover?: string; // 手动指定封面（可选，省略则自动取 cover.* 或第一张）
+};
+
+// 相册配置
+export type GalleryConfig = {
+	albums: GalleryAlbum[];
+	columnWidth?: number; // 瀑布流最小列宽(px)，默认 240，浏览器根据容器宽度自动计算列数
+	// 网络相册配置
+	networkAlbum?: {
+		// 单次获取图片数量限制
+		maxQuantity?: number;
+		// 默认获取数量
+		defaultQuantity?: number;
+	};
+};
+
+// 收藏API单项
+export type CollectionApiItem = {
+	name: string; // API 名称
+	url: string; // API 链接地址
+	description: string; // API 描述
+	category: string; // 分类
+	icon?: string; // 图标（Iconify 格式 或 外部图片 URL）
+	enabled: boolean; // 是否启用
+};
+
+// 收藏API配置
+export type CollectionsApiConfig = {
+	title?: string; // 页面标题，留空则使用 i18n 翻译
+	description?: string; // 页面描述，留空则使用 i18n 翻译
+	apis: CollectionApiItem[]; // API 收藏列表
+	categories?: string[]; // 自定义分类列表，留空则从 apis 中自动提取
+};
+
+// ============= 日历配置 =============
+
+// 公历或农历的"月日"对（按年重复）
+export type SolarOrLunarDate = {
+	type: "solar" | "lunar";
+	month: number; // 1-12
+	day: number; // 1-31，农历下范围根据月不同
+};
+
+// 节日项（按年重复，公历或农历）
+export type HolidayItem = {
+	name: string; // 节日名称
+	date: SolarOrLunarDate; // 公历或农历日期
+	icon?: string; // 可选图标（iconify 名）
+	note?: string; // 备注
+};
+
+// 生日 / 纪念日项（按年重复，公历或农历）
+export type BirthdayItem = {
+	name: string; // 人物名或事件名
+	date: SolarOrLunarDate;
+	icon?: string;
+	note?: string;
+};
+
+// 自定义安排项（一次性或简单重复）
+export type ScheduleItem = {
+	title: string; // 安排标题
+	note?: string; // 备注
+	icon?: string;
+	date?: string; // 一次性，"YYYY-MM-DD" 格式（与 recurring 互斥）
+	recurring?: {
+		freq: "yearly" | "monthly" | "weekly";
+		month?: number; // freq=yearly 时使用
+		day?: number; // freq=yearly | monthly 时使用
+		weekday?: 0 | 1 | 2 | 3 | 4 | 5 | 6; // freq=weekly 时使用，0=周日
+		lunar?: boolean; // 仅 yearly 支持，默认 false
+	};
+};
+
+// 日历页面配置
+export type CalendarConfig = {
+	title?: string; // 页面标题，留空使用 i18n
+	description?: string; // 页面描述，留空使用 i18n
+	showComment?: boolean; // 是否显示评论区，默认 false
+
+	// 节日 API（构建时拉取，失败回退仅用 builtinHolidays）
+	holidayApi: {
+		enable: boolean; // 是否启用 API
+		url: string; // API 基础 URL，按年拼接
+		fallbackOnError: boolean; // 拉取失败是否回退
+		years: number[]; // 编译期拉取哪些年份
+	};
+
+	// 内置补充节日（如农历节、节气、个性化节日）
+	builtinHolidays: HolidayItem[];
+
+	// 生日 / 纪念日
+	birthdays: BirthdayItem[];
+
+	// 自定义安排
+	schedules: ScheduleItem[];
+
+	// 显示开关
+	show: {
+		posts: boolean; // 是否把文章发布日上日历
+		lunarDate: boolean; // 单元格是否显示农历
+		weekNumber: boolean; // 是否显示周序号
+	};
+
+	// 顶部"未来概览"配置
+	overview: {
+		futureDays: number; // 概览跨度（天）
+		maxItems: number; // 最多卡片数
+	};
+};
