@@ -119,6 +119,8 @@ $effect(() => {
 function enterEdit() {
 	editMode = true;
 	dispatch("modeChange", { editing: true });
+	// 发送全局事件供其他组件监听
+	window.dispatchEvent(new CustomEvent("edit:modeChange", { detail: { editing: true } }));
 }
 
 function cancelEdit() {
@@ -131,6 +133,8 @@ function cancelEdit() {
 	if (!persistentEdit) {
 		editMode = false;
 		dispatch("modeChange", { editing: false });
+		// 发送全局事件供其他组件监听
+		window.dispatchEvent(new CustomEvent("edit:modeChange", { detail: { editing: false } }));
 	}
 	dispatch("cancel");
 }

@@ -1,5 +1,5 @@
 <script lang="ts">
-import { onMount } from "svelte";
+import { onMount, onDestroy } from "svelte";
 import { showToast, genId, deepClone, ensureIconify } from "@/utils/editMode";
 import { setupRepoDrafts } from "@/utils/draftHelpers";
 import type { CalendarConfig, BirthdayItem, ScheduleItem } from "@/types/config";
@@ -11,6 +11,7 @@ let { initialConfig }: { initialConfig: CalendarConfig } = $props();
 let dataLoaded = $state(false);
 let saving = $state(false);
 let fileSha = $state<string | null>(null);
+let editMode = $state(false); // 编辑模式开关
 
 // 数据副本
 let birthdays = $state<BirthdayItem[]>([]);
@@ -126,7 +127,19 @@ onMount(() => {
 	originalBirthdays = deepClone(birthdays);
 	originalSchedules = deepClone(schedules);
 	dataLoaded = true;
+
+	// 监听 EditToolbar 的模式切换事件
+	window.addEventListener("edit:modeChange", handleEditModeChange as EventListener);
 });
+
+onDestroy(() => {
+	window.removeEventListener("edit:modeChange", handleEditModeChange as EventListener);
+});
+
+function handleEditModeChange(e: Event) {
+	const ce = e as CustomEvent<{ editing: boolean }>;
+	editMode = ce.detail?.editing ?? false;
+}
 
 // ==================== 生日管理 ====================
 
@@ -361,6 +374,7 @@ function getScheduleDescription(s: ScheduleItem): string {
 }
 </script>
 
+{#if editMode}
 <div class="calendar-editor">
 	<!-- Tab 切换 -->
 	<div class="tab-bar">

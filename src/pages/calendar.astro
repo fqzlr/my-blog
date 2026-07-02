@@ -3,6 +3,7 @@ import CalendarGrid from "@components/pages/calendar/CalendarGrid.svelte";
 import EventDetailPanel from "@components/pages/calendar/EventDetailPanel.svelte";
 import EventOverview from "@components/pages/calendar/EventOverview.svelte";
 import CalendarEditor from "@/components/edit/CalendarEditor.svelte";
+import EditToolbar from "@/components/edit/EditToolbar.svelte";
 import PageTitle from "@/components/common/PageTitle.astro";
 import { calendarConfig, siteConfig } from "@/config";
 import I18nKey from "@/i18n/i18nKey";
@@ -66,24 +67,31 @@ const detailProps = { holidays, posts, birthdays, schedules, years, showPosts };
 				<div class="page-header-toolbar-slot flex-shrink-0"></div>
 			</header>
 
-			<div data-no-swup>
-				<CalendarEditor
-					client:only
-					initialConfig={calendarConfig}
-				/>
-			</div>
-
 			<aside class="calendar-page__rail calendar-page__rail--left" aria-label={i18n(I18nKey.calendarUpcoming)}>
 				<EventOverview client:load {...overviewProps} />
 			</aside>
-
+		
 			<main class="calendar-page__main" aria-label={title}>
 				<CalendarGrid client:load {...gridProps} />
 			</main>
-
+		
 			<aside class="calendar-page__rail calendar-page__rail--right" aria-label={i18n(I18nKey.calendarTodayEvents)}>
 				<EventDetailPanel client:load {...detailProps} />
 			</aside>
+		</div>
+		
+		<!-- 编辑模式区域 -->
+		<div class="calendar-edit-section" data-no-swup>
+			<EditToolbar
+				client:only
+				pageName="日历配置"
+				pageKey="calendar"
+				mountTo=".page-header-toolbar-slot"
+			/>
+			<CalendarEditor
+				client:only
+				initialConfig={calendarConfig}
+			/>
 		</div>
 	</div>
 </MainGridLayout>
@@ -96,5 +104,16 @@ const detailProps = { holidays, posts, birthdays, schedules, years, showPosts };
 		.page-header-toolbar-slot {
 			width: 100%;
 		}
+	}
+
+	/* 编辑区域默认隐藏 */
+	.calendar-edit-section {
+		display: none;
+	}
+
+	/* 当 EditToolbar 处于编辑模式时显示 */
+	.edit-mode-active .calendar-edit-section {
+		display: block;
+		margin-top: 1rem;
 	}
 </style>
