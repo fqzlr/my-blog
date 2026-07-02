@@ -467,18 +467,18 @@
 	.edit-main-btn {
 		display: inline-flex;
 		align-items: center;
-		gap: 8px;
-		padding: 8px 16px;
+		gap: 6px;
+		padding: 6px 12px;
 		border-radius: 8px;
 		border: 1px solid rgba(0, 0, 0, 0.9);
 		background: transparent;
 		color: rgba(0, 0, 0, 0.9);
-		font-size: 14px;
+		font-size: 13px;
 		font-weight: 500;
 		cursor: pointer;
 		transition: background-color 0.2s, color 0.2s;
 		white-space: nowrap;
-		line-height: 1.5;
+		line-height: 1.4;
 		height: auto;
 	}
 	.edit-main-btn:hover {
@@ -498,9 +498,9 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 4px;
-		padding: 7px 14px;
+		padding: 6px 10px;
 		border-radius: 8px;
-		font-size: 13px;
+		font-size: 12px;
 		font-weight: 500;
 		cursor: pointer;
 		transition: all 0.2s;
