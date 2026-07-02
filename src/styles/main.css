@@ -1,5 +1,12 @@
 @import 'tailwindcss';
 
+/* 确保 Tailwind v4 扫描所有源文件（Astro 虚拟模块可能阻断自动检测） */
+@source "../pages/**/*.astro";
+@source "../components/**/*.astro";
+@source "../layouts/**/*.astro";
+@source "../content/**/*.md";
+@source "../content/**/*.mdx";
+
 /* === 布局层 === */
 @import './layout-styles.css';
 @import './banner-title.css';
