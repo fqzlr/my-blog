@@ -38,7 +38,10 @@ function b64urlEncode(buf: ArrayBuffer): string {
 	for (let i = 0; i < bytes.byteLength; i++) {
 		binary += String.fromCharCode(bytes[i]);
 	}
-	return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+	return btoa(binary)
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_")
+		.replace(/=+$/, "");
 }
 
 function b64urlDecode(str: string): ArrayBuffer {
@@ -55,7 +58,10 @@ function b64urlDecode(str: string): ArrayBuffer {
 
 function pkcs1ToPkcs8(pkcs1Der: ArrayBuffer): ArrayBuffer {
 	const bytes = new Uint8Array(pkcs1Der);
-	const rsaOid = new Uint8Array([0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00]);
+	const rsaOid = new Uint8Array([
+		0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05,
+		0x00,
+	]);
 	const algorithmIdentifier = new Uint8Array(2 + rsaOid.length);
 	algorithmIdentifier[0] = 0x30;
 	algorithmIdentifier[1] = rsaOid.length;
@@ -82,7 +88,9 @@ function pkcs1ToPkcs8(pkcs1Der: ArrayBuffer): ArrayBuffer {
 	}
 
 	const wrappedKey = wrapDer(0x04, bytes);
-	const inner = new Uint8Array(versionInt.length + algorithmIdentifier.length + wrappedKey.length);
+	const inner = new Uint8Array(
+		versionInt.length + algorithmIdentifier.length + wrappedKey.length,
+	);
 	inner.set(versionInt, 0);
 	inner.set(algorithmIdentifier, versionInt.length);
 	inner.set(wrappedKey, versionInt.length + algorithmIdentifier.length);
@@ -135,7 +143,11 @@ async function signJwt(appId: string, privateKeyPem: string): Promise<string> {
 	const enc = (obj: unknown) => b64urlEncode(strToBuf(JSON.stringify(obj)));
 	const signingInput = `${enc(header)}.${enc(payload)}`;
 	const key = await importPrivateKey(privateKeyPem);
-	const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, strToBuf(signingInput));
+	const signature = await crypto.subtle.sign(
+		"RSASSA-PKCS1-v1_5",
+		key,
+		strToBuf(signingInput),
+	);
 	return `${signingInput}.${b64urlEncode(signature)}`;
 }
 
@@ -152,28 +164,41 @@ async function rawProxy(
 	});
 }
 
-async function getInstallationToken(jwt: string): Promise<{ token: string; expiresAt: number }> {
+async function getInstallationToken(
+	jwt: string,
+): Promise<{ token: string; expiresAt: number }> {
 	const authHeaders = {
 		Authorization: `Bearer ${jwt}`,
 		Accept: "application/vnd.github+json",
 		"X-GitHub-Api-Version": "2022-11-28",
 	};
-	const resp = await rawProxy("GET", "app/installations", undefined, authHeaders);
+	const resp = await rawProxy(
+		"GET",
+		"app/installations",
+		undefined,
+		authHeaders,
+	);
 	if (!resp.ok) {
 		const text = await resp.text().catch(() => "");
-		throw new Error(`鑾峰彇 Installation 鍒楄〃澶辫触 (${resp.status}): ${text}`);
+		throw new Error(
+			`鑾峰彇 Installation 鍒楄〃澶辫触 (${resp.status}): ${text}`,
+		);
 	}
 	const installations = await resp.json();
 	let installationId: number | null = null;
 	const ghUser = repoConfig.owner;
 	const ghRepo = repoConfig.repo;
 	for (const inst of installations) {
-		if (inst.account && (inst.account.login === ghUser)) {
+		if (inst.account && inst.account.login === ghUser) {
 			installationId = inst.id;
 			break;
 		}
 	}
-	if (!installationId && Array.isArray(installations) && installations.length > 0) {
+	if (
+		!installationId &&
+		Array.isArray(installations) &&
+		installations.length > 0
+	) {
 		installationId = installations[0].id;
 	}
 	if (!installationId) {
@@ -189,7 +214,9 @@ async function getInstallationToken(jwt: string): Promise<{ token: string; expir
 		}
 	}
 	if (!installationId) {
-		throw new Error("鏈�壘鍒� GitHub App Installation锛岃�纭�� App 宸插畨瑁呭埌鐩�爣浠撳簱");
+		throw new Error(
+			"鏈�壘鍒� GitHub App Installation锛岃�纭�� App 宸插畨瑁呭埌鐩�爣浠撳簱",
+		);
 	}
 	const tokenResp = await rawProxy(
 		"POST",
@@ -199,7 +226,9 @@ async function getInstallationToken(jwt: string): Promise<{ token: string; expir
 	);
 	if (!tokenResp.ok) {
 		const text = await tokenResp.text().catch(() => "");
-		throw new Error(`鑾峰彇 Installation Token 澶辫触 (${tokenResp.status}): ${text}`);
+		throw new Error(
+			`鑾峰彇 Installation Token 澶辫触 (${tokenResp.status}): ${text}`,
+		);
 	}
 	const data = await tokenResp.json();
 	return {
@@ -285,15 +314,22 @@ export function hasValidCredentials(): boolean {
 
 export function hasValidToken(): boolean {
 	// 有缓存的未过期 token，或者有有效的凭据（可以获取 token）
-	if (cachedInstallationToken !== null && Date.now() < tokenExpiresAt) return true;
+	if (cachedInstallationToken !== null && Date.now() < tokenExpiresAt)
+		return true;
 	return hasValidCredentials();
 }
 
-export async function validateCredentials(appId?: string, pem?: string): Promise<{ ok: boolean; error?: string }> {
+export async function validateCredentials(
+	appId?: string,
+	pem?: string,
+): Promise<{ ok: boolean; error?: string }> {
 	const useAppId = appId || getStoredAppId();
 	const usePem = pem || getStoredPrivateKey();
 	if (!useAppId || !usePem) {
-		return { ok: false, error: "璇峰厛瀵煎叆 GitHub App 绉侀挜鏂囦欢骞跺～鍐� App ID" };
+		return {
+			ok: false,
+			error: "璇峰厛瀵煎叆 GitHub App 绉侀挜鏂囦欢骞跺～鍐� App ID",
+		};
 	}
 	try {
 		const jwt = await signJwt(useAppId, usePem);
@@ -301,7 +337,10 @@ export async function validateCredentials(appId?: string, pem?: string): Promise
 		cachedInstallationToken = token;
 		return { ok: true };
 	} catch (e: any) {
-		return { ok: false, error: e?.message || "楠岃瘉澶辫触锛岃�妫€鏌� App ID 鍜岀�閽ユ槸鍚︽�纭�" };
+		return {
+			ok: false,
+			error: e?.message || "楠岃瘉澶辫触锛岃�妫€鏌� App ID 鍜岀�閽ユ槸鍚︽�纭�",
+		};
 	}
 }
 
@@ -337,7 +376,11 @@ export async function diagnosePermissions(): Promise<{
 	repoAccess: boolean;
 	tokenValid: boolean;
 }> {
-	const result = { permissions: {} as Record<string, string>, repoAccess: false, tokenValid: false };
+	const result = {
+		permissions: {} as Record<string, string>,
+		repoAccess: false,
+		tokenValid: false,
+	};
 	try {
 		// 检查 token 是否有效
 		const userResp = await proxyRequest("GET", "user");
@@ -350,7 +393,10 @@ export async function diagnosePermissions(): Promise<{
 		console.log("[diagnose] Authenticated as:", user.login || user.type);
 
 		// 检查仓库访问权限
-		const repoResp = await proxyRequest("GET", `repos/${repoConfig.owner}/${repoConfig.repo}`);
+		const repoResp = await proxyRequest(
+			"GET",
+			`repos/${repoConfig.owner}/${repoConfig.repo}`,
+		);
 		result.repoAccess = repoResp.ok;
 		if (repoResp.ok) {
 			const repo = await repoResp.json();
@@ -360,11 +406,17 @@ export async function diagnosePermissions(): Promise<{
 		}
 
 		// 尝试获取 installation 信息
-		const instResp = await proxyRequest("GET", `repos/${repoConfig.owner}/${repoConfig.repo}/installation`);
+		const instResp = await proxyRequest(
+			"GET",
+			`repos/${repoConfig.owner}/${repoConfig.repo}/installation`,
+		);
 		if (instResp.ok) {
 			const inst = await instResp.json();
 			result.permissions = inst.permissions || {};
-			console.log("[diagnose] Installation permissions:", JSON.stringify(inst.permissions));
+			console.log(
+				"[diagnose] Installation permissions:",
+				JSON.stringify(inst.permissions),
+			);
 		} else {
 			console.error("[diagnose] Installation info failed:", instResp.status);
 		}
@@ -494,7 +546,9 @@ function repoPath(config: RepoConfig, path: string): string {
 
 /** 动态解析目标分支：优先使用部署分支，回退到配置分支 */
 function resolveBranch(config: RepoConfig): string {
-	return (typeof window !== 'undefined' && window.__DEPLOY_BRANCH__) || config.branch;
+	return (
+		(typeof window !== "undefined" && window.__DEPLOY_BRANCH__) || config.branch
+	);
 }
 
 export async function getRepoFile(
@@ -502,10 +556,15 @@ export async function getRepoFile(
 	config: RepoConfig = repoConfig,
 ): Promise<{ content: string; sha: string } | null> {
 	try {
-		const resp = await proxyRequest("GET", `${repoPath(config, path)}?ref=${resolveBranch(config)}`);
+		const resp = await proxyRequest(
+			"GET",
+			`${repoPath(config, path)}?ref=${resolveBranch(config)}`,
+		);
 		if (!resp.ok) return null;
 		const data = await resp.json();
-		const content = decodeURIComponent(escape(atob(data.content.replace(/\n/g, ""))));
+		const content = decodeURIComponent(
+			escape(atob(data.content.replace(/\n/g, ""))),
+		);
 		return { content, sha: data.sha };
 	} catch {
 		return null;
@@ -522,7 +581,14 @@ export async function updateRepoFile(
 	try {
 		const encodedContent = btoa(unescape(encodeURIComponent(content)));
 		const apiPath = repoPath(config, path);
-		console.log('[updateRepoFile] PUT', apiPath, 'sha:', sha?.slice(0, 8), 'branch:', resolveBranch(config));
+		console.log(
+			"[updateRepoFile] PUT",
+			apiPath,
+			"sha:",
+			sha?.slice(0, 8),
+			"branch:",
+			resolveBranch(config),
+		);
 		const resp = await proxyRequest("PUT", apiPath, {
 			message,
 			content: encodedContent,
@@ -531,12 +597,12 @@ export async function updateRepoFile(
 		});
 		if (!resp.ok) {
 			const errText = await resp.text().catch(() => "");
-			console.error('[updateRepoFile] Failed:', resp.status, errText);
+			console.error("[updateRepoFile] Failed:", resp.status, errText);
 			invalidateToken();
 		}
 		return resp.ok;
 	} catch (e) {
-		console.error('[updateRepoFile] Exception:', e);
+		console.error("[updateRepoFile] Exception:", e);
 		invalidateToken();
 		return false;
 	}
@@ -551,7 +617,14 @@ export async function createRepoFile(
 	try {
 		const encodedContent = btoa(unescape(encodeURIComponent(content)));
 		const apiPath = repoPath(config, path);
-		console.log('[createRepoFile] PUT', apiPath, 'branch:', resolveBranch(config), 'msg:', message);
+		console.log(
+			"[createRepoFile] PUT",
+			apiPath,
+			"branch:",
+			resolveBranch(config),
+			"msg:",
+			message,
+		);
 		const resp = await proxyRequest("PUT", apiPath, {
 			message,
 			content: encodedContent,
@@ -559,12 +632,12 @@ export async function createRepoFile(
 		});
 		if (!resp.ok) {
 			const errText = await resp.text().catch(() => "");
-			console.error('[createRepoFile] Failed:', resp.status, errText);
+			console.error("[createRepoFile] Failed:", resp.status, errText);
 			invalidateToken();
 		}
 		return resp.ok;
 	} catch (e) {
-		console.error('[createRepoFile] Exception:', e);
+		console.error("[createRepoFile] Exception:", e);
 		invalidateToken();
 		return false;
 	}
@@ -633,7 +706,10 @@ export async function getRepoFileMeta(
 	config: RepoConfig = repoConfig,
 ): Promise<{ sha: string; size: number } | null> {
 	try {
-		const resp = await proxyRequest("GET", `${repoPath(config, path)}?ref=${resolveBranch(config)}`);
+		const resp = await proxyRequest(
+			"GET",
+			`${repoPath(config, path)}?ref=${resolveBranch(config)}`,
+		);
 		if (!resp.ok) return null;
 		const data = await resp.json();
 		return { sha: data.sha, size: data.size || 0 };
@@ -648,13 +724,21 @@ export async function listRepoFiles(
 	config: RepoConfig = repoConfig,
 ): Promise<Array<{ name: string; path: string; sha: string; size: number }>> {
 	try {
-		const resp = await proxyRequest("GET", `${repoPath(config, dirPath)}?ref=${resolveBranch(config)}`);
+		const resp = await proxyRequest(
+			"GET",
+			`${repoPath(config, dirPath)}?ref=${resolveBranch(config)}`,
+		);
 		if (!resp.ok) return [];
 		const items = await resp.json();
 		if (!Array.isArray(items)) return [];
 		return items
 			.filter((i: any) => i.type === "file")
-			.map((i: any) => ({ name: i.name, path: i.path, sha: i.sha, size: i.size || 0 }));
+			.map((i: any) => ({
+				name: i.name,
+				path: i.path,
+				sha: i.sha,
+				size: i.size || 0,
+			}));
 	} catch {
 		return [];
 	}
@@ -666,7 +750,10 @@ export async function getRepoFileBase64(
 	config: RepoConfig = repoConfig,
 ): Promise<string | null> {
 	try {
-		const resp = await proxyRequest("GET", `${repoPath(config, path)}?ref=${resolveBranch(config)}`);
+		const resp = await proxyRequest(
+			"GET",
+			`${repoPath(config, path)}?ref=${resolveBranch(config)}`,
+		);
 		if (!resp.ok) return null;
 		const data = await resp.json();
 		return data.content.replace(/\n/g, "");
@@ -724,7 +811,8 @@ export function ensureIconify(): void {
 	if ((window as any)._iconifyLoaded) return;
 	(window as any)._iconifyLoaded = true;
 	const script = document.createElement("script");
-	script.src = "https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js";
+	script.src =
+		"https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js";
 	script.async = true;
 	document.head.appendChild(script);
 }
@@ -779,11 +867,13 @@ export function getAllDrafts(): DraftChange[] {
 }
 
 export function getDraftsByPage(pageKey: string): DraftChange[] {
-	return readDraftStore().changes.filter(c => c.pageKey === pageKey);
+	return readDraftStore().changes.filter((c) => c.pageKey === pageKey);
 }
 
 /** 保存草稿（新 API） */
-export function saveDraft(change: Omit<DraftChange, "id" | "timestamp">): DraftChange {
+export function saveDraft(
+	change: Omit<DraftChange, "id" | "timestamp">,
+): DraftChange {
 	const store = readDraftStore();
 	const newChange: DraftChange = {
 		...change,
@@ -796,7 +886,12 @@ export function saveDraft(change: Omit<DraftChange, "id" | "timestamp">): DraftC
 }
 
 /** 保存草稿（旧 API 兼容，已废弃） */
-export function saveDraftLegacy(pageKey: string, pageName: string, payload: any, description: string): void {
+export function saveDraftLegacy(
+	pageKey: string,
+	pageName: string,
+	payload: any,
+	description: string,
+): void {
 	saveDraft({
 		pageKey,
 		pageName,
@@ -808,7 +903,7 @@ export function saveDraftLegacy(pageKey: string, pageName: string, payload: any,
 
 export function removeDraft(id: string): void {
 	const store = readDraftStore();
-	store.changes = store.changes.filter(c => c.id !== id);
+	store.changes = store.changes.filter((c) => c.id !== id);
 	writeDraftStore(store);
 }
 
@@ -818,7 +913,7 @@ export function clearAllDrafts(): void {
 
 export function clearDraftsByPage(pageKey: string): void {
 	const store = readDraftStore();
-	store.changes = store.changes.filter(c => c.pageKey !== pageKey);
+	store.changes = store.changes.filter((c) => c.pageKey !== pageKey);
 	writeDraftStore(store);
 }
 
@@ -838,14 +933,27 @@ type SubmitHandler = (change: DraftChange, token: string) => Promise<boolean>;
 
 const submitHandlers = new Map<string, SubmitHandler>();
 
-export function registerSubmitHandler(pageKey: string, handler: SubmitHandler): void {
+export function registerSubmitHandler(
+	pageKey: string,
+	handler: SubmitHandler,
+): void {
 	submitHandlers.set(pageKey, handler);
 }
 
-export async function submitAllDrafts(): Promise<{ success: number; failed: number; errors: string[]; submittedPageKeys: Set<string> }> {
+export async function submitAllDrafts(): Promise<{
+	success: number;
+	failed: number;
+	errors: string[];
+	submittedPageKeys: Set<string>;
+}> {
 	const token = await getAuthToken();
 	if (!token) {
-		return { success: 0, failed: 0, errors: ["未认证，请先导入私钥"], submittedPageKeys: new Set() };
+		return {
+			success: 0,
+			failed: 0,
+			errors: ["未认证，请先导入私钥"],
+			submittedPageKeys: new Set(),
+		};
 	}
 	const drafts = getAllDrafts();
 	const success: string[] = [];
@@ -873,10 +981,15 @@ export async function submitAllDrafts(): Promise<{ success: number; failed: numb
 	}
 	if (toRemove.length > 0) {
 		const store = readDraftStore();
-		store.changes = store.changes.filter(c => !toRemove.includes(c.id));
+		store.changes = store.changes.filter((c) => !toRemove.includes(c.id));
 		writeDraftStore(store);
 	}
-	return { success: success.length, failed: errors.length, errors, submittedPageKeys };
+	return {
+		success: success.length,
+		failed: errors.length,
+		errors,
+		submittedPageKeys,
+	};
 }
 
 export function onDraftsChanged(callback: (count: number) => void): () => void {
