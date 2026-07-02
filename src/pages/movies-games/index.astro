@@ -150,6 +150,10 @@ try {
 			const repoId = `/bangumi/${mgItem._contentId}/`;
 			const repoItem = repoMap.get(repoId);
 			if (repoItem) {
+				// 将 category 保存到 _subcategory 字段，供 getItemSubcategory 使用
+				const subcategory = repoItem.category && ["anime", "tv", "movie", "documentary", "game"].includes(repoItem.category)
+					? repoItem.category
+					: undefined;
 				mgItems[i] = {
 					...mgItem,
 					rate: repoItem.score ?? mgItem.rate,
@@ -157,6 +161,7 @@ try {
 					comment: repoItem.comment ?? mgItem.comment,
 					tags: repoItem.tags ?? mgItem.tags,
 					updated_at: repoItem.updated_at ?? mgItem.updated_at,
+					_subcategory: subcategory,
 					subject: {
 						...mgItem.subject,
 						name: repoItem.title ?? mgItem.subject.name,
@@ -171,7 +176,9 @@ try {
 }
 
 function getItemSubcategory(item: MgItem): string {
+	// 优先使用 _subcategory 字段（从 bangumi.json 的 category 转换而来）
 	if (item._subcategory) return item._subcategory;
+	
 	const tags = item.tags || [];
 	if (tags.some((t: string) => t.includes("纪录"))) return "documentary";
 	if (tags.some((t: string) => t.includes("动漫") || t.includes("动画")))
