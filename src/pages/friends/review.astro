@@ -1,6 +1,7 @@
 ---
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
 import Icon from "@components/common/Icon.astro";
+import PendingReviewList from "@/components/edit/PendingReviewList.svelte";
 import { siteConfig } from "@/config";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
@@ -40,10 +41,6 @@ const description = "审核和管理友链申请";
     </div>
   </div>
 </MainGridLayout>
-
-<script lang="ts">
-  import PendingReviewList from "@/components/edit/PendingReviewList.svelte";
-</script>
 
 <style>
   .card-base {
