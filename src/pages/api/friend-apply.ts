@@ -45,9 +45,15 @@ export async function POST({ request }: { request: Request }) {
 	};
 
 	// 检查服务端认证是否可用
-	if (!env.PUBLIC_GITHUB_APP_ID || !env.GH_PRIVATE_KEY) {
+	if (
+		!env.PUBLIC_GITHUB_APP_ID ||
+		!env.GH_PRIVATE_KEY ||
+		env.PUBLIC_GITHUB_APP_ID === "your_app_id_here" ||
+		env.GH_PRIVATE_KEY.includes("your_pem_private_key") ||
+		env.GH_PRIVATE_KEY.includes("...")
+	) {
 		return new Response(
-			JSON.stringify({ error: "Friend apply service is not configured" }),
+			JSON.stringify({ error: "Friend apply service is not configured: 请在 .env 中配置真实的 GitHub App 凭证" }),
 			{ status: 503, headers: { "Content-Type": "application/json" } },
 		);
 	}
@@ -102,12 +108,18 @@ export async function POST({ request }: { request: Request }) {
 		: ["Blog"];
 
 	// 获取 GitHub Token
-	const token = await getInstallationTokenServer(env);
+	let token: string | null;
+	try {
+		token = await getInstallationTokenServer(env);
+	} catch (e) {
+		console.error("[friend-apply] Token generation failed:", e);
+		token = null;
+	}
 	if (!token) {
-		return new Response(JSON.stringify({ error: "服务暂时不可用，请稍后再试" }), {
-			status: 503,
-			headers: { "Content-Type": "application/json" },
-		});
+		return new Response(
+			JSON.stringify({ error: "GitHub 认证失败，请检查 .env 中的 GitHub App 配置是否正确" }),
+			{ status: 503, headers: { "Content-Type": "application/json" } },
+		);
 	}
 
 	const owner = env.PUBLIC_GITHUB_OWNER || "fqzlr";
