@@ -7,101 +7,58 @@ const SITE_LANG = "zh_CN";
 
 export const siteConfig: SiteConfig = {
 	// 站点标题
-	title: "Fqzlr的博客",
+	title: "团子和蛋糕的博客",
 
 	// 站点副标题
-	subtitle: "Fqzlr",
+	subtitle: "",
 
 	// 站点 URL
-	site_url: "https://fqzlr.com/",
+	site_url: "https://blog.tsh520.cn",
 
 	// 站点描述
-	description: "fqzlr的个人技术博客，专注NAS分享、AI实践、学习笔记与技术总结，与个人成长分享。",
+	description:
+		"团子和蛋糕的博客，一个分享技术见解与生活感悟的个人空间。涵盖编程开发、实用工具推荐、ACG文化与日常生活的随想，记录成长的每一步。",
 
 	// 站点关键词
 	keywords: [
-		"fqzlr",
-		"JAVA",
-		"AI",
-		"Astro",
-		"ACGN",
-		"博客",
-		"技术博客",
-		"静态博客",
+		"团子",
+		"团子和蛋糕",
+		"蛋糕",
+		"团子和蛋糕的博客",
+		"团子的博客",
+		"蛋糕的博客",
 	],
 
 	// 主题色
 	themeColor: {
 		// 主题色的默认色相，范围从 0 到 360。例如：红色：0，青色：200，蓝绿色：250，粉色：345
-		hue: 165,
+		// hue = 230 对应偏紫的蓝色调
+		hue: 230,
 		// 是否对访问者隐藏主题色选择器
 		fixed: false,
-		// 默认模式："light" 亮色，"dark" 暗色
-		defaultMode: "light",
+		// 默认模式："light" 亮色，"dark" 暗色，"system" 跟随系统
+		defaultMode: "system",
 	},
 
 	// 页面整体宽度（单位：rem）
 	// 数值越大可以让页面内容区域更宽
-	// 在使用单侧栏边栏时，建议调低一些宽度以获得更好的视觉效果。
 	pageWidth: 100,
 
 	// 网站Card样式配置
 	card: {
 		// 是否开启卡片边框和阴影，开启后让网站更有立体感
 		border: true,
-		// 是否让卡片风格跟随主题色相
-		followTheme: false,
 	},
 
 	// Favicon 配置
 	favicon: [
 		{
-			src: "/favicon/favicon.ico",
-			sizes: "32x32",
-		},
-		{
-			src: "/favicon/favicon-16x16.png",
-			sizes: "16x16",
-		},
-		{
-			src: "/favicon/favicon-32x32.png",
-			sizes: "32x32",
-		},
-		{
-			src: "/favicon/favicon-48x48.png",
-			sizes: "48x48",
-		},
-		{
-			src: "/favicon/favicon.svg",
-			sizes: "any",
-		},
-		{
-			src: "/favicon/apple-touch-icon.png",
-			sizes: "180x180",
-		},
-		{
-			src: "/favicon/apple-touch-icon-152x152.png",
-			sizes: "152x152",
-		},
-		{
-			src: "/favicon/apple-touch-icon-167x167.png",
-			sizes: "167x167",
-		},
-		{
-			src: "/favicon/apple-touch-icon-180x180.png",
-			sizes: "180x180",
-		},
-		{
-			src: "/favicon/android-chrome-192x192.png",
-			sizes: "192x192",
-		},
-		{
-			src: "/favicon/android-chrome-512x512.png",
-			sizes: "512x512",
-		},
-		{
-			src: "/favicon/safari-pinned-tab.svg",
-			sizes: "any",
+			// 图标文件路径
+			src: "https://re.tsh520.cn/zl/tx.webp",
+			// 可选，指定主题 'light' | 'dark'
+			// theme: "light",
+			// 可选，图标大小
+			// sizes: "32x32",
 		},
 	],
 
@@ -115,35 +72,60 @@ export const siteConfig: SiteConfig = {
 		// 4. 网络图片: { type: "url", value: "https://example.com/logo.png", alt: "Logo" }
 		logo: {
 			type: "image",
-			value: "assets/images/avatar.gif",
-			alt: "logo",
+			value: "assets/images/firefly.png",
+			alt: "🍀",
 		},
 		// 导航栏标题
-		title: "Fqzlr的博客",
-		// 全宽导航栏，导航栏是否占满屏幕宽度
+		title: "团子和蛋糕",
+		// 悬停时显示的互动颜文字
+		hoverTitle: "w(ﾟДﾟ)w 不要走！再看看嘛！",
+		// 全宽导航栏，导航栏是否占满屏幕宽度，true：占满，false：不占满
 		widthFull: false,
-		// 导航菜单对齐方式，left：左对齐，center：居中
-		menuAlign: "center",
 		// 导航栏图标和标题是否跟随主题色
 		followTheme: false,
-		// 导航栏是否固定在顶部并始终可见
-		stickyNavbar: true,
 	},
 
 	// 站点开始日期，用于统计运行天数
-	siteStartDate: "2026-04-12",
+	siteStartDate: "2025-9-1",
 
-	// 站点时区（IANA 时区字符串），用于格式化bangumi、rss里的构建日期时间等等..
-	// 示例："Asia/Shanghai", "UTC", 如果为空，则按照构建服务器的时区进行时区转换
-	timezone: "Asia/Shanghai",
+	// 门户区配置
+	portal: {
+		announcement: {
+			enable: true,
+			text: "欢迎来到团子和蛋糕的博客！这里有技术分享、生活记录和更多有趣内容。",
+		},
+		dailyQuote: {
+			enable: true,
+			quotes: [
+				{ text: "人生到处知何似，应似飞鸿踏雪泥。", source: "苏轼" },
+				{ text: "海棠花未眠，老陈总在我身边。", source: "团子" },
+				{
+					text: "世界上只有一种真正的英雄主义，那就是在认识生活的真相后依然热爱生活。",
+					source: "罗曼·罗兰",
+				},
+				{
+					text: "愿你一生努力，一生被爱。想要的都拥有，得不到的都释怀。",
+					source: "八月长安",
+				},
+				{ text: "凡是过去，皆为序章。", source: "莎士比亚" },
+				{ text: "温柔半两，从容一生。", source: "三毛" },
+			],
+		},
+		recentPostsCount: 3,
+		recentMomentsCount: 3,
+	},
 
 	// 上下班时间配置（24小时制），用于首页头像涟漪动效和状态按钮
 	workHours: {
 		start: 9, // 上班时间 9:00
 		end: 18, // 下班时间 18:00
 		// 工作日范围，0=周日 1=周一 ... 6=周六，默认周一到周五
-		workDays: [1, 2, 3, 4, 5, 6],
+		workDays: [1, 2, 3, 4, 5],
 	},
+
+	// 站点时区（IANA 时区字符串），用于格式化bangumi、rss里的构建日期时间等等..
+	// 示例："Asia/Shanghai", "UTC", 如果为空，则按照构建服务器的时区进行时区转换
+	timezone: "Asia/Shanghai",
 
 	// 提醒框（Admonitions）配置，修改后需要重启开发服务器才能生效
 	// 主题：'github' | 'obsidian' | 'vitepress'，每个主题风格和语法不同，可根据喜好选择
@@ -163,51 +145,41 @@ export const siteConfig: SiteConfig = {
 	// OpenGraph图片功能,注意开启后要渲染很长时间，不建议本地调试的时候开启
 	generateOgImages: false,
 
-	defaultOgImage: "/assets/images/aut.webp",
+	// bangumi配置
+	bangumi: {
+		// Bangumi用户ID
+		userId: "1219895",
+	},
+
+	// 豆瓣配置
+	douban: {
+		// 豆瓣用户ID，用于影视与游戏页面的跳转
+		userId: "",
+	},
 
 	// 页面开关配置 - 控制特定页面的访问权限，设为false会返回404
 	pages: {
-		// 友链页面开关
-		friends: true,
 		// 赞助页面开关
 		sponsor: true,
 		// 留言板页面开关，需要配置评论系统
 		guestbook: true,
-		// 相册页面开关
-		gallery: true,
-		// 收藏API页面开关
-		collections: true,
-		// 统计页面开关
-		stats: true,
-		// 日历页面开关
-		calendar: true,
-		// 番剧页面开关
+		// 原番组计划页面开关（已拆分，保留关闭）
 		bangumi: false,
 		// 书架页面开关
 		books: true,
-		// 影视游戏页面开关
+		// 影视与游戏页面开关
 		moviesGames: true,
 		// 音乐页面开关
 		musicPage: true,
 		// 更新日志页面开关
 		changelog: true,
-		// 动态页面开关
-		moments: true,
-		// 后台管理页面开关（已改为前端内嵌编辑模式，后台已弃用）
-		admin: false,
-		// 日常规划页面开关
-		lifeRoutines: true,
-		// 旅行足迹页面开关
-		lifePlaces: true,
-		// 笔记本页面开关
-		lifeNotebooks: true,
 	},
 
 	// 说说页面封面配置（微信朋友圈风格）
 	momentsCover: {
 		enable: true,
 		image:
-			"https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640",
+			"https://ph.0824.uk/file/博客横屏封面/1780635498430_mmexport1774845895097.jpg",
 	},
 
 	// 分类导航栏开关，在首页和归档页顶部显示分类快捷导航
@@ -216,21 +188,17 @@ export const siteConfig: SiteConfig = {
 	// 文章列表布局配置
 	postListLayout: {
 		// 默认布局模式："list" 列表模式（单列布局），"grid" 网格模式（多列布局）
-		defaultMode: "list",
-		// 移动端默认布局模式，不设置则跟随 defaultMode
-		mobileDefaultMode: "list",
-		// 是否在文章列表中显示标签
-		showTags: true,
-		// 文章简介显示行数，设为 0 则不截断
-		descriptionLines: 2,
+		defaultMode: "grid",
 		// 是否允许用户切换布局
 		allowSwitch: true,
 		// 网格布局配置，仅在 defaultMode 为 "grid" 或允许切换布局时生效
 		grid: {
 			// 是否开启瀑布流布局，同时有封面图和无封面图的混合文章推荐开启
 			masonry: false,
-			// 网格模式卡片最小宽度(px)，浏览器根据容器宽度自动计算列数
-			columnWidth: 320,
+			// 网格模式列数：2 或 3
+			// 2列是默认模式，在任何侧边栏配置下均可生效
+			// 3列模式仅在单侧边栏（或无侧边栏）时生效，
+			columns: 3,
 		},
 	},
 
@@ -246,51 +214,10 @@ export const siteConfig: SiteConfig = {
 		googleAnalyticsId: "",
 		// Microsoft Clarity ID
 		microsoftClarityId: "",
-		// Umami 统计配置
+		// Umami Analytics
 		umamiAnalytics: {
-			websiteId: "4f4d87b0-bf0f-403a-a7c1-71962537673a",
-			shareId: "kHCJG2ZUL1r6q5Js",
-			scriptUrl: "https://umami.fqzlr.com/script.js",
-			// 是否追踪出站链接
-			trackOutboundLinks: true,
-			// 是否收集浏览器性能指标
-			collectWebVitals: false,
-			// 会话回放配置
-			relpays: {
-				// 是否启用会话回放
-				enabled: false,
-				// 录制会话采样率，范围 0-1，例如 0.15 表示记录 15% 的会话
-				sampleRate: 0.15,
-				// 隐私遮罩级别："moderate" 会遮罩所有输入框；"strict" 额外遮罩页面全部文本
-				maskLevel: "moderate",
-				// 单次录制最大时长（毫秒）
-				maxDuration: 300000,
-				// 需要排除录制的元素 CSS 选择器，例如 ".sensitive-widget"
-				blockSelector: "",
-			},
-		},
-		// 51la 统计配置
-		la51Analytics: {
-			// 51la 统计 ID
-			Id: "",
-			// 自定义 SDK JS 地址，防止 DNS 污染，留空使用默认地址
-			sdkUrl: "",
-			// 多个统计 ID 的数据分离标识，留空则使用 Id
-			ck: "",
-			// 是否开启事件分析功能
-			autoTrack: false,
-			//  Hash路由模式, 项目使用History API路由, 所以不必开启默认false
-			hashMode: false,
-			// 是否开启网站录屏功能
-			screenRecord: true,
-		},
-	},
-
-	// 热力图配置
-	heatmap: {
-		github: {
-			enabled: true,
-			username: "fqzlr", // 填写 GitHub 用户名后启用
+			websiteId: "cea54104-ebb9-4237-911d-67043d2dae74",
+			scriptUrl: "https://umami.tsh520.cn/script.js",
 		},
 	},
 
@@ -307,10 +234,19 @@ export const siteConfig: SiteConfig = {
 		formats: "webp",
 		// 图片压缩质量 (1-100)，值越低体积越小但质量越差，推荐 70-85
 		quality: 85,
-		// 为特定域名的图片添加 referrerpolicy="no-referrer" 属性
-		// 支持通配符 *，例如：["i0.hdslb.com", "*.bilibili.com"]
-		// 可解决指定域名图片加载时的 403 问题（如防盗链图片）
-		noReferrerDomains: [],
+	},
+
+	// 地图配置
+	mapConfig: {
+		// 高德地图 Web端 JS API Key
+		// 申请地址: https://console.amap.com/dev/key/app
+		amapKey: "e569398fc0c6a32b8d24763e57d2dc87",
+		// 地图初始中心点 [经度, 纬度]
+		center: [104.195, 35.861],
+		// 初始缩放级别
+		zoom: 4,
+		// 是否显示地图标记点
+		showMarkers: true,
 	},
 
 	// 字体配置
@@ -319,10 +255,4 @@ export const siteConfig: SiteConfig = {
 
 	// 站点语言，在本配置文件顶部SITE_LANG定义
 	lang: SITE_LANG,
-
-	// 备案号配置，留空则不显示
-	beian: "萌ICP备20268200号",
-
-	// 公安网备号配置，留空则不显示
-	policeBeian: "萌ICP备20268200号",
 };

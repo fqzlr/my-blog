@@ -1,207 +1,74 @@
 ---
-import Icon from "@components/common/Icon.astro";
-import { profileConfig, siteConfig } from "@/config";
-import I18nKey from "@/i18n/i18nKey";
-import { i18n } from "@/i18n/translation";
-import { getSortedPosts } from "@/utils/content-utils";
+import fs from "node:fs";
+import path from "node:path";
+import { footerConfig, profileConfig } from "@/config";
 import { url } from "@/utils/url-utils";
 
 const currentYear = new Date().getFullYear();
 
-// 从配置中获取站点开始日期
-const siteStartDate = siteConfig.siteStartDate || "2025-01-01";
-const beian = siteConfig.beian || "";
-const policeBeian = siteConfig.policeBeian || "";
-
-// 获取最新文章日期（用于计算最后活动时间）
-const posts = await getSortedPosts();
-const latestPost = posts.reduce((latest, post) => {
-	if (!latest) return post;
-	return post.data.published > latest.data.published ? post : latest;
-}, posts[0]);
-
-const lastPostDate = latestPost
-	? latestPost.data.published.toISOString()
-	: null;
-
-const runningDaysText = i18n(I18nKey.footerRunningDays);
-const lastUpdateText = i18n(I18nKey.footerLastUpdate);
-const todayText = i18n(I18nKey.today);
+// 读取FooterConfig.html文件内容
+let customFooterHtml = "";
+if (footerConfig.enable) {
+	try {
+		const footerConfigPath = path.join(
+			process.cwd(),
+			"src",
+			"config",
+			"FooterConfig.html",
+		);
+		customFooterHtml = fs.readFileSync(footerConfigPath, "utf-8");
+		// 移除HTML注释
+		customFooterHtml = customFooterHtml.replace(/<!--[\s\S]*?-->/g, "").trim();
+	} catch (error) {
+		console.warn("FooterConfig.html文件读取失败:", error.message);
+	}
+}
 ---
 
+
 <div
-	class="transition border-dashed border-[oklch(85%_0.01_var(--hue))] dark:border-white/15 rounded-2xl mb-12 flex flex-col items-center justify-center px-6"
+  class="transition border-t border-black/10 dark:border-white/15 mt-2 mb-6 border-dashed mx-32"
 >
-	<div class="transition text-50 text-base text-center wrap flex flex-col gap-2">
-		{/* 第一层：社交链接 */}
-		<div class="flex items-center justify-center gap-3 text-neutral-500 dark:text-neutral-400 text-sm flex-wrap">
-			<a
-				class="transition text-(--primary) font-bold hover:scale-105 inline-flex items-center gap-1"
-				target="_blank"
-				href="https://github.com/MmzMing"
-			>
-				<Icon name="fa7-brands:github" is:inline class="text-base" />
-				<span>GitHub</span>
-			</a>
-			<span class="text-neutral-300 dark:text-neutral-600">|</span>
-			<a
-				class="transition text-(--primary) font-bold hover:scale-105 inline-flex items-center gap-1"
-				target="_blank"
-				href="https://qm.qq.com/q/2R07cjGTZ0"
-			>
-				<Icon name="fa7-brands:qq" is:inline class="text-base" />
-				<span>QQ</span>
-			</a>
-			<span class="text-neutral-300 dark:text-neutral-600">|</span>
-			<a
-				class="transition text-(--primary) font-bold hover:scale-105 inline-flex items-center gap-1"
-				target="_blank"
-				href="https://space.bilibili.com/15446538"
-			>
-				<Icon name="fa7-brands:bilibili" is:inline class="text-base" />
-				<span>B站</span>
-			</a>
-			<span class="text-neutral-300 dark:text-neutral-600">|</span>
-			<a
-				class="transition text-(--primary) font-bold hover:scale-105 inline-flex items-center gap-1"
-				href="mailto:784774835@qq.com"
-			>
-				<Icon name="material-symbols:mail" is:inline class="text-base" />
-				<span>邮箱</span>
-			</a>
-		</div>
-
-		{/* 第二层：RSS | 隐私政策 */}
-		<div class="flex items-center justify-center gap-2 text-neutral-500 dark:text-neutral-400 text-sm">
-			<a
-				class="transition text-(--primary) font-bold hover:scale-105 inline-flex items-center gap-1"
-				target="_blank"
-				href={url("rss.xml")}
-			>
-				<Icon name="material-symbols:rss-feed-rounded" is:inline class="text-base" />
-				<span>RSS</span>
-			</a>
-			<span class="text-neutral-300 dark:text-neutral-600">|</span>
-			<button
-				class="transition text-(--primary) font-bold bg-transparent border-none cursor-pointer p-0 hover:scale-105 inline-flex items-center gap-1"
-				onclick="window.openPrivacyModal && window.openPrivacyModal()"
-				type="button"
-			>
-				<Icon name="material-symbols:shield-outline" is:inline class="text-base" />
-				<span>隐私政策</span>
-			</button>
-		</div>
-
-		{/* 第三层：站点运行信息 */}
-		<div class="flex items-center justify-center gap-3 text-neutral-500 dark:text-neutral-400 text-sm">
-			<span class="flex items-center gap-1">
-				<Icon name="material-symbols:calendar-clock-outline" is:inline class="text-base" />
-				<span id="footer-running-days" data-template={runningDaysText}>--</span>
-			</span>
-			<span class="text-neutral-300 dark:text-neutral-600">|</span>
-			<span class="flex items-center gap-1">
-				<Icon name="mingcute:heartbeat-line" is:inline class="text-base" />
-				<span id="footer-last-update" data-template={lastUpdateText} data-today={todayText}>--</span>
-			</span>
-		</div>
-
-		{/* 第四层：版权 */}
-		<div class="flex items-center justify-center gap-2 text-neutral-500 dark:text-neutral-400 text-sm flex-wrap">
-			<span>&copy; <span id="copyright-year">{currentYear}</span> {profileConfig.name}</span>
-		</div>
-
-		{/* 第五层：备案信息 */}
-		{(beian || policeBeian) && (
-			<div class="flex items-center justify-center gap-2 text-neutral-500 dark:text-neutral-400 text-sm flex-wrap">
-				{beian && (
-					<a
-						class="transition text-(--primary) font-bold hover:scale-105 inline-flex items-center gap-1"
-						target="_blank"
-						href="https://beian.miit.gov.cn/#/Integrated/index"
-					>
-						<span>{beian}</span>
-					</a>
-				)}
-				{beian && policeBeian && (
-					<span class="text-neutral-300 dark:text-neutral-600">|</span>
-				)}
-				{policeBeian && (
-					<a
-						class="transition text-(--primary) font-bold hover:scale-105 inline-flex items-center gap-1"
-						target="_blank"
-						rel="noreferrer"
-						href="https://beian.mps.gov.cn/#/query/webSearch?code=44060602003342"
-					>
-						<img src="/assets/images/备案图标.png" alt="公安网备" class="w-4 h-4 inline-block" />
-						<span>{policeBeian}</span>
-					</a>
-				)}
-			</div>
-		)}
-
-		{/* 第六层：Powered by */}
-		<div class="flex items-center justify-center gap-1 text-neutral-500 dark:text-neutral-400 text-sm">
-			<span>框架</span>
-			<a
-				class="transition text-(--primary) font-bold hover:scale-105"
-				target="_blank"
-				href="https://astro.build"
-			>
-				Astro
-			</a>
-			<span>|</span>
-			<span>主题</span>
-			<a
-				class="transition text-(--primary) font-bold hover:scale-105"
-				target="_blank"
-				href="https://github.com/CuteLeaf/Firefly"
-			>
-				Firefly
-			</a>
-		</div>
-	</div>
 </div>
 
-<script is:inline define:vars={{ siteStartDate, lastPostDate }}>
-	function updateFooterStats() {
-		const today = new Date();
-
-		// 更新运行天数
-		const startDate = new Date(siteStartDate);
-		const diffTime = Math.abs(today.getTime() - startDate.getTime());
-		const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-		const runningDaysEl = document.getElementById('footer-running-days');
-		if (runningDaysEl) {
-			const template = runningDaysEl.dataset.template || '已运行 {days} 天';
-			runningDaysEl.textContent = template.replace('{days}', diffDays.toString());
-		}
-
-		// 更新最后活动时间
-		const lastUpdateEl = document.getElementById('footer-last-update');
-		if (lastUpdateEl && lastPostDate) {
-			const lastPost = new Date(lastPostDate);
-			const timeSinceLastPost = Math.abs(today.getTime() - lastPost.getTime());
-			const daysSinceLastUpdate = Math.floor(timeSinceLastPost / (1000 * 60 * 60 * 24));
-			const template = lastUpdateEl.dataset.template || '最后更新于 {days} 天前';
-			const todayText = lastUpdateEl.dataset.today || '今天';
-
-			if (daysSinceLastUpdate === 0) {
-				lastUpdateEl.textContent = todayText;
-			} else {
-				lastUpdateEl.textContent = template.replace('{days}', daysSinceLastUpdate.toString());
-			}
-		}
-	}
-
-	// 页面加载时更新
-	updateFooterStats();
-
-	// 页面切换时重新更新（防止 swup 重复执行脚本导致监听器累积）
-	if (!window.__footer_listener) {
-		window.__footer_listener = true;
-		document.addEventListener("astro:page-load", () => {
-			setTimeout(updateFooterStats, 100);
-		});
-	}
-</script>
+<div
+  class="transition border-dashed border-[oklch(85%_0_0)] dark:border-white/15 rounded-2xl mb-12 flex flex-col items-center justify-center px-6"
+>
+  <div class="transition text-50 text-sm text-center">
+    <div class="mb-2">
+      {customFooterHtml && <div set:html={customFooterHtml} />}
+    </div>
+    <div class="m-0.5">
+      &copy; <span id="copyright-year">{currentYear}</span>
+      {profileConfig.name}. All Rights Reserved. /
+      <a
+        class="transition link text-(--primary) font-medium"
+        target="_blank"
+        href={url("rss.xml")}>RSS</a
+      > /
+      <a
+        class="transition link text-(--primary) font-medium"
+        target="_blank"
+        href={url("sitemap-index.xml")}>Sitemap</a
+      >
+    </div>
+    <div class="m-0.5">
+      Powered by
+      <a
+        class="transition link text-(--primary) font-medium"
+        target="_blank"
+        href="https://astro.build">Astro</a
+      > &
+      <a
+        class="transition link text-(--primary) font-medium"
+        target="_blank"
+        href="https://github.com/CuteLeaf/Firefly">Firefly</a
+      >
+    </div>
+    <!-- 
+      注意：请勿随意修改或删除 "Powered by Astro & Firefly" 部分，这是对开源项目的尊重和支持。
+      如果您需要在底部增加内容，请在src/config/footerConfig.ts中修改enable属性为true，然后编辑src/config/FooterConfig.html文件。
+      您可以随意在src/config/FooterConfig.html中随意添加自定义内容，不需要修改Footer.astro文件。
+    -->
+  </div>
+</div>

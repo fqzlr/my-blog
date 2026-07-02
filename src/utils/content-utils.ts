@@ -1,21 +1,13 @@
 import { type CollectionEntry, getCollection } from "astro:content";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
-import { buildTagGraphData, type TagGraphData } from "@utils/tag-graph-data";
-import { getCategoryUrl, getPostUrlBySlug, getTagUrl } from "@utils/url-utils";
+import { getCategoryUrl } from "@utils/url-utils";
 
-let cachedPosts: CollectionEntry<"posts">[] | null = null;
-
-async function getAllPosts(): Promise<CollectionEntry<"posts">[]> {
-	if (cachedPosts) return cachedPosts;
-	cachedPosts = await getCollection("posts", ({ data }) => {
+// // Retrieve posts and sort them by publication date
+async function getRawSortedPosts() {
+	const allBlogPosts = await getCollection("posts", ({ data }) => {
 		return import.meta.env.PROD ? data.draft !== true : true;
 	});
-	return cachedPosts;
-}
-
-async function getRawSortedPosts(): Promise<CollectionEntry<"posts">[]> {
-	const allBlogPosts = await getAllPosts();
 
 	const sorted = allBlogPosts.sort((a, b) => {
 		// 首先按置顶状态排序，置顶文章在前
@@ -25,12 +17,16 @@ async function getRawSortedPosts(): Promise<CollectionEntry<"posts">[]> {
 		// 如果置顶状态相同，则按发布日期排序
 		const dateA = new Date(a.data.published);
 		const dateB = new Date(b.data.published);
+		// 日期相同，按 order 排序（越小越靠前）
+		if (dateA.getTime() === dateB.getTime()) {
+			return (a.data.order ?? 0) - (b.data.order ?? 0);
+		}
 		return dateA > dateB ? -1 : 1;
 	});
 	return sorted;
 }
 
-export async function getSortedPosts(): Promise<CollectionEntry<"posts">[]> {
+export async function getSortedPosts() {
 	const sorted = await getRawSortedPosts();
 
 	for (let i = 1; i < sorted.length; i++) {
@@ -44,12 +40,10 @@ export async function getSortedPosts(): Promise<CollectionEntry<"posts">[]> {
 
 	return sorted;
 }
-
 export type PostForList = {
 	id: string;
 	data: CollectionEntry<"posts">["data"];
 };
-
 export async function getSortedPostsList(): Promise<PostForList[]> {
 	const sortedFullPosts = await getRawSortedPosts();
 
@@ -62,48 +56,193 @@ export async function getSortedPostsList(): Promise<PostForList[]> {
 	return sortedPostsList;
 }
 
+export type ArchiveItem = {
+	id: string;
+	type: "post" | "moment" | "bangumi" | "life";
+	data: {
+		title: string;
+		published: Date;
+		tags: string[];
+		category?: string | null;
+		image?: string;
+		link?: string;
+		order?: number;
+	};
+};
+
+// 辅助函数
+const isIn = (entryId: string, folder: string) =>
+	entryId.replace(/\\/g, "/").startsWith(`${folder}/`);
+
+export async function getArchiveList(): Promise<ArchiveItem[]> {
+	const posts = await getCollection("posts", ({ data }) => {
+		return import.meta.env.PROD ? data.draft !== true : true;
+	});
+	const moments = await getCollection("moments");
+	const bangumi = await getCollection("bangumi");
+	const lifeEntries = await getCollection("life");
+	const notebooksEntries = await getCollection("notebooks");
+	const routinesEntries = await getCollection("routines");
+
+	const postItems: ArchiveItem[] = posts.map((post) => ({
+		id: post.id,
+		type: "post",
+		data: {
+			title: post.data.title,
+			published: post.data.published,
+			tags: post.data.tags,
+			category: post.data.category,
+			order: post.data.order,
+		},
+	}));
+
+	const momentItems: ArchiveItem[] = moments.map((moment) => {
+		// 提取摘要作为标题
+		let title = moment.body || "";
+		title = title.replace(/[#*`]/g, "").trim(); // 移除 markdown 符号
+		if (title.length > 50) title = `${title.substring(0, 50)}...`;
+		if (!title) title = i18n(I18nKey.moments) || "日常动态";
+
+		return {
+			id: moment.id,
+			type: "moment",
+			data: {
+				title: title,
+				published: moment.data.published,
+				tags: moment.data.tags,
+				category: null,
+			},
+		};
+	});
+
+	const bangumiItems: ArchiveItem[] = bangumi.map((b) => {
+		let link = b.data.link || "";
+		if (!link) {
+			const slug = b.id
+				.replace(/\\/g, "/")
+				.replace(/\.(md|mdx|markdown)$/i, "");
+			if (b.data.category === "book") {
+				link = `/books/${slug}/`;
+			} else if (b.data.category === "music") {
+				link = "/music/";
+			} else {
+				link = "/movies-games/";
+			}
+		}
+		return {
+			id: b.id,
+			type: "bangumi",
+			data: {
+				title: b.data.title,
+				published: b.data.published || new Date(0),
+				tags: [],
+				category: null,
+				image:
+					typeof b.data.image === "string"
+						? b.data.image
+						: (b.data.image as any)?.src,
+				link,
+			},
+		};
+	});
+
+	// 生活动态归档
+	const lifeItems: ArchiveItem[] = [];
+
+	// 足迹记录
+	lifeEntries
+		.filter((entry) => isIn(entry.id, "places"))
+		.forEach((p) => {
+			const parts = [p.data.province, p.data.city].filter(Boolean);
+			lifeItems.push({
+				id: p.id,
+				type: "life",
+				data: {
+					title: parts.length > 0 ? parts.join(" ") : "足迹记录",
+					published: p.data.date || new Date(),
+					tags: ["足迹"],
+					link: "/life/places/",
+				},
+			});
+		});
+
+	// 笔记本记录（排除 _index 元数据条目）
+	notebooksEntries
+		.filter((n) => !n.id.includes("_index"))
+		.forEach((n) => {
+			lifeItems.push({
+				id: n.id,
+				type: "life",
+				data: {
+					title: n.data.name || "笔记本",
+					published: n.data.date || new Date(),
+					tags: ["笔记本"],
+					link: "/life/notebooks/",
+				},
+			});
+		});
+
+	// 日常规划
+	routinesEntries.forEach((r) => {
+		lifeItems.push({
+			id: r.id,
+			type: "life",
+			data: {
+				title: `规划: ${r.data.name}`,
+				published:
+					r.data.updatedAt instanceof Date ? r.data.updatedAt : new Date(),
+				tags: ["规划"],
+				link: "/life/routines/",
+			},
+		});
+	});
+
+	return [...postItems, ...momentItems, ...bangumiItems, ...lifeItems].sort(
+		(a, b) => {
+			const timeA = a.data.published.getTime();
+			const timeB = b.data.published.getTime();
+			if (timeA === timeB) {
+				return (a.data.order ?? 0) - (b.data.order ?? 0);
+			}
+			return timeB - timeA;
+		},
+	);
+}
 export type Tag = {
 	name: string;
 	count: number;
 };
 
 export async function getTagList(): Promise<Tag[]> {
-	const allBlogPosts = await getAllPosts();
+	const allBlogPosts = await getCollection<"posts">("posts", ({ data }) => {
+		return import.meta.env.PROD ? data.draft !== true : true;
+	});
+
+	const allMoments = await getCollection("moments");
 
 	const countMap: { [key: string]: number } = {};
-	allBlogPosts.forEach((post) => {
-		post.data.tags.forEach((tag) => {
+	allBlogPosts.forEach((post: { data: { tags: string[] } }) => {
+		post.data.tags.forEach((tag: string) => {
 			if (!countMap[tag]) countMap[tag] = 0;
 			countMap[tag]++;
 		});
 	});
 
-	// sort tags by count descending
+	allMoments.forEach((moment: { data: { tags: string[] } }) => {
+		if (Array.isArray(moment.data.tags)) {
+			moment.data.tags.forEach((tag: string) => {
+				if (!countMap[tag]) countMap[tag] = 0;
+				countMap[tag]++;
+			});
+		}
+	});
+
+	// sort tags
 	const keys: string[] = Object.keys(countMap).sort((a, b) => {
-		return countMap[b] - countMap[a];
+		return a.toLowerCase().localeCompare(b.toLowerCase());
 	});
 
 	return keys.map((key) => ({ name: key, count: countMap[key] }));
-}
-
-export async function getTagGraphData(): Promise<TagGraphData> {
-	const allBlogPosts = await getAllPosts();
-	const graph = buildTagGraphData(
-		allBlogPosts.map((post) => ({
-			title: post.data.title,
-			url: getPostUrlBySlug(post.id),
-			published: post.data.published,
-			tags: post.data.tags,
-		})),
-	);
-
-	return {
-		...graph,
-		nodes: graph.nodes.map((node) => ({
-			...node,
-			url: getTagUrl(node.name),
-		})),
-	};
 }
 
 export type Category = {
@@ -113,9 +252,11 @@ export type Category = {
 };
 
 export async function getCategoryList(): Promise<Category[]> {
-	const allBlogPosts = await getAllPosts();
+	const allBlogPosts = await getCollection<"posts">("posts", ({ data }) => {
+		return import.meta.env.PROD ? data.draft !== true : true;
+	});
 	const count: { [key: string]: number } = {};
-	allBlogPosts.forEach((post) => {
+	allBlogPosts.forEach((post: { data: { category: string | null } }) => {
 		if (!post.data.category) {
 			const ucKey = i18n(I18nKey.uncategorized);
 			count[ucKey] = count[ucKey] ? count[ucKey] + 1 : 1;
@@ -145,124 +286,4 @@ export async function getCategoryList(): Promise<Category[]> {
 		});
 	}
 	return ret;
-}
-
-/**
- * 对标题进行分词，支持中英文混合
- * 使用 Intl.Segmenter 对中文分词，英文按空格分词
- * 过滤标点和空白，英文统一小写
- */
-const zhSegmenter = new Intl.Segmenter("zh", { granularity: "word" });
-
-function tokenizeTitle(title: string): Set<string> {
-	const tokens = new Set<string>();
-	for (const { segment, isWordLike } of zhSegmenter.segment(title)) {
-		if (!isWordLike) continue;
-		tokens.add(segment.toLowerCase());
-	}
-	return tokens;
-}
-
-/**
- * 计算两个集合的 Jaccard 相似度
- */
-function jaccardSimilarity(a: Set<string>, b: Set<string>): number {
-	if (a.size === 0 && b.size === 0) return 0;
-	let intersection = 0;
-	for (const item of a) {
-		if (b.has(item)) intersection++;
-	}
-	const union = a.size + b.size - intersection;
-	return union === 0 ? 0 : intersection / union;
-}
-
-/**
- * 获取相关文章推荐
- * 评分公式: totalScore = tagMatchScore + titleSimilarityScore + timeFreshnessScore + categoryBonus
- * - tagMatchScore (0-100): 标签 Jaccard 相似度 × 100
- * - titleSimilarityScore (0-100): 标题分词 Jaccard 相似度 × 100
- * - timeFreshnessScore (0-30): 6 个月半衰期指数衰减
- * - categoryBonus (0 or 10): 同分类加 10 分
- */
-export async function getRelatedPosts(
-	currentPost: CollectionEntry<"posts">,
-	maxCount = 5,
-): Promise<PostForList[]> {
-	const allPosts = await getAllPosts();
-
-	// 排除自身和加密文章
-	const candidates = allPosts.filter(
-		(p) => p.id !== currentPost.id && !p.data.password,
-	);
-
-	const currentTags = new Set(currentPost.data.tags || []);
-	const currentTokens = tokenizeTitle(currentPost.data.title);
-	const currentCategory = currentPost.data.category || "";
-	const now = Date.now();
-
-	const scored = candidates.map((post) => {
-		const postTags = new Set(post.data.tags || []);
-
-		// tagMatchScore (0-100)
-		const tagMatchScore = jaccardSimilarity(currentTags, postTags) * 100;
-
-		// titleSimilarityScore (0-100)
-		const postTokens = tokenizeTitle(post.data.title);
-		const titleSimilarityScore =
-			jaccardSimilarity(currentTokens, postTokens) * 100;
-
-		// timeFreshnessScore (0-30): 6 个月半衰期
-		const daysSincePublished =
-			(now - new Date(post.data.published).getTime()) / (1000 * 60 * 60 * 24);
-		const timeFreshnessScore =
-			30 * Math.exp((-Math.LN2 * daysSincePublished) / 180);
-
-		// categoryBonus (0 or 10)
-		const postCategory = post.data.category || "";
-		const categoryBonus =
-			currentCategory && postCategory && currentCategory === postCategory
-				? 10
-				: 0;
-
-		const totalScore =
-			tagMatchScore + titleSimilarityScore + timeFreshnessScore + categoryBonus;
-
-		return {
-			post,
-			totalScore,
-			tagMatchScore,
-			timeFreshnessScore,
-			categoryBonus,
-		};
-	});
-
-	// 按总分降序排列
-	scored.sort((a, b) => b.totalScore - a.totalScore);
-
-	// 优先取有标签匹配的
-	const withTagMatch = scored.filter((s) => s.tagMatchScore > 0);
-	const withoutTagMatch = scored.filter((s) => s.tagMatchScore === 0);
-
-	const result: PostForList[] = [];
-
-	for (const s of withTagMatch) {
-		if (result.length >= maxCount) break;
-		result.push({ id: s.post.id, data: s.post.data });
-	}
-
-	// 不足时从剩余候选中按 timeFreshnessScore + categoryBonus 降序补充
-	if (result.length < maxCount) {
-		withoutTagMatch.sort(
-			(a, b) =>
-				b.timeFreshnessScore +
-				b.categoryBonus -
-				(a.timeFreshnessScore + a.categoryBonus),
-		);
-		for (const s of withoutTagMatch) {
-			if (result.length >= maxCount) break;
-			result.push({ id: s.post.id, data: s.post.data });
-		}
-	}
-
-	return result;
 }

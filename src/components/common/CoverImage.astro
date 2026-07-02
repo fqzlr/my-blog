@@ -2,13 +2,12 @@
 import { Picture } from "astro:assets";
 import * as path from "node:path";
 import type { ImageMetadata } from "astro";
-import { coverImageConfig } from "@/config";
+import { coverImageConfig } from "@/config/coverImageConfig";
 import type { ImageFormat, ResponsiveImageLayout } from "@/types/config";
 import {
 	getFallbackFormat,
 	getImageFormats,
 	getImageQuality,
-	shouldAddNoReferrer,
 } from "@/utils/image-utils";
 import { url } from "@/utils/url-utils";
 
@@ -107,18 +106,6 @@ const quality = preview ? Math.round(configQuality * 0.9) : configQuality;
 
 // 是否显示加载动画
 const showLoading = coverImageConfig.randomCoverImage.showLoading ?? true;
-
-// 检查回退图片是否需要 referrerpolicy
-const fallbackReferrerPolicy =
-	isFallbackPublic && fallbackPath && shouldAddNoReferrer(url(fallbackPath))
-		? "no-referrer"
-		: undefined;
-
-// 检查远程图片是否需要 referrerpolicy
-const remoteReferrerPolicy =
-	!isLocal && shouldAddNoReferrer(isPublic ? url(src) : src)
-		? "no-referrer"
-		: undefined;
 ---
 
 <div
@@ -168,7 +155,6 @@ const remoteReferrerPolicy =
 				style={imageStyle}
 				loading="lazy"
 				decoding="async"
-				referrerpolicy={fallbackReferrerPolicy}
 			/>
 		</div>
 	)}
@@ -200,20 +186,91 @@ const remoteReferrerPolicy =
 			alt={alt || ""}
 			class={imageClass}
 			style={imageStyle}
-			width={preview ? 400 : 1200}
-			height={preview ? 300 : 800}
 			loading={loading}
 			decoding="async"
 			data-cover-img
 			data-remote="true"
-			referrerpolicy={remoteReferrerPolicy}
 		/>
 	)}
 </div>
 
-<!-- 样式已迁移至 src/styles/components/cover-image.css -->
+<style>
+	.cover-image-container {
+		min-height: 150px;
+	}
+
+	@media (min-width: 768px) {
+		.cover-image-container {
+			min-height: 0;
+		}
+	}
+
+	/* 加载动画容器 */
+	.loading-spinner {
+		transition: opacity 0.3s ease-out;
+	}
+
+	/* 加载完成后隐藏 */
+	.cover-image-container[data-loading="false"] .loading-spinner {
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	/* 错误状态隐藏加载动画 */
+	.cover-image-container[data-error="true"] .loading-spinner {
+		display: none;
+	}
+
+	/* 错误状态显示错误信息和回退图片 */
+	.cover-image-container[data-error="true"] .error-message {
+		display: flex;
+	}
+
+	.cover-image-container[data-error="true"] .fallback-image {
+		display: block;
+	}
+
+	/* 错误状态隐藏失败的远程图片 */
+	.cover-image-container[data-error="true"] img[data-remote="true"] {
+		display: none;
+	}
+
+	/* 旋转加载动画 */
+	.spinner {
+		width: 40px;
+		height: 40px;
+		border: 3px solid oklch(0.9 0 0);
+		border-top-color: oklch(0.6 0 0);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
+
+	/* 图片样式 */
+	.cover-image-container img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+</style>
 
 <script>
+	// 基于种子生成哈希值的函数
+	function getSeedHash(seed) {
+		return seed
+			? Math.abs(
+					seed.split('').reduce((acc, char) => {
+						return ((acc << 5) - acc + char.charCodeAt(0)) | 0;
+					}, 0),
+			)
+			: 0;
+	}
+
 	function initCoverImages() {
 		const containers = document.querySelectorAll('.cover-image-container');
 		containers.forEach((container) => {
@@ -223,13 +280,18 @@ const remoteReferrerPolicy =
 			const img = container.querySelector('img[data-cover-img]') as HTMLImageElement | null;
 			if (!img) return;
 
-			// 解析API URL列表，用于按顺序重试
+			// 解析API URL列表
 			let apiUrls: string[] = [];
-			let currentApiIndex = 1; // 0号已由服务端设为img.src
 			const apiUrlsAttr = container.getAttribute('data-api-urls');
 			if (apiUrlsAttr) {
 				try { apiUrls = JSON.parse(apiUrlsAttr); } catch (_e) { /* ignore */ }
 			}
+
+			// 匹配服务端预选的图片在API列表中的位置
+			// 服务端 processCoverImageSync 已基于文章seed确定了图片，客户端不再重新随机选择
+			const currentSrc = img.getAttribute('src') || '';
+			const serverIndex = apiUrls.findIndex(url => url === currentSrc);
+			let currentApiIndex = serverIndex >= 0 ? serverIndex + 1 : 0;
 
 			const hideLoading = () => {
 				container.setAttribute('data-loading', 'false');
@@ -240,12 +302,9 @@ const remoteReferrerPolicy =
 				container.setAttribute('data-error', 'true');
 			};
 
-			// 统一的错误处理：尝试下一个API或显示回退
-			const onError = () => {
-				if (img.dataset.remote !== 'true') return;
-
+			// 尝试加载下一个API（仅用于当前图片加载失败时的回退）
+			const tryNextApi = () => {
 				if (currentApiIndex < apiUrls.length) {
-					// 先绑定好事件，再更换src
 					img.addEventListener('load', hideLoading, { once: true });
 					img.addEventListener('error', onError, { once: true });
 					img.src = apiUrls[currentApiIndex];
@@ -255,7 +314,34 @@ const remoteReferrerPolicy =
 				}
 			};
 
-			if (img.complete) {
+			// 错误处理：尝试下一个API或显示回退
+			const onError = () => {
+				if (img.dataset.remote !== 'true') return;
+				tryNextApi();
+			};
+
+			// 服务端已预选图片：保持该选择，不重新挑选
+			if (serverIndex >= 0) {
+				if (img.complete) {
+					if (img.naturalWidth > 0) {
+						hideLoading();
+					} else {
+						onError();
+					}
+				} else {
+					img.addEventListener('load', hideLoading, { once: true });
+					img.addEventListener('error', onError, { once: true });
+				}
+			} else if (apiUrls.length > 0) {
+				// 服务端未预选时，基于日期种子选择（同一天内刷新不换图）
+				const now = new Date();
+				const dateSeed = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+				const containerId = container.getAttribute('id') || container.dataset.index || '0';
+				const uniqueSeed = `${dateSeed}-${containerId}`;
+				const hash = getSeedHash(uniqueSeed);
+				currentApiIndex = hash % apiUrls.length;
+				tryNextApi();
+			} else if (img.complete) {
 				if (img.naturalWidth > 0) {
 					hideLoading();
 				} else {

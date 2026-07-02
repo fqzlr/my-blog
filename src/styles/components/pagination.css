@@ -1,88 +1,48 @@
-/* ============================================
-   分页 — 来自 Pagination.astro + ClientPagination.astro
-   ============================================ */
+/* ===== 分页控件 ===== */
+@reference "tailwindcss";
 
-/* --- Pagination.astro --- */
-.pagination-disabled {
-	pointer-events: none;
-	color: oklch(0 0 0 / 0.1);
+/* 响应式分页样式 */
+.device-mobile .pagination-info {
+  @apply text-xs;
 }
-:root.dark .pagination-disabled {
-	color: oklch(1 0 0 / 0.1);
+.device-tablet .pagination-info {
+  @apply text-sm;
 }
-
-/* --- ClientPagination.astro --- */
-.responsive-pagination {
-	max-width: 100%;
-	overflow-x: auto;
-	-webkit-overflow-scrolling: touch;
+.device-desktop .pagination-info {
+  @apply text-base;
 }
 
-.mobile-pagination {
-	display: flex;
-	padding: 0 1rem;
+/* 分页信息 */
+.pagination-info {
+  @apply text-sm text-(--text-secondary) text-center mb-2;
 }
 
-.desktop-pagination {
-	display: none;
+/* 首页文章卡片边框 */
+.post-card-wrapper {
+  border: 2px solid var(--primary) !important;
 }
 
-@media (min-width: 768px) {
-	.mobile-pagination {
-		display: none;
-	}
-	.desktop-pagination {
-		display: flex;
-	}
+/* 分页控件 - 粗边框 */
+.pagination-btn,
+.pagination-page {
+  border: 2px solid var(--primary) !important;
+  font-weight: 700 !important;
+  background: var(--page-bg) !important;
+  color: var(--primary) !important;
 }
-
-@media (max-width: 640px) {
-	.mobile-pagination {
-		padding: 0 0.5rem;
-	}
-	.mobile-pagination button {
-		padding: 0.25rem;
-	}
+.pagination-btn:hover,
+.pagination-page:hover {
+  background: var(--primary) !important;
+  color: var(--page-bg) !important;
 }
-
-@media (max-width: 480px) {
-	.mobile-pagination {
-		padding: 0 0.25rem;
-	}
+.pagination-current {
+  border: 2px solid var(--primary) !important;
+  font-weight: 700 !important;
+  background: var(--primary) !important;
+  color: var(--page-bg) !important;
 }
-
-.responsive-pagination button {
-	transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, opacity 0.2s ease-in-out;
-}
-
-@media (prefers-contrast: high) {
-	.responsive-pagination button {
-		border: 1px solid currentColor;
-	}
-}
-
-@media (prefers-reduced-motion: reduce) {
-	.responsive-pagination button {
-		transition: none;
-	}
-}
-
-@media (hover: none) and (pointer: coarse) {
-	.responsive-pagination button {
-		min-height: 44px;
-		min-width: 44px;
-	}
-	.mobile-pagination button {
-		min-height: 40px;
-		min-width: 40px;
-	}
-}
-
-@media (max-width: 768px) and (orientation: landscape) {
-	.mobile-pagination {
-		padding: 0 0.5rem;
-	}
-	.mobile-pagination button {
-		padding: 0.25rem;
-	}
+.pagination-btn.disabled,
+.pagination-btn[disabled] {
+  opacity: 0.3 !important;
+  pointer-events: none !important;
 }

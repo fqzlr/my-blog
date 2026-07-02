@@ -1,0 +1,461 @@
+---
+import { getCollection } from "astro:content";
+import { Icon } from "astro-icon/components";
+import WidgetLayout from "@/components/common/WidgetLayout.astro";
+import { externalMomentsConfig } from "@/config/externalMomentsConfig";
+import { externalNotebooksConfig } from "@/config/externalNotebooksConfig";
+import { externalBangumiConfig } from "@/config/externalBangumiConfig";
+import I18nKey from "@/i18n/i18nKey";
+import { i18n } from "@/i18n/translation";
+import { processCoverImageSync } from "@/utils/image-utils";
+import { getPostUrlBySlug } from "@/utils/url-utils";
+
+const momentsGistId = externalMomentsConfig.enable
+	? externalMomentsConfig.gistId
+	: "";
+const notebookGists = externalNotebooksConfig.enable
+	? externalNotebooksConfig.notebookGists
+	: {};
+const bangumiGistId = externalBangumiConfig.enable
+	? externalBangumiConfig.gistId
+	: "";
+
+const posts = await getCollection("posts", ({ data }) => {
+	return import.meta.env.PROD ? data.draft !== true : true;
+});
+const moments = await getCollection("moments");
+const bangumi = await getCollection("bangumi");
+const notebooksEntries = await getCollection("notebooks");
+const routinesEntries = await getCollection("routines");
+
+const notebookNames: Record<string, string> = {};
+for (const n of notebooksEntries) {
+	if (n.id.includes("_index")) {
+		const folder = n.id
+			.replace(/\\/g, "/")
+			.replace(/\/_index(\.md|\.json)?$/, "");
+		notebookNames[folder] = n.data.name || folder;
+	}
+}
+
+const allItems = [
+	...posts.map((p) => ({
+		type: "post",
+		title: p.data.title,
+		date: p.data.published,
+		url: getPostUrlBySlug(p.id),
+		image: processCoverImageSync(p.data.image || "api", p.id),
+		id: p.id,
+	})),
+	...moments.slice(0, 2).map((m) => {
+		let title = m.body || "";
+		title = title.replace(/[#*`]/g, "").trim();
+		if (title.length > 40) title = `${title.substring(0, 40)}...`;
+		if (!title) title = i18n(I18nKey.moments) || "日常动态";
+		let image = "";
+		if (Array.isArray(m.data.images) && m.data.images.length > 0) {
+			image =
+				typeof m.data.images[0] === "string"
+					? m.data.images[0]
+					: (m.data.images[0] as any).src;
+		} else if (typeof m.data.images === "string") {
+			image = m.data.images;
+		}
+		return {
+			type: "moment",
+			title,
+			date: m.data.published,
+			url: `/moments/#${m.id}`,
+			image,
+			id: m.id,
+		};
+	}),
+	...bangumi.map((b) => {
+		let url = b.data.link || "";
+		if (!url) {
+			const slug = b.id
+				.replace(/\\/g, "/")
+				.replace(/\.(md|mdx|markdown)$/i, "");
+			url =
+				b.data.category === "book"
+					? `/books/${slug}/`
+					: b.data.category === "music"
+						? "/music/"
+						: "/movies-games/";
+		}
+		return {
+			type: "bangumi",
+			title: b.data.title,
+			date: b.data.published || new Date(0),
+			url,
+			image:
+				typeof b.data.image === "string"
+					? b.data.image
+					: (b.data.image as any).src,
+			id: b.id,
+		};
+	}),
+	...notebooksEntries
+		.filter((n) => !n.id.includes("_index"))
+		.sort(
+			(a, b) =>
+				(b.data.date ? new Date(b.data.date).getTime() : 0) -
+				(a.data.date ? new Date(a.data.date).getTime() : 0),
+		)
+		.slice(0, 2)
+		.map((n) => ({
+			type: "life-notebook",
+			title: `${notebookNames[n.id.split("/")[0]] || n.id.split("/")[0]} · ${n.data.name || "未命名"}`,
+			date: n.data.date || new Date(),
+			url: `/life/notebooks/${n.id.replace(/\\/g, "/").split("/")[0]}/${n.id.split("/").pop()?.replace(/\.md$/, "") || ""}/`,
+			image: "https://re.tsh520.cn/zl/life-notebook.webp",
+			id: n.id,
+		})),
+	...routinesEntries
+		.sort((a, b) => {
+			const dateA =
+				a.data.updatedAt instanceof Date ? a.data.updatedAt.getTime() : 0;
+			const dateB =
+				b.data.updatedAt instanceof Date ? b.data.updatedAt.getTime() : 0;
+			return dateB - dateA;
+		})
+		.slice(0, 2)
+		.map((r) => ({
+			type: "life-routine",
+			title: `规划: ${r.data.name}`,
+			date: r.data.updatedAt instanceof Date ? r.data.updatedAt : new Date(),
+			url: "/life/routines/",
+			image: "https://re.tsh520.cn/zl/life-routine.webp",
+			id: r.id,
+		})),
+];
+
+const recentItems = allItems
+	.sort((a, b) => b.date.getTime() - a.date.getTime())
+	.slice(0, 10);
+const defaultImage = "https://re.0824.uk/zl/tx.webp";
+
+const typeLabel: Record<string, () => string> = {
+	post: () => i18n(I18nKey.recentPosts),
+	moment: () => i18n(I18nKey.recentMoments),
+	bangumi: () => i18n(I18nKey.recentLife),
+	"life-notebook": () => "笔记",
+	"life-routine": () => "规划",
+};
+
+interface Props {
+	class?: string;
+	style?: string;
+}
+const className = Astro.props.class;
+const style = Astro.props.style;
+---
+
+<WidgetLayout name={i18n(I18nKey.recentItems)} id="recent-items" class={className} style={style}>
+  <Icon name="material-symbols:history" slot="title-icon" class="text-xl" />
+  <div class="flex flex-col" id="recent-items-list">
+    {(momentsGistId || Object.keys(notebookGists).length > 0) && <div id="ext-recent-items"></div>}
+    {recentItems.map((item, i) => (
+      <a href={item.url} class="recent-item group" style={`animation-delay: ${i * 50}ms`}>
+        <div class="recent-thumb">
+          <img src={item.image || defaultImage} alt={item.title} class="w-full h-full object-cover"
+            onerror={`this.onerror=null;this.src='${defaultImage}';`} loading="lazy" />
+        </div>
+        <div class="recent-body">
+          <span class="recent-title">{item.title}</span>
+          <span class="recent-date">
+            <Icon name="material-symbols:calendar-today-outline" class="text-[10px]" />
+            {item.date.toISOString().substring(0, 10)}
+            <span class="recent-badge">{typeLabel[item.type]?.() || item.type}</span>
+          </span>
+        </div>
+      </a>
+    ))}
+  </div>
+</WidgetLayout>
+
+<style>
+  .recent-item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.5rem 0.375rem;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: background-color 0.15s ease;
+    animation: recentFadeIn 0.3s ease backwards;
+  }
+  @keyframes recentFadeIn {
+    from { opacity: 0; transform: translateX(-6px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  .recent-item:hover {
+    background-color: var(--btn-plain-bg-hover);
+  }
+  :root.dark .recent-item:hover {
+    background-color: oklch(0.16 0 0);
+  }
+  .recent-item + .recent-item {
+    border-top: 1px solid var(--line-divider);
+  }
+  .recent-item:first-child { border-top: none; }
+
+  .recent-thumb {
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid #000;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  :root.dark .recent-thumb {
+    border-color: #3f3f46;
+  }
+  .recent-item:hover .recent-thumb {
+    border-color: var(--primary);
+    transform: scale(1.08);
+  }
+  :root.dark .recent-item:hover .recent-thumb {
+    border-color: #fff;
+  }
+
+  .recent-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .recent-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--deep-text);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    transition: color 0.15s;
+  }
+  .recent-item:hover .recent-title {
+    color: var(--primary);
+  }
+
+  .recent-date {
+    font-size: 0.65rem;
+    color: var(--content-meta);
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .recent-badge {
+    margin-left: auto;
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    background: var(--btn-plain-bg-hover);
+    color: var(--primary);
+    transition: background-color 0.15s;
+  }
+  :root.dark .recent-badge {
+    background: oklch(0.20 0 0);
+  }
+  .recent-item:hover .recent-badge {
+    background: var(--primary);
+    color: var(--page-bg);
+  }
+  :root.dark .recent-item:hover .recent-badge {
+    background: #fff;
+    color: #000;
+  }
+</style>
+
+{(momentsGistId || Object.keys(notebookGists).length > 0) && (
+<style is:global>
+  #ext-recent-items .recent-item {
+    display: flex; align-items: center; gap: 0.625rem;
+    padding: 0.5rem 0.375rem; border-radius: 8px;
+    text-decoration: none; transition: background-color 0.15s ease;
+    animation: recentFadeIn 0.3s ease backwards;
+  }
+  #ext-recent-items .recent-item:hover { background-color: var(--btn-plain-bg-hover); }
+  :root.dark #ext-recent-items .recent-item:hover { background-color: oklch(0.16 0 0); }
+  #ext-recent-items .recent-item + .recent-item { border-top: 1px solid var(--line-divider); }
+  #ext-recent-items .recent-thumb {
+    width: 40px; height: 40px; flex-shrink: 0; border-radius: 8px;
+    overflow: hidden; border: 2px solid #000; transition: border-color 0.2s, transform 0.2s;
+  }
+  :root.dark #ext-recent-items .recent-thumb { border-color: #3f3f46; }
+  #ext-recent-items .recent-item:hover .recent-thumb { border-color: var(--primary); transform: scale(1.08); }
+  :root.dark #ext-recent-items .recent-item:hover .recent-thumb { border-color: #fff; }
+  #ext-recent-items .recent-body {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  }
+  #ext-recent-items .recent-title {
+    font-size: 0.75rem; font-weight: 600; color: var(--deep-text);
+    line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical; overflow: hidden; transition: color 0.15s;
+  }
+  #ext-recent-items .recent-item:hover .recent-title { color: var(--primary); }
+  #ext-recent-items .recent-date {
+    font-size: 0.65rem; color: var(--content-meta);
+    display: flex; align-items: center; gap: 3px;
+  }
+  #ext-recent-items .recent-badge {
+    margin-left: auto; display: inline-block; padding: 1px 6px;
+    border-radius: 4px; font-size: 0.55rem; font-weight: 700;
+    letter-spacing: 0.05em; text-transform: uppercase;
+    background: var(--btn-plain-bg-hover); color: var(--primary);
+    transition: background-color 0.15s;
+  }
+  :root.dark #ext-recent-items .recent-badge { background: oklch(0.20 0 0); }
+  #ext-recent-items .recent-item:hover .recent-badge { background: var(--primary); color: var(--page-bg); }
+  :root.dark #ext-recent-items .recent-item:hover .recent-badge { background: #fff; color: #000; }
+</style>
+<script is:inline data-moments-gist={momentsGistId} data-notebook-gists={JSON.stringify(notebookGists)} data-bangumi-gist={bangumiGistId}>
+(function() {
+  var _s = document.currentScript;
+  var MOMENTS_GIST = _s.getAttribute("data-moments-gist");
+  var NB_GISTS = JSON.parse(_s.getAttribute("data-notebook-gists") || "{}");
+  var BANGUMI_GIST = _s.getAttribute("data-bangumi-gist");
+  var containers = document.querySelectorAll("#ext-recent-items");
+  if (!containers.length) return;
+
+  var allRemote = [];
+  var fetched = 0;
+  var total = 0;
+
+  function esc(s) { var d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+
+  function collectLocalItems() {
+    var items = [];
+    document.querySelectorAll("#recent-items-list > a.recent-item").forEach(function(el) {
+      var titleEl = el.querySelector(".recent-title");
+      var dateEl = el.querySelector(".recent-date");
+      var imgEl = el.querySelector(".recent-thumb img");
+      var badgeEl = el.querySelector(".recent-badge");
+      var dateText = dateEl ? dateEl.textContent.replace(/[^\d-]/g, "").trim() : "";
+      if (dateText.length >= 10) dateText = dateText.substring(0, 10);
+      items.push({
+        title: titleEl ? titleEl.textContent.trim() : "",
+        date: dateText,
+        url: el.getAttribute("href") || "",
+        image: imgEl ? imgEl.getAttribute("src") : "",
+        badge: badgeEl ? badgeEl.textContent.trim() : ""
+      });
+    });
+    return items;
+  }
+
+  function render() {
+    var localItems = collectLocalItems();
+    var all = allRemote.concat(localItems);
+    all.sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
+
+    var total = Math.min(all.length, 10);
+    var top = all.slice(0, total);
+    var defaultImg = "https://re.0824.uk/zl/tx.webp";
+    var html = top.map(function(m, i) {
+      var img = m.image || defaultImg;
+      return '<a href="' + esc(m.url) + '" class="recent-item" style="animation-delay:' + (i * 50) + 'ms">' +
+        '<div class="recent-thumb"><img src="' + img + '" alt="" class="w-full h-full object-cover" onerror="this.onerror=null;this.src=\'' + defaultImg + '\';" loading="lazy"></div>' +
+        '<div class="recent-body"><span class="recent-title">' + esc(m.title) + '</span>' +
+        '<span class="recent-date"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg> ' + m.date + ' <span class="recent-badge">' + esc(m.badge) + '</span></span></div></a>';
+    }).join("");
+
+    // 隐藏原始本地条目
+    document.querySelectorAll("#recent-items-list > a.recent-item").forEach(function(el) {
+      el.style.display = "none";
+    });
+
+    // 渲染合并后的列表到所有实例（桌面端 + 移动端）
+    containers.forEach(function(c) {
+      c.innerHTML = html;
+    });
+  }
+
+  function done() { fetched++; if (fetched >= total) render(); }
+
+  // 获取远程说说
+  if (MOMENTS_GIST) {
+    total++;
+    fetch("https://gist.githubusercontent.com/raw/" + MOMENTS_GIST + "?t=" + Date.now())
+      .then(function(r) { if (!r.ok) return null; return r.text(); })
+      .then(function(text) {
+        if (!text) return;
+        var moments = [];
+        try { moments = JSON.parse(text); } catch(e) { return; }
+        if (!Array.isArray(moments)) return;
+        moments.forEach(function(m) {
+          var title = (m.content || "").replace(/[#*`]/g, "").trim();
+          if (title.length > 40) title = title.substring(0, 40) + "...";
+          if (!title) title = "日常动态";
+          var img = "";
+          if (m.images && m.images.length) img = typeof m.images[0] === "string" ? m.images[0] : "";
+          allRemote.push({ type: "moment", title: title, date: (m.published || "").substring(0, 10), url: "/moments/", image: img, badge: "说说" });
+        });
+      })
+      .catch(function() {})
+      .finally(done);
+  }
+
+  // 获取远程笔记
+  var nbKeys = Object.keys(NB_GISTS);
+  nbKeys.forEach(function(nbName) {
+    var gistId = NB_GISTS[nbName];
+    if (!gistId) return;
+    total++;
+    fetch("https://gist.githubusercontent.com/raw/" + gistId + "?t=" + Date.now())
+      .then(function(r) { if (!r.ok) return null; return r.text(); })
+      .then(function(text) {
+        if (!text) return;
+        var entries = [];
+        try { entries = JSON.parse(text); } catch(e) { return; }
+        if (!Array.isArray(entries)) return;
+        entries.forEach(function(e) {
+          allRemote.push({ type: "notebook", title: nbName + " · " + (e.title || "未命名"), date: (e.date || "").substring(0, 10), url: "/life/notebooks/" + encodeURIComponent(nbName) + "/", image: "", badge: "笔记" });
+        });
+      })
+      .catch(function() {})
+      .finally(done);
+  });
+
+  // 获取远程影视
+  if (BANGUMI_GIST) {
+    total++;
+    fetch("https://api.github.com/gists/" + BANGUMI_GIST, {
+      headers: { "Accept": "application/vnd.github+json" }
+    })
+      .then(function(r) { if (!r.ok) return null; return r.json(); })
+      .then(function(gist) {
+        var file = gist.files["bangumi.json"];
+        if (!file) return;
+        var items = [];
+        try { items = JSON.parse(file.content || "[]"); } catch(e) { return; }
+        if (!Array.isArray(items)) return;
+        var statusText = { 1: "想看", 2: "看过", 3: "在看", 4: "搁置", 5: "抛弃" };
+        items.forEach(function(item) {
+          var title = item.name_cn || item.title || "未命名";
+          var img = item.image || "";
+          var badge = statusText[item.status] || "影视";
+          allRemote.push({ type: "bangumi", title: title, date: (item.updated_at || "").substring(0, 10), url: "/movies-games/", image: img, badge: badge });
+        });
+      })
+      .catch(function() {})
+      .finally(done);
+  }
+
+  if (total === 0) { containers.forEach(function(c) { c.style.display = "none"; }); return; }
+
+  // 超时保护
+  setTimeout(function() { if (fetched < total) { fetched = total; render(); } }, 5000);
+})();
+</script>
+)}

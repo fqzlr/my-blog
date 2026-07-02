@@ -1,26 +1,45 @@
 ---
 import Live2DWidget from "@components/features/Live2DWidget.astro";
-import PrivacyModal from "@components/features/PrivacyModal.astro";
+
 import SpineModel from "@components/features/SpineModel.astro";
 import Footer from "@components/layout/Footer.astro";
 import Navbar from "@components/layout/Navbar.astro";
-import NavMenuPanel from "@components/layout/NavMenuPanel.astro";
+import SideBar from "@components/layout/SideBar.astro";
 import type { MarkdownHeading } from "astro";
-import AISearch from "@/components/controls/AISearch.svelte";
+import { Icon } from "astro-icon/components";
+import ImageWrapper from "@/components/common/ImageWrapper.astro";
 import FloatingDock from "@/components/controls/FloatingDock.astro";
-import SearchModal from "@/components/controls/SearchModal.svelte";
-import CategoryBar from "@/components/layout/CategoryBar.astro";
-
-import { live2dModelConfig, navBarConfig, siteConfig } from "@/config";
-import { LinkPresets } from "@/constants/link-presets";
+import TypewriterText from "@/components/features/TypewriterText.astro";
+import {
+	backgroundWallpaper,
+	commentConfig,
+	live2dModelConfig,
+	sidebarLayoutConfig,
+	siteConfig,
+} from "@/config";
+import { externalMomentsConfig } from "@/config/externalMomentsConfig";
+import {
+	BANNER_HEIGHT,
+	BANNER_HEIGHT_EXTEND,
+	MAIN_PANEL_OVERLAPS_BANNER_HEIGHT,
+} from "@/constants/constants";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
+import { formatDateToYYYYMMDD } from "@/utils/date-utils";
+import { getImageQuality } from "@/utils/image-utils";
+import { getBackgroundImages, isHomePage } from "@/utils/layout-utils";
+import {
+	generateGridClasses,
+	generateMainContentClasses,
+	generateRightSidebarClasses,
+	generateSidebarClasses,
+	getResponsiveSidebarConfig,
+	type ResponsiveSidebarConfig,
+} from "@/utils/responsive-utils";
 import Layout from "./Layout.astro";
 
-import "@/styles/markdown.css";
-import "@/styles/expressive-code.css";
-import "@/styles/toc.css";
-import "@/styles/collections.css";
+import "@/styles/features/markdown.css";
+import "@/styles/vendor/expressive-code.css";
 
 interface Props {
 	title?: string;
@@ -29,8 +48,11 @@ interface Props {
 	lang?: string;
 	setOGTypeArticle?: boolean;
 	postSlug?: string;
-	postCategory?: string;
 	headings?: MarkdownHeading[];
+	prevSlug?: string;
+	prevTitle?: string;
+	nextSlug?: string;
+	nextTitle?: string;
 	bannerPostMeta?: {
 		title: string;
 		published: Date;
@@ -40,6 +62,8 @@ interface Props {
 	};
 }
 
+const backgroundImages = getBackgroundImages();
+
 const {
 	title,
 	banner,
@@ -47,211 +71,975 @@ const {
 	lang,
 	setOGTypeArticle,
 	postSlug,
-	postCategory,
 	headings = [],
-	bannerPostMeta: _bannerPostMeta,
+	bannerPostMeta,
 } = Astro.props;
 
+// 检查背景壁纸模式和是否允许切换
+const isBannerMode = backgroundWallpaper.mode === "banner";
+const isOverlayMode = backgroundWallpaper.mode === "overlay";
+const isBackgroundEnabled = backgroundWallpaper.mode !== "none";
+const isWallpaperSwitchable = backgroundWallpaper.switchable ?? true;
+
+// 检查是否启用水波纹动画效果
+const wavesConfig = backgroundWallpaper.banner?.waves?.enable;
+const wavesSwitchable = backgroundWallpaper.banner?.waves?.switchable ?? false;
+// 处理分设备控制的水波纹动画
+const wavesEnabledOnDesktop =
+	typeof wavesConfig === "object" ? wavesConfig.desktop : wavesConfig;
+const wavesEnabledOnMobile =
+	typeof wavesConfig === "object" ? wavesConfig.mobile : wavesConfig;
+// 是否需要渲染水波纹元素（任一设备启用 或 允许用户切换）
+const shouldRenderWaves =
+	wavesEnabledOnDesktop || wavesEnabledOnMobile || wavesSwitchable;
+
+// 处理分设备控制的横幅信贷显示
+const creditEnableConfig = backgroundWallpaper.banner?.credit?.enable;
+const creditEnabledOnDesktop =
+	typeof creditEnableConfig === "object"
+		? creditEnableConfig.desktop
+		: creditEnableConfig;
+const creditEnabledOnMobile =
+	typeof creditEnableConfig === "object"
+		? creditEnableConfig.mobile
+		: creditEnableConfig;
+
+const hasBannerCredit =
+	isBannerMode && isBackgroundEnabled && creditEnableConfig;
+
+// 处理分设备控制的横幅信贷文本和链接
+const creditTextConfig = backgroundWallpaper.banner?.credit?.text;
+const creditTextDesktop =
+	typeof creditTextConfig === "object"
+		? creditTextConfig.desktop
+		: creditTextConfig;
+const creditTextMobile =
+	typeof creditTextConfig === "object"
+		? creditTextConfig.mobile
+		: creditTextConfig;
+
+const creditUrlConfig = backgroundWallpaper.banner?.credit?.url;
+const creditUrlDesktop =
+	typeof creditUrlConfig === "object"
+		? creditUrlConfig.desktop
+		: creditUrlConfig;
+const creditUrlMobile =
+	typeof creditUrlConfig === "object"
+		? creditUrlConfig.mobile
+		: creditUrlConfig;
+
+// 检查是否为首页
+const isHomePageCheck = isHomePage(Astro.url.pathname);
+
+// 检查是否在文章详情页
 const isPostPage = !!postSlug;
-const shouldRenderCategoryBar = !!siteConfig.categoryBar;
+
+// 随机选择副标题（当打字机关闭且为数组时）
+const getRandomSubtitle = () => {
+	const subtitle = backgroundWallpaper.banner?.homeText?.subtitle;
+	if (Array.isArray(subtitle)) {
+		const randomIndex = Math.floor(Math.random() * subtitle.length);
+		return subtitle[randomIndex];
+	}
+	return subtitle;
+};
+const randomSubtitle = getRandomSubtitle();
+
+// 主页横幅文本只在首页且全局开关为 true 时显示，不区分设备
+const homeTextEnable = backgroundWallpaper.banner?.homeText?.enable;
+const showHomeText = isBannerMode && !!homeTextEnable && isHomePageCheck;
+
+const showBannerPostMeta =
+	isBannerMode &&
+	isBackgroundEnabled &&
+	!isHomePageCheck &&
+	isPostPage &&
+	!!bannerPostMeta;
+
+const showBannerDim = isBannerMode && isBackgroundEnabled;
+
+const showBannerPageTitle =
+	isBannerMode &&
+	isBackgroundEnabled &&
+	!isHomePageCheck &&
+	!isPostPage &&
+	!!title;
+// 手机端非首页不显示banner的CSS类
+const mobileNonHomeBannerClass = !isHomePageCheck ? "mobile-hide-banner" : "";
+
+// 计算主内容区域位置，考虑手机端非首页时banner被隐藏
+const mainPanelTop =
+	isBannerMode && isBackgroundEnabled
+		? `calc(${BANNER_HEIGHT}vh - ${MAIN_PANEL_OVERLAPS_BANNER_HEIGHT}rem)`
+		: "5.5rem";
+
+// 当banner模式被禁用时，主内容区域应该始终从顶栏下面开始
+// 非首页在小于1024px时会通过 mobile-main-no-banner CSS类覆盖top值为5.5rem
+const finalMainPanelTop =
+	isBannerMode && isBackgroundEnabled ? mainPanelTop : "5.5rem";
+
+// 获取响应式侧边栏配置
+const sidebarConfig = getResponsiveSidebarConfig();
+
+// 在文章页面且启用了showBothSidebarsOnPostPage时，确保对侧组件参与网格计算
+const shouldShowBothSidebarsOnPostPage: boolean =
+	isPostPage &&
+	sidebarLayoutConfig.position !== "both" &&
+	!!sidebarLayoutConfig.showBothSidebarsOnPostPage;
+
+// position为left时，对侧为右侧；position为right时，对侧为左侧
+const shouldAddRightSidebar: boolean =
+	shouldShowBothSidebarsOnPostPage && sidebarLayoutConfig.position === "left";
+const shouldAddLeftSidebar: boolean =
+	shouldShowBothSidebarsOnPostPage && sidebarLayoutConfig.position === "right";
+
+const effectiveIsBothSidebars: boolean =
+	sidebarConfig.isBothSidebars || shouldShowBothSidebarsOnPostPage;
+const effectiveHasRightComponents: boolean =
+	sidebarConfig.hasRightComponents ||
+	(shouldAddRightSidebar &&
+		sidebarLayoutConfig.rightComponents.some((comp) => comp.enable));
+const effectiveHasLeftComponents: boolean =
+	sidebarConfig.hasLeftComponents ||
+	(shouldAddLeftSidebar &&
+		sidebarLayoutConfig.leftComponents.some((comp) => comp.enable));
+
+// 使用effective值重新生成网格类
+// 当position为right且文章页临时显示左侧栏时，tabletSidebar应为right（保持显示主侧栏）
+const effectiveTabletSidebar = shouldAddLeftSidebar
+	? ("right" as const)
+	: sidebarConfig.tabletSidebar;
+
+const updatedGridConfig: ResponsiveSidebarConfig = {
+	...sidebarConfig,
+	isBothSidebars: effectiveIsBothSidebars,
+	hasLeftComponents: effectiveHasLeftComponents,
+	hasRightComponents: effectiveHasRightComponents,
+	tabletSidebar: effectiveTabletSidebar,
+};
+
+const { gridCols: baseGridCols } = generateGridClasses(updatedGridConfig);
+const sidebarClass = generateSidebarClasses(updatedGridConfig);
+const rightSidebarClass =
+	effectiveIsBothSidebars || sidebarLayoutConfig.position === "right"
+		? generateRightSidebarClasses(updatedGridConfig)
+		: "";
+const mainContentClass = generateMainContentClasses(updatedGridConfig);
+const staticBarClass = mainContentClass.replace("transition-main", "").trim();
+
+// grid-class-carrier 始终存储非首页的网格类，供 JS 恢复用
+const gridCols = baseGridCols;
+const showSidebars = !isHomePageCheck;
+
+const footerClass = ["footer", "col-span-1", "onload-animation"];
+
+if (
+	updatedGridConfig.isBothSidebars &&
+	updatedGridConfig.hasLeftComponents &&
+	updatedGridConfig.hasRightComponents
+) {
+	// 双侧栏：平板端跨2列，桌面端在中间列
+	footerClass.push("md:col-span-2 xl:col-start-2 xl:col-span-1");
+} else if (
+	updatedGridConfig.hasLeftComponents &&
+	!updatedGridConfig.hasRightComponents
+) {
+	footerClass.push("md:col-span-2 xl:col-start-2 xl:col-span-1");
+} else if (
+	!updatedGridConfig.hasLeftComponents &&
+	updatedGridConfig.hasRightComponents
+) {
+	// 仅右侧栏：平板端跨2列，内容在第1列
+	footerClass.push("md:col-span-2 md:col-start-1 xl:col-start-1 xl:col-span-1");
+} else {
+	footerClass.push("xl:col-start-1 xl:col-span-1");
+}
+
+const footerClassName = footerClass.join(" ");
+
+// 检查是否应该启用半透明效果
+const shouldEnableTransparency = isOverlayMode && isBackgroundEnabled;
+
+// 为组件添加半透明效果的CSS类
+const transparentClass = shouldEnableTransparency
+	? "wallpaper-transparent"
+	: "";
+
 const navbarWidthFull = siteConfig.navbar.widthFull ?? false;
 
-const navLinks = navBarConfig.links.map((item) => {
-	if (typeof item === "number") return LinkPresets[item];
-	return item;
-});
+// 获取图片质量配置
+const configQuality = getImageQuality();
+const mobileQuality = Math.round(configQuality * 0.9);
 ---
 
 <Layout title={title} banner={banner} description={description} lang={lang} setOGTypeArticle={setOGTypeArticle} postSlug={postSlug}>
 
+
+<!-- 为全屏壁纸模式添加body类 -->
+{shouldEnableTransparency && (
+	<script>
+		document.body.classList.add('wallpaper-transparent');
+	</script>
+)}
+
+<!-- Navbar -->
 <slot slot="head" name="head"></slot>
-
-{/* Navbar — 极简 sticky 顶栏 */}
-<div
-	id="top-row"
-	class="z-50 pointer-events-none relative mx-auto"
-	class:list={[
-		"sticky top-0 left-0 right-0 z-80",
-		navbarWidthFull ? "w-full" : "w-full max-w-(--page-width) px-0 md:px-4",
-	]}
->
-	<div id="navbar-wrapper" class="pointer-events-auto bg-transparent">
-		<Navbar></Navbar>
-	</div>
+<div id="navbar-wrapper" class="pointer-events-auto transition-all" data-full-width={String(navbarWidthFull)}>
+    <Navbar></Navbar>
 </div>
 
-<NavMenuPanel links={navLinks} />
+<!-- Wallpaper - 如果允许切换则始终渲染，否则只渲染当前模式 -->
+{(isWallpaperSwitchable || isBannerMode || isOverlayMode) && (
+<div id="wallpaper-wrapper" class:list={[
+	`absolute z-10 w-full transition duration-700 overflow-hidden ${mobileNonHomeBannerClass}`,
+	(isOverlayMode && !isWallpaperSwitchable) || (isWallpaperSwitchable && !isBannerMode) ? 'wallpaper-overlay' : ''
+]} style={
+	isWallpaperSwitchable
+		? `top: -${BANNER_HEIGHT_EXTEND}vh; display: none; --overlay-opacity: ${backgroundWallpaper.overlay?.opacity ?? 0.8}; --overlay-z-index: ${backgroundWallpaper.overlay?.zIndex ?? -1}; --overlay-blur: ${backgroundWallpaper.overlay?.blur ?? 0}px;`
+		: isOverlayMode
+			? `--overlay-opacity: ${backgroundWallpaper.overlay?.opacity ?? 0.8}; --overlay-z-index: ${backgroundWallpaper.overlay?.zIndex ?? -1}; --overlay-blur: ${backgroundWallpaper.overlay?.blur ?? 0}px;`
+			: `top: -${BANNER_HEIGHT_EXTEND}vh`
+}>
+    <!-- 背景图片显示 -->
+    <div class="relative h-full w-full" id="banner-images-container"
+         data-mobile-count={backgroundImages.mobile.length}
+         data-desktop-count={backgroundImages.desktop.length}>
+        <!-- Mobile: 默认渲染第一张，其余放入 template 避免浏览器预加载 -->
+        {backgroundImages.mobile.length > 0 && (
+            <div class="banner-image-slot-mobile absolute inset-0 block lg:hidden">
+                <ImageWrapper
+                    alt="Mobile background image of the blog"
+                    class="object-cover h-full w-full"
+                    src={backgroundImages.mobile[0]}
+                    position={backgroundWallpaper.banner?.position}
+                    widths={[640, 750, 1080]}
+                    sizes="100vw"
+                    loading="eager"
+                    fetchpriority="high"
+                    quality={mobileQuality}
+                />
+            </div>
+        )}
+        {backgroundImages.mobile.slice(1).map((src) => (
+            <template class="banner-tpl-mobile">
+                <ImageWrapper
+                    alt="Mobile background image of the blog"
+                    class="object-cover h-full w-full"
+                    src={src}
+                    position={backgroundWallpaper.banner?.position}
+                    widths={[640, 750, 1080]}
+                    sizes="100vw"
+                    loading="eager"
+                    fetchpriority="high"
+                    quality={mobileQuality}
+                />
+            </template>
+        ))}
+        <!-- Desktop: 默认渲染第一张，其余放入 template -->
+        {backgroundImages.desktop.length > 0 && (
+            <div class="banner-image-slot-desktop absolute inset-0 hidden md:block">
+                <ImageWrapper
+                    id="banner"
+                    alt="Desktop background image of the blog"
+                    class="object-cover h-full"
+                    src={backgroundImages.desktop[0]}
+                    position={backgroundWallpaper.banner?.position}
+                    widths={[1280, 1920, 2560]}
+                    sizes="100vw"
+                    loading="eager"
+                    fetchpriority="high"
+                    quality={configQuality}
+                />
+            </div>
+        )}
+        {backgroundImages.desktop.slice(1).map((src) => (
+            <template class="banner-tpl-desktop">
+                <ImageWrapper
+                    id="banner"
+                    alt="Desktop background image of the blog"
+                    class="object-cover h-full"
+                    src={src}
+                    position={backgroundWallpaper.banner?.position}
+                    widths={[1280, 1920, 2560]}
+                    sizes="100vw"
+                    loading="eager"
+                    fetchpriority="high"
+                    quality={configQuality}
+                />
+            </template>
+        ))}
+    </div>
 
-{/* 主内容容器 — 单列居中，无壁纸/三栏 */}
-<div class="relative w-full" id="main-grid-wrapper">
-	<div class="mx-auto max-w-5xl px-4 md:px-6" data-sidebar-position="none" id="main-grid">
-		{/* Swup 占位：保留 left/right sidebar 容器以满足 swup containers 协议 */}
-		<div id="left-sidebar-dynamic" class="hidden transition-swup-main"></div>
-		<div id="right-sidebar-dynamic" class="hidden transition-swup-main"></div>
+    <!-- 客户端随机选择图片脚本 -->
+    <script is:inline data-swup-ignore-script>
+        (function randomizeBannerImage() {
+            var container = document.getElementById('banner-images-container');
+            if (!container) return;
 
-		<main id="swup-container" class="transition-swup-main" data-current-post-category={postCategory || ""}>
-			{isPostPage && (
-				<div id="article-toc-wrapper" class="article-toc-wrapper hidden xl:block">
-					<div id="article-toc-container" class="article-toc-container">
-						<div class="article-toc-header">
-							<span class="article-toc-title">{i18n(I18nKey.tableOfContents)}</span>
-						</div>
-						<div class="toc-scroll-container custom-scrollbar article-toc-body">
-							<div class="toc-content" id="article-toc-content"></div>
-						</div>
-					</div>
-				</div>
-			)}
-			{shouldRenderCategoryBar && <div id="category-bar-wrapper"><CategoryBar title={title} postSlug={postSlug} postCategory={postCategory} /></div>}
-			<h1 class="sr-only">{title}</h1>
+            var mobileCount = parseInt(container.dataset.mobileCount || '0', 10);
+            var desktopCount = parseInt(container.dataset.desktopCount || '0', 10);
+
+            if (mobileCount <= 1 && desktopCount <= 1) return;
+
+            // F5 刷新重置，Swup 切换保留
+            if (typeof window.__bannerRandomIndex === 'undefined') {
+                window.__bannerRandomIndex = {
+                    mobile: mobileCount > 1 ? Math.floor(Math.random() * mobileCount) : 0,
+                    desktop: desktopCount > 1 ? Math.floor(Math.random() * desktopCount) : 0
+                };
+            }
+
+            // 从 template 替换默认图片（index 0 = 已渲染的默认图，>0 = template）
+            function applyRandom(slotClass, tplClass, randomIndex) {
+                if (randomIndex === 0) return;
+                var slot = container.querySelector('.' + slotClass);
+                var templates = container.querySelectorAll('.' + tplClass);
+                if (!slot || !templates.length) return;
+                var tpl = templates[randomIndex - 1];
+                if (!tpl) return;
+                slot.innerHTML = '';
+                slot.appendChild(tpl.content.cloneNode(true));
+            }
+
+            applyRandom('banner-image-slot-mobile', 'banner-tpl-mobile', window.__bannerRandomIndex.mobile);
+            applyRandom('banner-image-slot-desktop', 'banner-tpl-desktop', window.__bannerRandomIndex.desktop);
+        })();
+    </script>
+    
+    <div id="banner-dim-container" class="absolute inset-0 z-0 pointer-events-none">
+        {showBannerDim && <div class="banner-dim-overlay absolute inset-0"></div>}
+    </div>
+
+    <div id="banner-overlay-container" class="absolute inset-0 z-20 pointer-events-none transition-swup-fade">    <!-- Home page text overlay - 始终渲染以便切换模式时控制显示 -->
+    {homeTextEnable && (
+        <div class={`banner-home-text-overlay absolute inset-0 z-20 flex items-center justify-center ${!showHomeText ? 'hidden' : ''}`}>
+            <div class="w-4/5 lg:w-3/4 text-center mb-0">
+                <div class="flex flex-col">
+                    {backgroundWallpaper.banner?.homeText?.title && (
+                        <h1 class="banner-title font-bold text-white mb-2 lg:mb-4 leading-tight" style={{ fontSize: backgroundWallpaper.banner.homeText.titleSize || "3rem" }}>
+                            {backgroundWallpaper.banner.homeText.title}
+                        </h1>
+                    )}
+                    {backgroundWallpaper.banner?.homeText?.subtitle && (
+                        <h2 id="banner-subtitle" class="banner-subtitle text-white/90 leading-snug" style={{ fontSize: backgroundWallpaper.banner.homeText.subtitleSize || "1.5rem" }} data-subtitles={JSON.stringify(backgroundWallpaper.banner.homeText.subtitle)}>
+                            {backgroundWallpaper.banner.homeText.typewriter?.enable ? (
+                                <TypewriterText
+                                    text={backgroundWallpaper.banner.homeText.subtitle}
+                                    speed={backgroundWallpaper.banner.homeText.typewriter.speed}
+                                    deleteSpeed={backgroundWallpaper.banner.homeText.typewriter.deleteSpeed}
+                                    pauseTime={backgroundWallpaper.banner.homeText.typewriter.pauseTime}
+                                />
+                            ) : (
+                                randomSubtitle
+                            )}
+                        </h2>
+                    )}
+                </div>
+            </div>
+        </div>
+    )}
+
+    <script is:inline>
+        function setRandomSubtitle() {
+            const subtitleElement = document.getElementById('banner-subtitle');
+            if (!subtitleElement) return;
+
+            const subtitlesData = subtitleElement.dataset.subtitles;
+            if (!subtitlesData) return;
+
+            try {
+                const subtitles = JSON.parse(subtitlesData);
+                // Only randomize if it's an array and typewriter is NOT enabled (check for typewriter class)
+                if (Array.isArray(subtitles) && subtitles.length > 0 && !subtitleElement.querySelector('.typewriter')) {
+                    // Use a global variable to persist the subtitle across Swup navigations
+                    // This variable will be reset on full page reload (F5), meeting the requirement
+                    if (!window.fireflyCachedSubtitle) {
+                        const randomIndex = Math.floor(Math.random() * subtitles.length);
+                        window.fireflyCachedSubtitle = subtitles[randomIndex];
+                    }
+                    subtitleElement.textContent = window.fireflyCachedSubtitle;
+                }
+            } catch (e) {
+                console.error("Failed to parse subtitles", e);
+            }
+        }
+
+        // Run on initial load
+        setRandomSubtitle();
+    </script>
+
+    <!-- Non-home non-post page title overlay (desktop only) -->
+    {showBannerPageTitle && (
+        <div class="banner-page-title-overlay absolute inset-0 z-20 hidden lg:flex items-center justify-center pointer-events-none">
+            <div class="w-4/5 lg:w-3/4 text-center mb-0">
+                <h1 class="banner-page-title font-bold text-white leading-tight inline-flex items-center justify-center gap-3">
+                    {/* <Icon name="material-symbols:bookmark-rounded" class="banner-page-title-icon" /> */}
+                    <span class="banner-page-title-text">{title}</span>
+                </h1>
+            </div>
+        </div>
+    )}
+
+    <!-- Non-home post banner meta overlay (desktop only) -->
+    {showBannerPostMeta && bannerPostMeta && (
+        <div class="banner-post-meta-overlay absolute inset-0 z-20 hidden lg:flex items-center justify-center pointer-events-none">
+            <div class="w-4/5 lg:w-3/4 text-center mb-0">
+                <div class="flex flex-col items-center gap-3">
+                    <h1 class="banner-post-title font-bold text-white leading-tight">
+                        {bannerPostMeta.title}
+                    </h1>
+                    <div class="banner-post-meta-list flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-white/90 text-sm md:text-base">
+                        <span class="inline-flex items-center gap-1.5">
+                            <Icon name="material-symbols:calendar-month-outline-rounded" class="text-[1.05em]" />
+                            <span>{i18n(I18nKey.publishedAt)} {formatDateToYYYYMMDD(bannerPostMeta.published)}</span>
+                        </span>
+                        {bannerPostMeta.updated &&
+                            bannerPostMeta.updated.getTime() !== bannerPostMeta.published.getTime() && (
+                                <span class="inline-flex items-center gap-1.5">
+                                    <Icon name="material-symbols:update-rounded" class="text-[1.05em]" />
+                                    <span>{i18n(I18nKey.updatedAt)} {formatDateToYYYYMMDD(bannerPostMeta.updated)}</span>
+                                </span>
+                            )}
+                        {typeof bannerPostMeta.words === "number" && (
+                            <span class="inline-flex items-center gap-1.5">
+                                <Icon name="material-symbols:ink-pen-outline-rounded" class="text-[1.05em]" />
+                                <span>
+                                    {bannerPostMeta.words} {i18n(bannerPostMeta.words === 1 ? I18nKey.wordCount : I18nKey.wordsCount)}
+                                </span>
+                            </span>
+                        )}
+                        {typeof bannerPostMeta.minutes === "number" && (
+                            <span class="inline-flex items-center gap-1.5">
+                                <Icon name="material-symbols:schedule-outline-rounded" class="text-[1.05em]" />
+                                <span>
+                                    {bannerPostMeta.minutes} {i18n(bannerPostMeta.minutes === 1 ? I18nKey.minuteCount : I18nKey.minutesCount)} · {i18n(I18nKey.readTime)}
+                                </span>
+                            </span>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    )}
+    </div>
+
+    <!-- Water waves effect - 如果允许切换或任一设备启用则渲染 -->
+    {shouldRenderWaves ? (
+    <div class={`waves absolute -bottom-px h-[10vh] max-h-37.5 min-h-12.5 w-full md:h-[15vh]
+        ${!wavesEnabledOnMobile ? 'hidden' : ''} ${!wavesEnabledOnDesktop ? 'md:hidden' : ''} ${wavesEnabledOnDesktop ? 'md:block' : ''}`}
+        id="header-waves"
+        style="transform: translateZ(0); will-change: fill;">
+        <svg
+            class="waves"
+            xmlns="http://www.w3.org/2000/svg"
+            xmlns:xlink="http://www.w3.org/1999/xlink"
+            viewBox="0 24 150 28"
+            preserveAspectRatio="none"
+            shape-rendering="geometricPrecision"
+        >
+            <defs>
+                <path
+                    id="gentle-wave"
+                    d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v48h-352z"
+                >
+                </path>
+            </defs>
+            <g class="parallax">
+                <use
+                    xlink:href="#gentle-wave"
+                    x="48"
+                    y="0"
+                    class="opacity-25 fill-(--page-bg)"
+                ></use>
+                <use
+                    xlink:href="#gentle-wave"
+                    x="48"
+                    y="3"
+                    class="opacity-50 fill-(--page-bg)"
+                ></use>
+                <use
+                    xlink:href="#gentle-wave"
+                    x="48"
+                    y="5"
+                    class="opacity-65 fill-(--page-bg)"
+                ></use>
+                <use
+                    xlink:href="#gentle-wave"
+                    x="48"
+                    y="7"
+                    class=" opacity-75 fill-(--page-bg)"
+                ></use>
+            </g>
+        </svg>
+    </div>
+    ) : null}
+</div>
+)}
+
+{/* 当壁纸未渲染时，添加空的 Swup 占位容器，避免 Swup 找不到容器而回退为整页加载 */}
+{!(isWallpaperSwitchable || isBannerMode || isOverlayMode) && (
+<>
+    <div id="banner-overlay-container" class="hidden"></div>
+    <div id="banner-dim-container" class="hidden"></div>
+</>
+)}
+
+<!-- Main content -->
+<div class={`absolute w-full z-30 pointer-events-none ${mobileNonHomeBannerClass ? 'mobile-main-no-banner' : ''} ${!(isBannerMode && isBackgroundEnabled) ? 'no-banner-layout' : ''} ${transparentClass}`} style={`top: ${isHomePageCheck ? '0' : finalMainPanelTop}`}>
+    <!-- The pointer-events-none here prevent blocking the click event of the TOC -->
+    <div class="relative max-w-(--page-width) mx-auto pointer-events-auto">
+        <div id="main-grid"
+          class={`transition duration-700 w-full left-0 right-0 grid ${gridCols} grid-rows-[auto_1fr_auto] lg:grid-rows-[auto] mx-auto px-2 md:px-4 ${!sidebarConfig.mobileShowSidebar ? 'mobile-no-sidebar' : ''} ${isPostPage ? 'gap-0 is-post-layout' : 'gap-4'}`}
+          data-sidebar-position={sidebarLayoutConfig.position}
+          data-tablet-sidebar={sidebarLayoutConfig.tabletSidebar ?? "left"}
+          data-show-both-sidebars-on-post={sidebarLayoutConfig.showBothSidebarsOnPostPage ? "true" : "false"}
+        >
+            <!-- 网站浏览量 -->
+            {hasBannerCredit && (creditEnabledOnDesktop || creditEnabledOnMobile) && isHomePageCheck && <div
+                id="banner-credit"
+                class="onload-animation transition-all absolute justify-center items-center rounded-full px-3 right-4 -top-13 bg-black/60 h-9 flex"
+            >
+                <Icon class="text-white/75 text-[1.25rem] mr-1" name="material-symbols:visibility-outline-rounded" ></Icon>
+                <span class="text-white/75 text-xs waline-pageview-count" data-path="/" id="view-count">--</span><span class="text-white/75 text-xs"> 次浏览</span>
+            </div>}
 
 
+            {/* 渲染左侧边栏 - CSS .lg\:is-home 控制首页隐藏 */}
+            {sidebarLayoutConfig.position !== "right" ? (
+                <>
+                    <div id="left-sidebar-wrapper" class="contents" style="contain: layout style paint;">
+                        {effectiveHasLeftComponents && (
+                            <SideBar
+                                side={effectiveIsBothSidebars ? "left" : undefined}
+                                class={`${sidebarClass} ${transparentClass}`}
+                                headings={headings}
+                            />
+                        )}
+                    </div>
+                    <div id="left-sidebar-dynamic" class="hidden transition-swup-fade"></div>
+                </>
+            ) : (
+                <div id="left-sidebar-dynamic" class="contents transition-swup-fade">
+                    {effectiveIsBothSidebars && effectiveHasLeftComponents && (
+                        <SideBar side="left" class={`${sidebarClass} ${transparentClass}`} headings={headings}></SideBar>
+                    )}
+                </div>
+            )}
+                    
+            {/* 主内容区包装器 - 包含静态栏位和swup容器，作为单个grid item */}
+            <div id="main-content-wrapper" class={staticBarClass}>
+                {/* 主内容区 - 始终渲染，确保 Swup 容器存在 */}
+                <main id="swup-container" class="transition-main">
+                {/* 携带网格布局类名，用于JS更新父容器 */}
+                <div id="grid-class-carrier" data-grid-class={gridCols} class="hidden"></div>
+                {/* 备用 h1 标题 - 当主页横幅文本未启用时，提供隐藏的主标题 */}
+                {isHomePageCheck && !showHomeText && (
+                        <h1 class="sr-only">{siteConfig.title}</h1>
+                )}
+                <div id="content-wrapper" class="onload-animation transition-leaving">
+                    <slot></slot>
 
+                </div>
+                <FloatingDock headings={headings} />
+            </main>
+            </div>
 
+            {/* 右侧边栏 - CSS .lg\:is-home 控制首页隐藏 */}
+            {(sidebarLayoutConfig.position === "both" || sidebarLayoutConfig.position === "right") ? (
+                <>
+                    <div id="right-sidebar-static" class="contents">
+                        {(effectiveIsBothSidebars || sidebarLayoutConfig.position === "right") && effectiveHasRightComponents && (
+                            <SideBar side="right" class={`${rightSidebarClass} ${transparentClass}`} headings={headings}></SideBar>
+                        )}
+                    </div>
+                    <div id="right-sidebar-dynamic" class="hidden transition-swup-fade"></div>
+                </>
+            ) : (
+                <div id="right-sidebar-dynamic" class="contents transition-swup-fade">
+                    {effectiveIsBothSidebars && effectiveHasRightComponents && (
+                        <SideBar side="right" class={`${rightSidebarClass} ${transparentClass}`} headings={headings}></SideBar>
+                    )}
+                </div>
+            )}
 
-			<div id="content-wrapper" class="onload-animation">
-				<slot></slot>
-			</div>
-			<div class="footer onload-animation mt-16 pt-8 border-t">
-				<Footer></Footer>
-			</div>
-		</main>
+            {/* 移动端底部组件 - CSS .lg\:is-home 控制首页隐藏 */}
+            {sidebarLayoutConfig.mobileBottomComponents && sidebarLayoutConfig.mobileBottomComponents.length > 0 && (
+                <div id="mobile-bottom-sidebar" class="col-span-1 block md:hidden mt-4">
+                    <SideBar side="bottom" class={`${transparentClass}`} headings={headings}></SideBar>
+                </div>
+            )}
 
-		{/* Live2D / Spine — 由悬浮坞控制显隐 */}
-		<SpineModel></SpineModel>
-		{live2dModelConfig.enable && <Live2DWidget config={live2dModelConfig} />}
-	</div>
+            <div class={footerClassName}>
+                <Footer></Footer>
+            </div>
+        </div>
+
+        <SpineModel></SpineModel>
+        {live2dModelConfig.enable && <Live2DWidget config={live2dModelConfig} />}
+    </div>
 </div>
 
-<FloatingDock headings={headings} />
+{commentConfig.type === 'waline' && commentConfig.waline?.visitorCount && <script type="module" is:inline define:vars={{ serverURL: commentConfig.waline.serverURL }}>
+  import { pageviewCount } from 'https://unpkg.com/@waline/client@v3/dist/waline.js';
 
-<AISearch client:load />
+  pageviewCount({
+    serverURL,
+    path: "/",
+    update: true,
+  });
+</script>}
 
-<SearchModal
-	client:load
-	placeholders={[
-		"搜索文章、标签、分类...",
-		"输入关键词开始搜索",
-		"试试搜索「Astro」或「Svelte」",
-		"按 ESC 关闭搜索面板",
-		"Ctrl+K 快速切换AI搜索/普通搜索",
-	]}
-/>
+{externalMomentsConfig.enable && externalMomentsConfig.gistId && (
+<script is:inline data-swup-ignore-script
+  data-gist={externalMomentsConfig.gistId}
+  data-file={externalMomentsConfig.fileName}
+  data-author={externalMomentsConfig.defaultAuthor}
+  data-avatar={externalMomentsConfig.defaultAvatar}>
+(function() {
+  var _s = document.currentScript;
+  var gistId = _s.getAttribute("data-gist");
+  var fileName = _s.getAttribute("data-file");
+  var defaultAuthor = _s.getAttribute("data-author");
+  var defaultAvatar = _s.getAttribute("data-avatar");
 
-<PrivacyModal />
+  var cacheKey = "__externalMomentsCache";
+  var MARKER = "data-ext-inserted";
+
+  function formatTimeAgo(date) {
+    var now = new Date();
+    var diff = now - date;
+    var minutes = Math.floor(diff / 60000);
+    var hours = Math.floor(diff / 3600000);
+    var days = Math.floor(diff / 86400000);
+    if (minutes < 1) return "刚刚";
+    if (minutes < 60) return minutes + "分钟前";
+    if (hours < 24) return hours + "小时前";
+    if (days < 30) return days + "天前";
+    return date.getFullYear() + "-" + String(date.getMonth()+1).padStart(2,"0") + "-" + String(date.getDate()).padStart(2,"0");
+  }
+
+  function escapeHtml(text) {
+    var div = document.createElement("div"); div.textContent = text; return div.innerHTML;
+  }
+
+  function renderMarkdown(text) {
+    return escapeHtml(text)
+      .replace(/\n/g, "<br>")
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*(.*?)\*/g, "<em>$1</em>")
+      .replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:var(--primary);text-decoration:underline;">$1</a>');
+  }
+
+  function getGridCols(count) {
+    if (count === 1) return 1;
+    if (count === 2 || count === 4) return 2;
+    return 3;
+  }
+
+  function parseImages(raw) {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (typeof raw === "string" && raw.trim()) {
+      return raw.split(/[,;]/).map(function(s) { return s.trim(); }).filter(Boolean);
+    }
+    return [];
+  }
+
+  function createCard(m) {
+    var author = m.author || defaultAuthor;
+    var avatar = m.avatar || defaultAvatar;
+    var date = new Date(m.published);
+    var timeStr = formatTimeAgo(date);
+    var content = renderMarkdown(m.content || "");
+    var images = parseImages(m.images);
+    var tags = m.tags || [];
+    var location = m.location || "";
+
+    var item = document.createElement("div");
+    item.className = "wx-feed-item";
+    item.setAttribute("data-published", date.toISOString());
+    item.setAttribute(MARKER, "1");
+
+    var card = document.createElement("div");
+    card.className = "moment-card";
+
+    var accent = document.createElement("div");
+    accent.className = "card-accent-bar";
+    card.appendChild(accent);
+
+    var header = document.createElement("div");
+    header.className = "card-header";
+
+    var avatarDiv = document.createElement("div");
+    avatarDiv.className = "card-avatar";
+    var avatarImg = document.createElement("img");
+    avatarImg.src = avatar;
+    avatarImg.alt = author;
+    avatarImg.className = "avatar-img";
+    avatarImg.loading = "lazy";
+    avatarDiv.appendChild(avatarImg);
+
+    var userInfo = document.createElement("div");
+    userInfo.className = "card-user-info";
+
+    var userRow = document.createElement("div");
+    userRow.className = "user-row";
+    var userName = document.createElement("span");
+    userName.className = "user-name";
+    userName.textContent = author;
+    userRow.appendChild(userName);
+    if (m.pinned) {
+      var badge = document.createElement("span");
+      badge.className = "pinned-badge";
+      badge.innerHTML = '<svg class="pinned-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6a1 1 0 0 1 1-1h1a1 1 0 0 0 0-8H7a1 1 0 0 0 0 8h1a1 1 0 0 1 1 1z"/></svg>';
+      var badgeText = document.createElement("span");
+      badgeText.textContent = "置顶";
+      badge.appendChild(badgeText);
+      userRow.appendChild(badge);
+    }
+
+    var metaRow = document.createElement("div");
+    metaRow.className = "meta-row";
+    var time = document.createElement("time");
+    time.textContent = timeStr;
+    metaRow.appendChild(time);
+    if (location) {
+      var dot = document.createElement("span");
+      dot.className = "meta-dot";
+      dot.textContent = "·";
+      metaRow.appendChild(dot);
+      var loc = document.createElement("span");
+      loc.className = "location";
+      loc.innerHTML = '<svg class="location-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
+      var locText = document.createTextNode(location);
+      loc.appendChild(locText);
+      metaRow.appendChild(loc);
+    }
+
+    userInfo.appendChild(userRow);
+    userInfo.appendChild(metaRow);
+    header.appendChild(avatarDiv);
+    header.appendChild(userInfo);
+    card.appendChild(header);
+
+    var contentDiv = document.createElement("div");
+    contentDiv.className = "card-content";
+    var markdownDiv = document.createElement("div");
+    markdownDiv.className = "moment-markdown";
+    markdownDiv.innerHTML = content;
+    contentDiv.appendChild(markdownDiv);
+    card.appendChild(contentDiv);
+
+    if (images.length > 0) {
+      var grid = document.createElement("div");
+      grid.className = "card-images image-cols-" + getGridCols(images.length);
+      images.forEach(function(src) {
+        var imgWrap = document.createElement("div");
+        imgWrap.className = "image-item";
+        var img = document.createElement("img");
+        img.src = src;
+        img.loading = "lazy";
+        img.alt = "";
+        img.className = "image-img";
+        img.setAttribute("data-fancybox", "ext-moment");
+        imgWrap.appendChild(img);
+        grid.appendChild(imgWrap);
+      });
+      card.appendChild(grid);
+    }
+
+    if (tags.length > 0) {
+      var tagDiv = document.createElement("div");
+      tagDiv.className = "card-tags";
+      tags.forEach(function(t) {
+        var a = document.createElement("a");
+        a.href = "/archive/?tag=" + encodeURIComponent(t.trim());
+        a.className = "tag-item";
+        a.textContent = "#" + t.trim();
+        tagDiv.appendChild(a);
+      });
+      card.appendChild(tagDiv);
+    }
+
+    item.appendChild(card);
+    return item;
+  }
+
+  function createPinnedPreview(m) {
+    var body = (m.content || "").trim();
+    var images = parseImages(m.images);
+    var preview = document.createElement("div");
+    preview.className = "wx-pinned-preview";
+    preview.setAttribute("data-published", m.published || "");
+
+    if (images.length > 0) {
+      var grid = document.createElement("div");
+      var count = Math.min(images.length, 9);
+      grid.className = "wx-pimgs wx-pimgs-" + count;
+      images.forEach(function(src) {
+        var img = document.createElement("img");
+        img.src = src;
+        img.className = "wx-pinned-img";
+        img.alt = "";
+        img.loading = "lazy";
+        grid.appendChild(img);
+      });
+      preview.appendChild(grid);
+    } else {
+      var p = document.createElement("p");
+      p.className = "wx-ptxt";
+      var text = body.slice(0, 60);
+      if (body.length > 60) text += "...";
+      p.textContent = text;
+      preview.appendChild(p);
+    }
+    return preview;
+  }
+
+  function insertExternalMoments(extMoments) {
+    var feed = document.getElementById("moments-feed");
+    if (!feed || !extMoments || extMoments.length === 0) return;
+    extMoments.sort(function(a, b) { return new Date(b.published) - new Date(a.published); });
+
+    var pinned = [];
+    var normal = [];
+    extMoments.forEach(function(m) {
+      if (m.pinned) { pinned.push(m); } else { normal.push(m); }
+    });
+
+    if (pinned.length > 0) {
+      var pinnedBlock = document.getElementById("pinned-block");
+      var pinnedItems = document.getElementById("pinned-items");
+      if (pinnedBlock && pinnedItems) {
+        pinnedBlock.style.display = "";
+        pinned.forEach(function(m) {
+          var el = createPinnedPreview(m);
+          el.setAttribute(MARKER, "1");
+          pinnedItems.appendChild(el);
+        });
+      }
+    }
+
+    var emptyEl = document.getElementById("moments-empty");
+    if (emptyEl) emptyEl.remove();
+
+    var localItems = feed.querySelectorAll(".wx-feed-item[data-published]");
+    var localTimes = [];
+    localItems.forEach(function(el) {
+      localTimes.push({ el: el, time: new Date(el.getAttribute("data-published")).getTime() });
+    });
+
+    normal.forEach(function(m) {
+      var card = createCard(m);
+      var extTime = new Date(m.published).getTime();
+      var inserted = false;
+      for (var i = 0; i < localTimes.length; i++) {
+        if (localTimes[i].time < extTime) {
+          feed.insertBefore(card, localTimes[i].el);
+          inserted = true;
+          break;
+        }
+      }
+      if (!inserted) {
+        feed.appendChild(card);
+      }
+    });
+  }
+
+  function hasExternalMoments() {
+    var feed = document.getElementById("moments-feed");
+    if (!feed) return false;
+    return feed.hasAttribute(MARKER) ||
+      feed.querySelector("[" + MARKER + "]") !== null;
+  }
+
+  function fetchMoments() {
+    var feed = document.getElementById("moments-feed");
+    if (!feed) return;
+    if (hasExternalMoments()) return;
+
+    if (window[cacheKey] && window[cacheKey].time > Date.now() - 300000) {
+      insertExternalMoments(window[cacheKey].data);
+      feed.setAttribute(MARKER, "1");
+      return;
+    }
+
+    var token = localStorage.getItem("gh_moments_token") || "";
+    var headers = { "Accept": "application/vnd.github+json" };
+    if (token) headers["Authorization"] = "Bearer " + token;
+
+    fetch("https://api.github.com/gists/" + gistId, { headers: headers })
+      .then(function(r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function(gist) {
+        var file = gist.files[fileName];
+        if (!file) return;
+        var moments = JSON.parse(file.content || "[]");
+        if (!moments.length) return;
+        window[cacheKey] = { data: moments, time: Date.now() };
+        insertExternalMoments(moments);
+        feed.setAttribute(MARKER, "1");
+      })
+      .catch(function(e) {
+        console.warn("[外部说说] 加载失败:", e.message);
+      });
+  }
+
+  // 首次页面加载
+  if (document.getElementById("moments-feed")) {
+    fetchMoments();
+  }
+
+  // Swup 页面切换后重新加载
+  document.addEventListener("swup:content:replace", function() {
+    // 延迟执行，确保新 DOM 已就绪
+    setTimeout(function() {
+      if (!document.getElementById("moments-feed")) return;
+      if (hasExternalMoments()) return;
+      fetchMoments();
+    }, 50);
+  });
+})();
+</script>
+)}
 
 </Layout>
-<!-- 样式已迁移至 src/styles/layout/grid.css -->
 
-<script>
-	import { TOCManager } from "@/utils/toc-utils";
-	import { isPostPage } from "@/utils/navigation-utils";
+<style is:global>
+  /* 右侧栏平滑过渡 */
+  #right-sidebar {
+    transition: opacity 0.35s ease-in-out,
+                transform 0.35s ease-in-out;
+  }
 
-	let articleTocManager: TOCManager | null = null;
-	let tocClickHandler: ((e: Event) => void) | null = null;
+  @keyframes swupFadeOut {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0.95;
+    }
+  }
 
-	function alignTOCCoverImage() {
-		const wrapper = document.getElementById("article-toc-wrapper");
-		if (!wrapper) return;
+  /* 文章页统一布局：列间无间距，侧边栏+内容合并为整体 */
+  .is-post-layout > #left-sidebar-wrapper > *,
+  .is-post-layout > #left-sidebar-dynamic > *,
+  .is-post-layout > #right-sidebar-static > *,
+  .is-post-layout > #right-sidebar-dynamic > * {
+    border-radius: 0;
+  }
 
-		const mainGrid = document.getElementById("main-grid");
-		if (!mainGrid) return;
+  .is-post-layout #content-wrapper .card-base {
+    border: none !important;
+  }
 
-		const contentWrapper = document.getElementById("content-wrapper");
-		if (!contentWrapper) return;
+  /* 移动端恢复间距 */
+  @media (max-width: 767px) {
+    .is-post-layout {
+      gap: 1rem !important;
+    }
+  }
 
-		let offsetTop = 0;
-		const mainGridRect = mainGrid.getBoundingClientRect();
-
-		// 对齐到文章卡片顶部
-		const postCard = document.getElementById("post-container");
-		if (postCard) {
-			offsetTop = postCard.getBoundingClientRect().top - mainGridRect.top;
-		} else {
-			offsetTop = contentWrapper.getBoundingClientRect().top - mainGridRect.top;
-		}
-
-		wrapper.style.top = `${offsetTop}px`;
-		// 让 wrapper 高度撑满剩余内容区域，sticky 才能全程跟随
-		wrapper.style.height = `${mainGrid.offsetHeight - offsetTop}px`;
-	}
-
-	function initArticleTOC() {
-		cleanupArticleTOC();
-		if (!isPostPage()) return;
-
-		const tocContent = document.getElementById("article-toc-content");
-		const wrapper = document.getElementById("article-toc-wrapper");
-		if (!tocContent || !wrapper) return;
-
-		try {
-			if (articleTocManager) {
-				articleTocManager.cleanup();
-			}
-
-			articleTocManager = new TOCManager({
-				contentId: "article-toc-content",
-				indicatorId: "article-active-indicator",
-				maxLevel: 3,
-				scrollOffset: 80,
-			});
-
-			articleTocManager.init();
-
-			tocClickHandler = (e: Event) => {
-				const target = e.target as Element | null;
-				const anchor = target?.closest('a[href^="#"]');
-				if (anchor) {
-					window.tocInternalNavigation = true;
-				}
-			};
-			tocContent.addEventListener("click", tocClickHandler, { capture: true });
-
-			alignTOCCoverImage();
-		} catch (error) {
-			console.error("Failed to init ArticleTOC:", error);
-		}
-	}
-
-	function cleanupArticleTOC() {
-		if (articleTocManager) {
-			articleTocManager.cleanup();
-			articleTocManager = null;
-		}
-		if (tocClickHandler) {
-			const tocContent = document.getElementById("article-toc-content");
-			if (tocContent) tocContent.removeEventListener("click", tocClickHandler);
-			tocClickHandler = null;
-		}
-	}
-
-	initArticleTOC();
-
-	document.addEventListener("astro:page-load", () => setTimeout(initArticleTOC, 100));
-	document.addEventListener("password:decrypted", () => setTimeout(initArticleTOC, 200));
-
-	let resizeTimer: ReturnType<typeof setTimeout>;
-	window.addEventListener("resize", () => {
-		clearTimeout(resizeTimer);
-		resizeTimer = setTimeout(alignTOCCoverImage, 150);
-	});
-
-	// 监听 main-grid 高度变化（图片加载、内容展开等），实时更新 wrapper 高度
-	const mainGridEl = document.getElementById("main-grid");
-	if (mainGridEl) {
-		const ro = new ResizeObserver(() => alignTOCCoverImage());
-		ro.observe(mainGridEl);
-	}
-
-	// TOC 边框样式：亮色纯黑边框，暗色纯白边框，无背景
-	function updateTOCBorder() {
-		const el = document.getElementById("article-toc-container");
-		if (!el) return;
-		el.style.setProperty("background-color", "transparent");
-		el.style.setProperty("box-shadow", "none");
-		const isDark = document.documentElement.classList.contains("dark");
-		el.style.setProperty("border", `1px solid ${isDark ? "#fff" : "#000"}`);
-	}
-	updateTOCBorder();
-	new MutationObserver(updateTOCBorder).observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
-</script>
+</style>

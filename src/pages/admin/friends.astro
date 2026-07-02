@@ -1,0 +1,410 @@
+---
+import { externalMomentsConfig } from "@/config/externalMomentsConfig";
+import { externalFriendsConfig } from "@/config/externalFriendsConfig";
+---
+
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>友链管理</title>
+  <style is:inline>
+    :root {
+      --bg: #fff; --card: #fff; --border: #e8e8e8; --text: #1a1a1a;
+      --text-2: #666; --text-3: #999; --primary: #8b5cf6;
+      --input-bg: #fafafa; --hover: #f3f0ff; --danger: #ef4444;
+      --success: #22c55e; --radius: 12px;
+    }
+    :root.dark {
+      --bg: #111; --card: #1a1a1a; --border: #2a2a2a; --text: #eee;
+      --text-2: #aaa; --text-3: #666; --input-bg: #222; --hover: #2a2040;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Roboto', sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* 导航栏 */
+    .navbar { position: sticky; top: 0; z-index: 50; background: var(--bg); border-bottom: 1px solid var(--border); }
+    .navbar-inner { max-width: 640px; margin: 0 auto; padding: 0 1rem; display: flex; align-items: center; justify-content: space-between; height: 48px; }
+    .navbar-left { display: flex; align-items: center; gap: 0.5rem; }
+    .navbar-left .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+    .navbar-left h1 { font-size: 0.9375rem; font-weight: 600; }
+    .nav-right { display: flex; align-items: center; gap: 0.75rem; }
+    .back-link { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8125rem; color: var(--text-2); text-decoration: none; }
+    .back-link:hover { color: var(--primary); }
+    .logout-btn { font-size: 0.8125rem; color: var(--danger); background: none; border: none; cursor: pointer; }
+
+    .container { max-width: 640px; margin: 0 auto; padding: 1.25rem 1rem; }
+
+    /* Token */
+    .token-bar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1.25rem; padding: 0.75rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+    .token-bar input { flex: 1; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); color: var(--text); font-size: 0.8125rem; outline: none; }
+    .token-bar input:focus { border-color: var(--primary); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); flex-shrink: 0; }
+    .status-dot.ok { background: var(--success); }
+    #status-text { font-size: 0.75rem; color: var(--text-2); flex-shrink: 0; }
+
+    /* 按钮 */
+    .btn { padding: 0.5rem 1rem; border: none; border-radius: 8px; font-size: 0.8125rem; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--text-2); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-sm { padding: 0.25rem 0.625rem; font-size: 0.75rem; }
+
+    /* 表单 */
+    .form-section { margin-bottom: 1.5rem; }
+    .form-label { display: block; font-size: 0.8125rem; font-weight: 600; color: var(--text); margin-bottom: 0.375rem; }
+    .form-hint { font-size: 0.75rem; color: var(--text-3); margin-bottom: 0.5rem; }
+    textarea, input[type="text"] { width: 100%; padding: 0.625rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); color: var(--text); font-size: 0.875rem; outline: none; font-family: inherit; resize: vertical; }
+    textarea:focus, input[type="text"]:focus { border-color: var(--primary); }
+    textarea { min-height: 120px; line-height: 1.6; }
+
+    /* 预览卡片 */
+    .preview-card { padding: 1rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1rem; }
+    .preview-card .friend-row { display: flex; align-items: center; gap: 0.75rem; }
+    .preview-card .friend-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); flex-shrink: 0; }
+    .preview-card .friend-info { flex: 1; min-width: 0; }
+    .preview-card .friend-name { font-size: 0.9375rem; font-weight: 600; color: var(--text); }
+    .preview-card .friend-desc { font-size: 0.8125rem; color: var(--text-2); margin-top: 0.125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .preview-card .friend-url { font-size: 0.75rem; color: var(--primary); margin-top: 0.125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* 友链列表 */
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+    .section-title { font-size: 1rem; font-weight: 600; }
+    .count-badge { font-size: 0.75rem; padding: 0.125rem 0.5rem; border-radius: 9999px; background: var(--hover); color: var(--primary); }
+    .friend-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .friend-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+    .friend-item .friend-avatar { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+    .friend-item .friend-info { flex: 1; min-width: 0; }
+    .friend-item .friend-name { font-size: 0.875rem; font-weight: 600; }
+    .friend-item .friend-desc { font-size: 0.75rem; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* Toast */
+    .toast { position: fixed; top: 60px; left: 50%; transform: translateX(-50%) translateY(-20px); padding: 0.5rem 1.25rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 500; opacity: 0; transition: all 0.3s; z-index: 100; pointer-events: none; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.ok { background: var(--success); color: #fff; }
+    .toast.err { background: var(--danger); color: #fff; }
+
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state { text-align: center; padding: 2rem 1rem; color: var(--text-3); font-size: 0.875rem; }
+    .empty-state .icon { font-size: 2rem; margin-bottom: 0.5rem; }
+    .hidden { display: none !important; }
+
+    .dark-fab { position: fixed; bottom: 1.5rem; right: 1.5rem; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border); background: var(--card); font-size: 1.25rem; cursor: pointer; z-index: 50; display: flex; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <nav class="navbar">
+      <div class="navbar-inner">
+        <div class="navbar-left">
+          <span class="dot"></span>
+          <h1>友链管理</h1>
+        </div>
+        <div class="nav-right">
+          <a href="/admin/" class="back-link" data-no-swup>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span>后台</span>
+          </a>
+          <button class="logout-btn" onclick="doLogout()">退出</button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+      <!-- Token -->
+      <div class="token-bar">
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status-text">未连接</span>
+        <input type="text" id="token-manual" placeholder="GitHub Token" />
+        <button class="btn btn-primary btn-sm" onclick="applyManualToken()">连接</button>
+        <button class="btn btn-ghost btn-sm hidden" id="disconnect-btn" onclick="disconnectToken()">断开</button>
+      </div>
+
+      <!-- 添加友链 -->
+      <div class="form-section">
+        <label class="form-label">粘贴友链信息</label>
+        <p class="form-hint">支持格式：站点名称: xxx / 站点描述: xxx / 站点链接: xxx / 头像链接: xxx</p>
+        <textarea id="paste-input" placeholder="站点名称: 团子和蛋糕
+站点描述: 如果你喜欢那么欢迎来到我的世界！
+站点链接: https://blog.tsh520.cn
+头像链接: https://re.tsh520.cn/zl/tx.webp"></textarea>
+      </div>
+
+      <!-- 预览 -->
+      <div id="preview-area" class="hidden">
+        <label class="form-label">预览</label>
+        <div class="preview-card">
+          <div class="friend-row">
+            <img id="preview-avatar" class="friend-avatar" src="" alt="" />
+            <div class="friend-info">
+              <div id="preview-name" class="friend-name"></div>
+              <div id="preview-desc" class="friend-desc"></div>
+              <div id="preview-url" class="friend-url"></div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;">
+          <button class="btn btn-primary" id="submit-btn" onclick="submitFriend()">添加友链</button>
+          <button class="btn btn-ghost" onclick="clearForm()">清空</button>
+        </div>
+      </div>
+
+      <!-- 友链列表 -->
+      <div id="friends-section" class="hidden">
+        <div class="section-header">
+          <span class="section-title">已添加的友链</span>
+          <span id="list-count" class="count-badge"></span>
+        </div>
+        <div id="friends-list" class="friend-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <button class="dark-fab" onclick="toggleDark()" title="切换暗色模式">🌙</button>
+
+  <script is:inline
+    data-gist={externalFriendsConfig.gistId || ""}
+    data-hash={externalMomentsConfig.adminPasswordHash || ""}>
+    (function() {
+      var _s = document.currentScript;
+      var GIST_ID = _s.getAttribute("data-gist") || "";
+      var FILE_NAME = "friends.json";
+      var API = "https://api.github.com";
+      var TOKEN = localStorage.getItem("gh_moments_token") || "";
+
+      function $(id) { return document.getElementById(id); }
+      function esc(t) { var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+
+      function toast(msg, type) {
+        var el = $("toast"); el.textContent = msg; el.className = "toast " + type + " show";
+        clearTimeout(el._t); el._t = setTimeout(function() { el.className = "toast"; }, 2800);
+      }
+
+      function toggleDark() {
+        document.documentElement.classList.toggle("dark");
+        localStorage.setItem("theme", document.documentElement.classList.contains("dark") ? "dark" : "light");
+      }
+      if (localStorage.getItem("theme") === "dark") document.documentElement.classList.add("dark");
+
+      function doLogout() {
+        sessionStorage.removeItem("admin_auth");
+        window.location.href = "/admin/";
+      }
+
+      // ===== Token =====
+      function setStatus(ok, text) {
+        $("status-dot").className = "status-dot " + (ok ? "ok" : "err");
+        $("status-text").textContent = text;
+      }
+
+      function applyManualToken() {
+        var t = $("token-manual").value.trim();
+        if (!t) { toast("请输入 Token", "err"); return; }
+        TOKEN = t;
+        localStorage.setItem("gh_moments_token", t);
+        validateAndLoad();
+      }
+
+      function disconnectToken() {
+        TOKEN = "";
+        localStorage.removeItem("gh_moments_token");
+        $("token-manual").value = "";
+        $("disconnect-btn").classList.add("hidden");
+        setStatus(false, "已断开");
+        $("friends-section").classList.add("hidden");
+      }
+
+      function validateAndLoad() {
+        if (!TOKEN) { setStatus(false, "请输入 Token"); return; }
+        if (!GIST_ID) { setStatus(false, "未配置 Gist ID"); return; }
+        setStatus(false, "正在连接...");
+        $("disconnect-btn").classList.add("hidden");
+        fetch(API + "/gists/" + GIST_ID, {
+          headers: { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json" }
+        }).then(function(r) {
+          if (r.ok) {
+            setStatus(true, "已连接");
+            $("disconnect-btn").classList.remove("hidden");
+            loadFriends();
+          } else if (r.status === 401) { setStatus(false, "Token 无效"); }
+          else { setStatus(false, "连接失败 (" + r.status + ")"); }
+        }).catch(function(e) { setStatus(false, "网络错误"); });
+      }
+
+      // ===== 解析粘贴内容 =====
+      function parsePastedText(text) {
+        var result = { title: "", desc: "", siteurl: "", imgurl: "" };
+        var lines = text.split("\n").map(function(s) { return s.trim(); }).filter(Boolean);
+        lines.forEach(function(line) {
+          var match = line.match(/^(站点名称|名称|标题|title)\s*[:：]\s*(.+)$/i);
+          if (match) { result.title = match[2].trim(); return; }
+          match = line.match(/^(站点描述|描述|desc|description)\s*[:：]\s*(.+)$/i);
+          if (match) { result.desc = match[2].trim(); return; }
+          match = line.match(/^(站点链接|链接|url|siteurl|site_url)\s*[:：]\s*(.+)$/i);
+          if (match) { result.siteurl = match[2].trim(); return; }
+          match = line.match(/^(头像链接|头像|avatar|imgurl|img_url|image)\s*[:：]\s*(.+)$/i);
+          if (match) { result.imgurl = match[2].trim(); return; }
+        });
+        return result;
+      }
+
+      // ===== 实时预览 =====
+      var pasteInput = null;
+      function setupPasteListener() {
+        pasteInput = $("paste-input");
+        if (!pasteInput) return;
+        pasteInput.addEventListener("input", function() {
+          var data = parsePastedText(pasteInput.value);
+          var area = $("preview-area");
+          if (data.title || data.siteurl) {
+            area.classList.remove("hidden");
+            $("preview-name").textContent = data.title || "未识别到名称";
+            $("preview-desc").textContent = data.desc || "未识别到描述";
+            $("preview-url").textContent = data.siteurl || "未识别到链接";
+            $("preview-avatar").src = data.imgurl || "";
+            $("preview-avatar").style.display = data.imgurl ? "" : "none";
+          } else {
+            area.classList.add("hidden");
+          }
+        });
+      }
+
+      // ===== 提交 =====
+      function submitFriend() {
+        var data = parsePastedText(($("paste-input").value || ""));
+        if (!data.title) { toast("请输入站点名称", "err"); return; }
+        if (!data.siteurl) { toast("请输入站点链接", "err"); return; }
+
+        var btn = $("submit-btn");
+        btn.disabled = true;
+        btn.textContent = "保存中...";
+
+        fetch(API + "/gists/" + GIST_ID, {
+          headers: { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json" }
+        }).then(function(r) { return r.json(); }).then(function(gist) {
+          var file = gist.files[FILE_NAME];
+          var friends = [];
+          if (file) { try { friends = JSON.parse(file.content || "[]"); } catch(e) {} }
+
+          // 检查是否已存在
+          var exists = friends.some(function(f) { return f.siteurl === data.siteurl; });
+          if (exists) { toast("该友链已存在", "err"); return; }
+
+          friends.push({
+            id: "friend-" + Date.now(),
+            title: data.title,
+            desc: data.desc || "",
+            siteurl: data.siteurl,
+            imgurl: data.imgurl || "",
+            tags: [],
+            weight: 0,
+            enabled: true
+          });
+
+          return fetch(API + "/gists/" + GIST_ID, {
+            method: "PATCH",
+            headers: { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
+            body: JSON.stringify({ files: { [FILE_NAME]: { content: JSON.stringify(friends, null, 2) } } })
+          });
+        }).then(function(r) {
+          if (r && r.ok) {
+            toast("添加成功 ✓", "ok");
+            clearForm();
+            loadFriends();
+          } else if (r) { toast("添加失败", "err"); }
+        }).catch(function() { toast("网络错误", "err"); })
+        .finally(function() { btn.disabled = false; btn.textContent = "添加友链"; });
+      }
+
+      // ===== 加载列表 =====
+      function loadFriends() {
+        var list = $("friends-list");
+        list.innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
+        $("friends-section").classList.remove("hidden");
+
+        fetch(API + "/gists/" + GIST_ID, {
+          headers: { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json" }
+        }).then(function(r) { return r.json(); }).then(function(gist) {
+          var file = gist.files[FILE_NAME];
+          var friends = [];
+          if (file) { try { friends = JSON.parse(file.content || "[]"); } catch(e) {} }
+          if (!friends.length) {
+            list.innerHTML = '<div class="empty-state"><div class="icon">🔗</div><p>还没有友链</p></div>';
+            $("list-count").textContent = "";
+            return;
+          }
+
+          $("list-count").textContent = friends.length + " 个";
+          list.innerHTML = "";
+
+          friends.forEach(function(f) {
+            var d = document.createElement("div");
+            d.className = "friend-item";
+            var avatarHtml = f.imgurl ? '<img class="friend-avatar" src="' + esc(f.imgurl) + '" alt="" />' : '<div class="friend-avatar" style="background:var(--hover);display:flex;align-items:center;justify-content:center;">🔗</div>';
+            d.innerHTML = avatarHtml +
+              '<div class="friend-info"><div class="friend-name">' + esc(f.title) + '</div><div class="friend-desc">' + esc(f.desc || f.siteurl) + '</div></div>' +
+              '<button class="btn btn-danger btn-sm" onclick="deleteFriend(\'' + f.id + '\')">删除</button>';
+            list.appendChild(d);
+          });
+        }).catch(function() { list.innerHTML = '<div class="empty-state" style="color:var(--danger)">加载失败</div>'; });
+      }
+
+      // ===== 删除 =====
+      function deleteFriend(id) {
+        if (!confirm("确定删除该友链？")) return;
+        fetch(API + "/gists/" + GIST_ID, {
+          headers: { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json" }
+        }).then(function(r) { return r.json(); }).then(function(gist) {
+          var file = gist.files[FILE_NAME];
+          var friends = []; try { friends = JSON.parse(file.content || "[]"); } catch(e) {}
+          friends = friends.filter(function(f) { return f.id !== id; });
+          return fetch(API + "/gists/" + GIST_ID, {
+            method: "PATCH",
+            headers: { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
+            body: JSON.stringify({ files: { [FILE_NAME]: { content: JSON.stringify(friends, null, 2) } } })
+          });
+        }).then(function(r) {
+          if (r && r.ok) { toast("已删除", "ok"); loadFriends(); }
+          else if (r) { toast("删除失败", "err"); }
+        }).catch(function() { toast("网络错误", "err"); });
+      }
+
+      function clearForm() {
+        $("paste-input").value = "";
+        $("preview-area").classList.add("hidden");
+      }
+
+      // ===== 暴露到全局（供 onclick 调用） =====
+      window.toggleDark = toggleDark;
+      window.doLogout = doLogout;
+      window.applyManualToken = applyManualToken;
+      window.disconnectToken = disconnectToken;
+      window.submitFriend = submitFriend;
+      window.clearForm = clearForm;
+      window.deleteFriend = deleteFriend;
+
+      // ===== 初始化 =====
+      (function() {
+        if (sessionStorage.getItem("admin_auth") !== "1") {
+          window.location.href = "/admin/";
+          return;
+        }
+        if (TOKEN) { $("token-manual").value = TOKEN; }
+        setupPasteListener();
+        if (GIST_ID) validateAndLoad();
+        else setStatus(false, "未配置 Gist ID，请在 externalFriendsConfig.ts 中设置");
+      })();
+    })();
+  </script>
+</body>
+</html>

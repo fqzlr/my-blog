@@ -73,22 +73,18 @@ const heroBioText = Array.isArray(profileConfig.bio)
 	data-avatar-off={avatarOffUrl}
 	data-work-hours={JSON.stringify(workHours)}
 >
-	<!-- 背景层 -->
-	<img class="home-hero__video" src="/assets/images/home/home.webp" alt="" />
+	<img class="home-hero__video hidden md:block" src="/assets/images/home/home.webp" alt="" />
+	<img class="home-hero__video block md:hidden" src="/assets/images/home/18188682411036032.webp" alt="" />
 
-	<!-- 全屏内容容器 -->
 	<div class="home-hero__canvas-container" id="main-canvas">
-		<!-- 装饰角标 -->
 		<div class="home-hero__bracket home-hero__bracket--tl"></div>
 		<div class="home-hero__bracket home-hero__bracket--br"></div>
 		<div class="home-hero__bottom-line" aria-hidden="true"></div>
 		<div class="home-hero__left-line" aria-hidden="true"></div>
 
-		<!-- 左侧面板 -->
 		<section class="home-hero__left-panel">
 			<div class="home-hero__profile">
 				<div class="home-hero__identity-row">
-					<!-- 名字 + 职业 组合 -->
 					<div class="home-hero__name-group">
 						{profileConfig.occupation && (
 							<p class="home-hero__occupation">{profileConfig.occupation}</p>
@@ -96,10 +92,9 @@ const heroBioText = Array.isArray(profileConfig.bio)
 						{profileConfig.displayName && (
 							<h1 class="home-hero__name">{profileConfig.displayName}</h1>
 						)}
-						<div class="home-hero__name-badge">{profileConfig.nameBadge || ""}</div>
+						<div class="home-hero__name-badge">{siteConfig.title}</div>
 					</div>
 
-					<!-- 头像 + 状态 -->
 					<div class="home-hero__avatar-group">
 						<div class="home-hero__avatar-wrapper">
 							<img
@@ -125,10 +120,8 @@ const heroBioText = Array.isArray(profileConfig.bio)
 			</div>
 		</section>
 
-		<!-- 中央区 -->
 		<section class="home-hero__center-panel">
 			<div class="home-hero__art-window"></div>
-			<!-- 悬浮人物 -->
 			<div class="home-hero__character-root" id="character-layer">
 				<div class="home-hero__character-reveal">
 					<div class="home-hero__character-motion">
@@ -143,10 +136,10 @@ const heroBioText = Array.isArray(profileConfig.bio)
 			</div>
 			<div class="home-hero__speech" aria-label="Character message">
 				<p class="home-hero__speech-text">
-					<span class="home-hero__speech-type">番茄主理人？</span>
+					<span class="home-hero__speech-type">团子和蛋糕？</span>
 				</p>
 				<p class="home-hero__speech-en">
-					<span class="home-hero__speech-type">If you feel tired, you might as well have a glass of juice?</span>
+					<span class="home-hero__speech-type">Welcome to my blog, enjoy your stay!</span>
 				</p>
 				<img
 					src="/assets/images/home/home2-1.webp"
@@ -158,7 +151,6 @@ const heroBioText = Array.isArray(profileConfig.bio)
 			</div>
 		</section>
 
-		<!-- 右侧面板 -->
 		<aside class="home-hero__right-panel">
 			<div class="home-hero__pill">BLOG</div>
 			<div class="home-hero__vertical-wrap">
@@ -210,11 +202,11 @@ const heroBioText = Array.isArray(profileConfig.bio)
 
 	function initHeroOpening() {
 		const hero = document.getElementById("home-hero");
-		if (!hero) return Promise.resolve();
-		if (prefersReducedMotion() || isMobile()) {
+		if (!hero) return;
+		if (prefersReducedMotion()) {
 			hero.classList.remove("home-hero--motion-pending");
 			hero.classList.add("home-hero--motion-ready");
-			return Promise.resolve();
+			return;
 		}
 
 		const occupation = hero.querySelector(".home-hero__occupation");
@@ -233,14 +225,8 @@ const heroBioText = Array.isArray(profileConfig.bio)
 
 		hero.classList.add("home-hero--motion-ready");
 
-		let resolveHeroTitleReady: () => void;
-		const heroTitleReady = new Promise<void>((resolve) => {
-			resolveHeroTitleReady = resolve;
-		});
-
 		heroOpeningTimeline = gsap.timeline({
 			defaults: { ease: "power4.out" },
-			onInterrupt: () => resolveHeroTitleReady(),
 		});
 
 		heroOpeningTimeline
@@ -298,7 +284,6 @@ const heroBioText = Array.isArray(profileConfig.bio)
 				clipPath: "inset(0 0% 0 0)",
 				duration: 1.18,
 				ease: "expo.out",
-				onComplete: () => resolveHeroTitleReady(),
 			}, 0.98)
 			.fromTo(badge, {
 				autoAlpha: 0,
@@ -386,12 +371,14 @@ const heroBioText = Array.isArray(profileConfig.bio)
 			}, 1.72)
 			.fromTo(speech, {
 				autoAlpha: 0,
+				xPercent: -50,
 				y: 34,
 				scale: 0.92,
 				filter: "blur(10px)",
 				transformOrigin: "50% 100%",
 			}, {
 				autoAlpha: 1,
+				xPercent: -50,
 				y: 0,
 				scale: 1,
 				filter: "blur(0px)",
@@ -408,25 +395,22 @@ const heroBioText = Array.isArray(profileConfig.bio)
 			}, 3.08);
 
 		hero.classList.remove("home-hero--motion-pending");
-		return heroTitleReady;
 	}
 
 	function initHomeScrollMotion() {
-		if (prefersReducedMotion() || isMobile()) {
+		if (prefersReducedMotion()) {
 			document.querySelector(".home-page--motion-pending")?.classList.remove("home-page--motion-pending");
 			return;
 		}
 
 		const sections = Array.from(document.querySelectorAll<HTMLElement>(
-			".home-page > :not(#home-hero), .home-pending-layer",
+			".home-page > :not(#home-hero), .home-status, .home-pending-layer",
 		)).filter((section, index, list) => list.indexOf(section) === index);
 
 		sections.forEach((section, index) => {
 			const title = section.querySelector(".home-section-title, [data-motion-title]");
 			const cards = section.querySelectorAll(".card-base, .post-card-wrapper, .home-pending, .stats-container, [data-motion-card]");
-			const images = section.querySelectorAll(
-			"img[data-home-motion-image]:not([data-shutter-image]):not([data-shutter-final-image]), [data-home-motion-image]:not([data-shutter-image]):not([data-shutter-final-image])",
-		);
+			const images = section.querySelectorAll("img, [data-motion-image]");
 			if (!title && cards.length === 0 && images.length === 0) return;
 
 			const tl = gsap.timeline({
@@ -504,16 +488,12 @@ const heroBioText = Array.isArray(profileConfig.bio)
 		document.querySelector(".home-page--motion-pending")?.classList.remove("home-page--motion-pending");
 	}
 
-	// ============================================
-	// 鼠标视差 + 人物浮动
-	// ============================================
 	let rafId: number | null = null;
 	let mouseX = 0;
 	let mouseY = 0;
 	let charX = 0;
 	let charY = 0;
 	let mouseMoveHandler: ((e: MouseEvent) => void) | null = null;
-	let parallaxRunning = false;
 
 	function initParallax() {
 		if (isMobile()) return;
@@ -523,11 +503,6 @@ const heroBioText = Array.isArray(profileConfig.bio)
 		mouseMoveHandler = (e: MouseEvent) => {
 			mouseX = (e.clientX - window.innerWidth / 2) / (window.innerWidth / 2);
 			mouseY = (e.clientY - window.innerHeight / 2) / (window.innerHeight / 2);
-			// 鼠标移动时重新启动 rAF 循环
-			if (!parallaxRunning) {
-				parallaxRunning = true;
-				rafId = requestAnimationFrame(update);
-			}
 		};
 
 		document.addEventListener("mousemove", mouseMoveHandler);
@@ -542,18 +517,9 @@ const heroBioText = Array.isArray(profileConfig.bio)
 			if (charLayer) {
 				charLayer.style.transform = `translate(${charX}px, ${charY}px)`;
 			}
-
-			// 收敛检测：差值足够小时暂停循环，鼠标移动时重新启动
-			if (Math.abs(targetX - charX) < 0.01 && Math.abs(targetY - charY) < 0.01) {
-				parallaxRunning = false;
-				rafId = null;
-				return;
-			}
-
 			rafId = requestAnimationFrame(update);
 		}
 
-		parallaxRunning = true;
 		rafId = requestAnimationFrame(update);
 	}
 
@@ -568,9 +534,6 @@ const heroBioText = Array.isArray(profileConfig.bio)
 		}
 	}
 
-	// ============================================
-	// 上下班头像与状态牌
-	// ============================================
 	function initWorkStatus() {
 		if (workStatusTimer) {
 			window.clearInterval(workStatusTimer);
@@ -639,22 +602,23 @@ const heroBioText = Array.isArray(profileConfig.bio)
 		}
 	}
 
-	// ============================================
-	// 标题 Hatching Shader 效果
-	// ============================================
-	async function initHeroHatch(heroTitleReady: Promise<void>, token: number) {
+	async function initHeroHatch() {
 		const nameEl = document.querySelector<HTMLElement>(".home-hero__name");
 		if (!nameEl) return;
-		if (prefersReducedMotion() || isMobile()) return;
+		if (prefersReducedMotion()) return;
 
-		await heroTitleReady;
+		await new Promise((r) => setTimeout(r, 2200));
 
-		// 再次检查元素是否仍在 DOM（Swup 可能已切走页面）
-		if (token !== initToken || !document.contains(nameEl)) return;
+		if (!document.contains(nameEl)) return;
 
 		destroyHeroHatch();
 
-		const vfx = VFX.init({ pixelRatio: Math.min(window.devicePixelRatio, 1.5) });
+		const heroEl = document.getElementById("home-hero");
+		const vfx = VFX.init({
+			pixelRatio: Math.min(window.devicePixelRatio, 1.5),
+			wrapper: heroEl || undefined,
+			fixedCanvas: false,
+		});
 		if (!vfx) return;
 		vfxInstance = vfx;
 
@@ -676,7 +640,9 @@ const heroBioText = Array.isArray(profileConfig.bio)
 
 		try {
 			await vfx.addHTML(nameEl, { effect: heroHatchEffect });
-		} catch { /* ignore */ }
+		} catch (err) {
+			console.error("[Hatch] name addHTML failed:", err);
+		}
 	}
 
 	function destroyHeroHatch() {
@@ -696,20 +662,15 @@ const heroBioText = Array.isArray(profileConfig.bio)
 		}
 	}
 
-	// ============================================
-	// 初始化与清理（Swup 兼容）
-	// ============================================
 	let initToken = 0;
 
 	function init() {
 		cleanup();
-		const token = initToken;
-		const heroOpeningReady = initHeroOpening();
+		initHeroOpening();
 		initParallax();
 		initWorkStatus();
-		void initHeroHatch(heroOpeningReady, token);
+		void initHeroHatch();
 
-		// 推迟 ScrollTrigger 初始化，避免阻塞 Hero 入场动画的首次渲染
 		requestAnimationFrame(() => {
 			initHomeScrollMotion();
 		});
@@ -733,10 +694,8 @@ const heroBioText = Array.isArray(profileConfig.bio)
 		init();
 	}
 
-	// 首次初始化：等页面加载遮罩完全撤掉后再播放首页入场
 	void scheduleHomeInit();
 
-	// Swup 兼容：使用 astro:page-load（每次导航完成触发）
 	document.addEventListener("astro:page-load", () => {
 		const hero = document.getElementById("home-hero");
 		if (hero) {

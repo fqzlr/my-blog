@@ -1,7 +1,7 @@
 ---
 import DataMetricCard from "@components/features/DataMetricCard.astro";
 import LogoLoop from "@components/features/LogoLoop.svelte";
-import { profileConfig, siteConfig, skillsConfig } from "@/config";
+import { profileConfig, skillsConfig } from "@/config";
 import {
 	getCategoryList,
 	getSortedPosts,
@@ -35,7 +35,7 @@ const articlePills: DataPill[] = [
 const visitPills: DataPill[] = [
 	{ label: "UV", value: "--", tone: "light" },
 	{ label: "PV", value: "--", tone: "dark" },
-	{ label: "SOURCE", value: "Umami", tone: "outline" },
+	{ label: "SOURCE", value: "Waline", tone: "outline" },
 ];
 
 const socialItems = profileConfig.links.map((link) => ({
@@ -46,17 +46,9 @@ const socialItems = profileConfig.links.map((link) => ({
 }));
 
 const skillItems = normalizeSkillItems({ items: skillsConfig.items });
-
-const umamiConfig = siteConfig.analytics?.umamiAnalytics;
-const statsBaseUrl = umamiConfig?.scriptUrl
-	? new URL(umamiConfig.scriptUrl).origin
-	: "";
-const statsShareId = umamiConfig?.shareId ?? "";
 ---
 
-<section class="home-data-layer" aria-labelledby="home-data-layer-title" id="home-data-layer"
-	data-stats-base-url={statsBaseUrl}
-	data-stats-share-id={statsShareId}>
+<section class="home-data-layer" aria-labelledby="home-data-layer-title" id="home-data-layer">
 	<div class="home-data-layer__inner">
 		<div class="home-data-layer__heading">
 			<p class="home-data-layer__kicker">CONTEXT</p>
@@ -97,7 +89,7 @@ const statsShareId = umamiConfig?.shareId ?? "";
 					<div class="data-band__intro">
 						<div class="data-band__frame"></div>
 						<div class="data-band__visual" aria-hidden="true">
-							<img src="/assets/images/home/home-data-3.webp" alt="" class="data-band__visual-img" data-home-motion-image loading="lazy" decoding="async" />
+							<img src="/assets/images/home/home-data-3.webp" alt="" class="data-band__visual-img" loading="lazy" decoding="async" />
 						</div>
 						<div class="data-band__content">
 							<p class="data-band__eyebrow">CONTACT</p>
@@ -127,7 +119,7 @@ const statsShareId = umamiConfig?.shareId ?? "";
 					<div class="data-band__intro">
 						<div class="data-band__frame"></div>
 						<div class="data-band__visual" aria-hidden="true">
-							<img src="/assets/images/home/home-data-4.webp" alt="" class="data-band__visual-img" data-home-motion-image loading="lazy" decoding="async" />
+							<img src="/assets/images/home/home-data-4.webp" alt="" class="data-band__visual-img" loading="lazy" decoding="async" />
 						</div>
 						<div class="data-band__content">
 							<p class="data-band__eyebrow">SKILLS</p>
@@ -159,13 +151,6 @@ const statsShareId = umamiConfig?.shareId ?? "";
 	import { gsap } from "gsap";
 	import { ScrollTrigger } from "gsap/ScrollTrigger";
 	import { formatCompactNumber } from "@/utils/home-data-layer.js";
-	import { createCache } from "@/utils/cache-utils";
-
-	type ShareData = { websiteId: string; token: string };
-	const shareCache = createCache<ShareData>({
-		key: "umami_share_data",
-		ttl: 3_600_000,
-	});
 
 	gsap.registerPlugin(ScrollTrigger);
 
@@ -199,38 +184,34 @@ const statsShareId = umamiConfig?.shareId ?? "";
 	function initVisitStats() {
 		const layer = document.getElementById("home-data-layer");
 		if (!layer) return;
-		const statsBaseUrl = layer.dataset.statsBaseUrl;
-		const statsShareId = layer.dataset.statsShareId;
-		if (!statsBaseUrl || !statsShareId) return;
 		const detail = layer.querySelector(".data-card[data-stat-kind='visits'] .data-card__detail");
 		const valueNodes = layer.querySelectorAll<HTMLElement>("[data-stat-value]");
-		shareCache
-			.fetch(async () => {
-				const res = await fetch(`${statsBaseUrl}/api/share/${statsShareId}`);
-				if (!res.ok) throw new Error("获取 Umami 分享信息失败");
-				const share = await res.json();
-				return {
-					websiteId: share.websiteId || share.entityId,
-					token: share.token || statsShareId,
-				};
+
+		const UMAMI_BASE = "https://umami.tsh520.cn";
+		const WEBSITE_ID = "cea54104-ebb9-4237-911d-67043d2dae74";
+
+		fetch(`${UMAMI_BASE}/api/auth/login`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ username: "tianshihao2003", password: "Tsh3109581507" }),
+		})
+			.then((res) => {
+				if (!res.ok) throw new Error(`Login ${res.status}`);
+				return res.json();
 			})
-			.then(({ websiteId, token }) => {
-				const now = Date.now();
-				return fetch(
-					`${statsBaseUrl}/api/websites/${websiteId}/stats?startAt=0&endAt=${now}`,
-					{
-						headers: {
-							"x-umami-share-token": token,
-							"x-umami-share-context": "1",
-							"Content-Type": "application/json",
-						},
-					},
-				);
-			})
-			.then((r) => r.json())
 			.then((data) => {
-				const uv = formatCompactNumber(data.uv || data.visitors || 0);
-				const pv = formatCompactNumber(data.pv || data.pageviews || 0);
+				if (!data.token) throw new Error("No token");
+				return fetch(`${UMAMI_BASE}/api/websites/${WEBSITE_ID}/stats?startAt=0&endAt=${Date.now()}`, {
+					headers: { Authorization: `Bearer ${data.token}` },
+				});
+			})
+			.then((res) => {
+				if (!res.ok) throw new Error(`Stats ${res.status}`);
+				return res.json();
+			})
+			.then((stats) => {
+				const uv = formatCompactNumber(stats.visitors ?? 0);
+				const pv = formatCompactNumber(stats.pageviews ?? 0);
 				if (detail) detail.textContent = `访客 ${uv} / 浏览 ${pv}`;
 				valueNodes.forEach((node) => {
 					const key = node.dataset.statValue;
@@ -238,7 +219,8 @@ const statsShareId = umamiConfig?.shareId ?? "";
 					if (key === "PV") node.textContent = pv;
 				});
 			})
-			.catch(() => {
+			.catch((err) => {
+				console.warn("[Umami] Stats fetch failed:", err.message);
 				if (detail) detail.textContent = "访客 -- / 浏览 --";
 			});
 	}
@@ -314,7 +296,6 @@ const statsShareId = umamiConfig?.shareId ?? "";
 
 		killDataLayerMotion();
 
-		// ========== Heading Opening ==========
 		const heading = layer.querySelector(".home-data-layer__heading");
 		const kicker = heading?.querySelector(".home-data-layer__kicker");
 		const titleMain = heading?.querySelector(".home-data-layer__title-main");
@@ -377,7 +358,6 @@ const statsShareId = umamiConfig?.shareId ?? "";
 
 		dataLayerTimelines.push(headingTl);
 
-		// ========== Top Row Cards ==========
 		const topRow = layer.querySelector(".home-data-layer__row--top");
 		if (topRow) {
 			const cards = Array.from(topRow.querySelectorAll<HTMLElement>(".data-card"));
@@ -470,7 +450,6 @@ const statsShareId = umamiConfig?.shareId ?? "";
 
 			dataLayerTimelines.push(cardTl);
 
-			// Card image parallax
 			cards.forEach((card) => {
 				const img = card.querySelector<HTMLElement>(".data-card__visual-img");
 				if (!img) return;
@@ -488,7 +467,6 @@ const statsShareId = umamiConfig?.shareId ?? "";
 			});
 		}
 
-		// ========== Bands ==========
 		const bands = Array.from(layer.querySelectorAll<HTMLElement>(".data-band"));
 		bands.forEach((band, bandIndex) => {
 			const bandTl = gsap.timeline({

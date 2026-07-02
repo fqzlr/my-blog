@@ -170,7 +170,7 @@ const paddingClass = getPaddingStyle();
             href={currentAdConfig.link.url}
             target={currentAdConfig.link.external ? "_blank" : "_self"}
             rel={currentAdConfig.link.external ? "noopener noreferrer" : ""}
-            class="inline-flex items-center gap-2 px-4 py-2 bg-[oklch(0.75_0.14_var(--hue))] hover:bg-[oklch(0.7_0.16_var(--hue))] text-white rounded-lg transition-all duration-200 font-medium text-sm shadow-lg shadow-[oklch(0.75_0.14_var(--hue))]/25 hover:shadow-xl hover:shadow-[oklch(0.75_0.14_var(--hue))]/30 hover:scale-105 transform"
+            class="inline-flex items-center gap-2 px-4 py-2 bg-[oklch(0.75_0_0)] hover:bg-[oklch(0.7_0_0)] text-white rounded-lg transition-all duration-200 font-medium text-sm shadow-lg shadow-[oklch(0.75_0_0)]/25 hover:shadow-xl hover:shadow-[oklch(0.75_0_0)]/30 hover:scale-105 transform"
           >
             <span>{currentAdConfig.link.text}</span>
             {currentAdConfig.link.external && (
@@ -196,7 +196,7 @@ const paddingClass = getPaddingStyle();
 </div>
 
 <script>
-  function initAdvertisements() {
+  document.addEventListener("DOMContentLoaded", () => {
     // 清理旧的localStorage关闭状态，确保广告可以重新显示
     localStorage.removeItem("ad-closed");
 
@@ -205,10 +205,6 @@ const paddingClass = getPaddingStyle();
     ) as NodeListOf<HTMLElement>;
 
     adWidgets.forEach((widget) => {
-      // 防止重复绑定
-      if (widget.dataset.adInitialized) return;
-      widget.dataset.adInitialized = "true";
-
       const closeBtn = widget.querySelector(".close-ad-btn");
       const displayCount = parseInt(
         widget.getAttribute("data-display-count") || "-1"
@@ -241,16 +237,140 @@ const paddingClass = getPaddingStyle();
 
           setTimeout(() => {
             widget.style.display = "none";
+            
           }, 300);
         });
       }
     });
-  }
-
-  // 首次加载
-  document.addEventListener("DOMContentLoaded", initAdvertisements);
-  // 客户端导航后重新初始化
-  document.addEventListener("astro:page-load", initAdvertisements);
+  });
 </script>
 
-<!-- 样式已迁移至 src/styles/widgets/advertisement.css -->
+<style>
+  .advertisement-widget {
+    /* 完全跟随主题的背景和边框 */
+    background: var(--card-bg);
+    border: 1px solid var(--line-divider);
+    border-radius: var(--radius-large);
+    color: var(--primary-text-color);
+    /* padding由配置控制，不在CSS中设置 */
+    transition: all 0.3s ease;
+
+    /* 阴影效果跟随主题 */
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+
+    /* 深色模式下的特殊处理 */
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  /* 深色模式阴影 */
+  :global(.dark) .advertisement-widget {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+
+  /* 文字颜色由Tailwind类处理，这里不需要额外的CSS */
+
+  .advertisement-widget:hover {
+    /* 浅色模式阴影 */
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.08),
+      0 0 0 1px var(--line-divider);
+    transform: translateY(-2px);
+    border-color: oklch(0.75 0 0);
+  }
+
+  /* 深色模式特殊效果 */
+  :global(.dark) .advertisement-widget:hover {
+    box-shadow:
+      0 4px 20px rgba(0, 0, 0, 0.3),
+      0 0 0 1px oklch(0.75 0 0);
+    background: color-mix(
+      in srgb,
+      var(--card-bg),
+      oklch(0.75 0 0) 5%
+    );
+  }
+
+  .close-ad-btn {
+    opacity: 0;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(8px);
+  }
+
+  .advertisement-widget:hover .close-ad-btn {
+    opacity: 1;
+  }
+
+  /* 主题色按钮效果 */
+  .advertisement-widget a[class*="bg-[oklch"] {
+    background: oklch(0.75 0 0);
+    transition: all 0.2s ease;
+  }
+
+  .advertisement-widget a[class*="bg-[oklch"]:hover {
+    background: oklch(0.7 0 0);
+    box-shadow: 0 4px 12px
+      color-mix(in srgb, oklch(0.75 0 0), transparent 70%);
+  }
+
+  /* 图片悬停效果 */
+  .advertisement-widget img {
+    transition: all 0.3s ease;
+  }
+
+  .advertisement-widget:hover img {
+    filter: brightness(1.05) saturate(1.1);
+  }
+
+  :global(.dark) .advertisement-widget:hover img {
+    filter: brightness(1.1) saturate(1.15);
+  }
+
+  /* 响应式调整 */
+  @media (max-width: 768px) {
+    .advertisement-widget {
+      margin: 0; /* 与其他组件保持一致的边距（由外层布局控制） */
+      border-radius: var(--radius-large);
+      /* 保持左右边框，避免与其他卡片不一致 */
+      backdrop-filter: blur(8px);
+    }
+
+    .advertisement-widget:hover {
+      transform: none;
+      box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.06),
+        0 0 0 1px var(--line-divider);
+    }
+
+    :global(.dark) .advertisement-widget:hover {
+      box-shadow:
+        0 2px 12px rgba(0, 0, 0, 0.2),
+        0 0 0 1px oklch(0.75 0 0);
+    }
+  }
+
+  /* 高对比度模式支持 */
+  @media (prefers-contrast: high) {
+    .advertisement-widget {
+      border-width: 2px;
+    }
+
+    .advertisement-widget:hover {
+      border-color: oklch(0.6 0 0);
+    }
+  }
+
+  /* 减少动画模式支持 */
+  @media (prefers-reduced-motion: reduce) {
+    .advertisement-widget,
+    .close-ad-btn,
+    .advertisement-widget img,
+    .advertisement-widget a {
+      transition: none;
+    }
+
+    .advertisement-widget:hover {
+      transform: none;
+    }
+  }
+</style>

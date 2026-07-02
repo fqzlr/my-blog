@@ -1,0 +1,179 @@
+<style is:inline>
+  #welcome-toasts {
+    position: fixed;
+    right: 1.25rem;
+    bottom: 5.5rem;
+    z-index: 59;
+    display: none;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.5rem;
+    pointer-events: none;
+  }
+  #welcome-toasts .wt-toast {
+    position: relative;
+    display: flex;
+    align-items: center;
+    max-width: 280px;
+    padding: 0.55rem 1.75rem 0.55rem 0.75rem;
+    border-radius: 0.75rem;
+    border: 2px solid #000;
+    background: #fff;
+    color: #000;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+    pointer-events: auto;
+    user-select: none;
+    animation: wt-in 0.35s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+  }
+  html.dark #welcome-toasts .wt-toast {
+    border-color: #fff;
+    background: #1a1a1a;
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  }
+  #welcome-toasts .wt-toast.wt-out {
+    animation: wt-out 0.4s cubic-bezier(0.55, 0, 1, 0.45) forwards;
+    pointer-events: none;
+  }
+  @keyframes wt-out {
+    0%   { opacity: 1; transform: translateX(0) scale(1); }
+    30%  { opacity: 1; transform: translateX(-0.25rem) scale(1.02); }
+    100% { opacity: 0; transform: translateX(1.5rem) scale(0.85); filter: blur(4px); }
+  }
+  #welcome-toasts .wt-toast:nth-child(1) { animation-delay: 0.05s; }
+  #welcome-toasts .wt-toast:nth-child(2) { animation-delay: 0.15s; }
+  #welcome-toasts .wt-toast:nth-child(3) { animation-delay: 0.25s; }
+  @keyframes wt-in {
+    from { opacity: 0; transform: translateX(1rem) translateY(-0.25rem); }
+    to   { opacity: 1; transform: translateX(0) translateY(0); }
+  }
+  #welcome-toasts .wt-close {
+    position: absolute;
+    top: 0.25rem;
+    right: 0.25rem;
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: inherit;
+    opacity: 0.35;
+    cursor: pointer;
+    font-size: 0.75rem;
+    border-radius: 50%;
+    transition: opacity 0.15s;
+    padding: 0;
+    line-height: 1;
+  }
+  #welcome-toasts .wt-close:hover { opacity: 0.8; background: rgba(0,0,0,0.06); }
+  html.dark #welcome-toasts .wt-close:hover { background: rgba(255,255,255,0.1); }
+  @media (max-width: 480px) {
+    #welcome-toasts { right: 0.75rem; bottom: 5rem; gap: 0.375rem; }
+    #welcome-toasts .wt-toast { max-width: 240px; font-size: 0.75rem; padding: 0.5rem 1.5rem 0.5rem 0.625rem; }
+  }
+</style>
+
+<div id="welcome-toasts">
+  <div class="wt-toast" id="wt-loc">
+    <button class="wt-close" data-target="wt-loc">&times;</button>
+    <span id="wt-loc-text">欢迎远道而来的朋友！</span>
+  </div>
+  <div class="wt-toast" id="wt-greet">
+    <button class="wt-close" data-target="wt-greet">&times;</button>
+    <span id="wt-greet-text">早上好！</span>
+  </div>
+  <div class="wt-toast" id="wt-tip">
+    <button class="wt-close" data-target="wt-tip">&times;</button>
+    <span>点击导航栏菜单和右下角三个点探索更多功能</span>
+  </div>
+</div>
+
+<script is:inline>
+(function() {
+  var KEY = 'wt-dismissed';
+  var COOLDOWN = 86400000;
+
+  try {
+    var d = localStorage.getItem(KEY);
+    if (d && Date.now() - Number(d) < COOLDOWN) return;
+  } catch(e) { return; }
+
+  var box = document.getElementById('welcome-toasts');
+  if (!box) return;
+
+  box.style.display = 'flex';
+
+  // 地理位置（BigDataCloud，免费、无需 key、直接返回中文）
+  var locText = document.getElementById('wt-loc-text');
+  if (locText && navigator.onLine) {
+    function setLoc(place) {
+      if (place) locText.textContent = '欢迎来自 ' + place + ' 的朋友！';
+    }
+    fetch('https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=zh')
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        var parts = [data.city, data.principalSubdivision, data.countryName].filter(Boolean);
+        setLoc(parts.slice(0, 2).join(' '));
+      })
+      .catch(function() {
+        // 兜底：ipapi.co
+        fetch('https://ipapi.co/json/')
+          .then(function(r) { return r.json(); })
+          .then(function(ip) { setLoc([ip.city, ip.region].filter(Boolean).join(' ')); })
+          .catch(function() {});
+      });
+  }
+
+  // 时段
+  var greetEl = document.getElementById('wt-greet-text');
+  if (greetEl) {
+    var h = new Date().getHours();
+    var g = '晚上好！';
+    if (h >= 6 && h < 12)      g = '早上好！';
+    else if (h >= 12 && h < 14) g = '中午好！';
+    else if (h >= 14 && h < 18) g = '下午好！';
+    greetEl.textContent = g;
+  }
+
+  // 关闭逻辑
+  var toasts = box.querySelectorAll('.wt-toast');
+  var left = toasts.length;
+
+  function dismiss(el) {
+    if (el._dismissing) return;
+    el._dismissing = true;
+    // 用 JS 直接操控动画，避免 CSS animation-fill-mode:both 锁定状态
+    el.style.animation = 'none';
+    el.offsetHeight; // force reflow
+    el.style.animation = 'wt-out 0.4s cubic-bezier(0.55, 0, 1, 0.45) forwards';
+    left--;
+    if (left <= 0) {
+      localStorage.setItem(KEY, String(Date.now()));
+      setTimeout(function() { box.remove(); }, 500);
+    }
+  }
+
+  // 点击空白处关闭全部
+  document.addEventListener('click', function(e) {
+    // 点了 toast 内部或关闭按钮 → 由按钮处理
+    if (e.target.closest && e.target.closest('.wt-toast')) return;
+    // 空白处 → 关闭全部
+    for (var i = 0; i < toasts.length; i++) {
+      dismiss(toasts[i]);
+    }
+  });
+
+  var btns = box.querySelectorAll('.wt-close');
+  for (var j = 0; j < btns.length; j++) {
+    btns[j].addEventListener('click', function() {
+      var id = this.getAttribute('data-target');
+      var el = id ? document.getElementById(id) : null;
+      if (el) dismiss(el);
+    });
+  }
+})();
+</script>

@@ -1,0 +1,584 @@
+---
+interface Props {
+	images?: (string | { src: string; alt?: string })[];
+	fit?: number;
+	minRadius?: number;
+	maxRadius?: number;
+	segments?: number;
+	maxVerticalRotationDeg?: number;
+	dragSensitivity?: number;
+	dragDampening?: number;
+	enlargeTransitionMs?: number;
+	openedImageWidth?: string;
+	openedImageHeight?: string;
+	imageBorderRadius?: string;
+	openedImageBorderRadius?: string;
+	grayscale?: boolean;
+	overlayBlurColor?: string;
+	padFactor?: number;
+}
+
+const {
+	images = [],
+	fit = 0.5,
+	minRadius = 600,
+	maxRadius = 999999,
+	segments = 35,
+	maxVerticalRotationDeg = 5,
+	dragSensitivity = 20,
+	dragDampening = 2,
+	enlargeTransitionMs = 300,
+	openedImageWidth = "400px",
+	openedImageHeight = "400px",
+	imageBorderRadius = "30px",
+	openedImageBorderRadius = "30px",
+	grayscale = true,
+	overlayBlurColor = "#120F17",
+	padFactor = 0.25,
+} = Astro.props;
+
+// 构建球面坐标
+function buildItems(pool: any[], seg: number) {
+	const xCols = Array.from({ length: seg }, (_, i) => -37 + i * 2);
+	const evenYs = [-4, -2, 0, 2, 4];
+	const oddYs = [-3, -1, 1, 3, 5];
+
+	const coords = xCols.flatMap((x, c) => {
+		const ys = c % 2 === 0 ? evenYs : oddYs;
+		return ys.map((y) => ({ x, y, sizeX: 2, sizeY: 2 }));
+	});
+
+	const totalSlots = coords.length;
+	if (pool.length === 0) return coords.map((c) => ({ ...c, src: "", alt: "" }));
+
+	const normalized = pool.map((img) =>
+		typeof img === "string"
+			? { src: img, alt: "" }
+			: { src: img.src || "", alt: img.alt || "" },
+	);
+
+	const used = Array.from(
+		{ length: totalSlots },
+		(_, i) => normalized[i % normalized.length],
+	);
+
+	// 避免相邻重复
+	for (let i = 1; i < used.length; i++) {
+		if (used[i].src === used[i - 1].src) {
+			for (let j = i + 1; j < used.length; j++) {
+				if (used[j].src !== used[i].src) {
+					[used[i], used[j]] = [used[j], used[i]];
+					break;
+				}
+			}
+		}
+	}
+
+	return coords.map((c, i) => ({ ...c, src: used[i].src, alt: used[i].alt }));
+}
+
+const items = buildItems(images, segments);
+---
+
+<div
+  class="sphere-root"
+  id="dome-gallery"
+  style={`
+    --segments-x: ${segments};
+    --segments-y: ${segments};
+    --overlay-blur-color: ${overlayBlurColor};
+    --tile-radius: ${imageBorderRadius};
+    --enlarge-radius: ${openedImageBorderRadius};
+    --image-filter: ${grayscale ? "grayscale(1)" : "none"};
+  `}
+  data-fit={fit}
+  data-min-radius={minRadius}
+  data-max-radius={maxRadius}
+  data-pad-factor={padFactor}
+  data-max-vertical={maxVerticalRotationDeg}
+  data-drag-sensitivity={dragSensitivity}
+  data-drag-dampening={dragDampening}
+  data-enlarge-ms={enlargeTransitionMs}
+  data-opened-width={openedImageWidth}
+  data-opened-height={openedImageHeight}
+  data-overlay-color={overlayBlurColor}
+>
+  <main class="sphere-main" id="dome-main">
+    <div class="stage">
+      <div class="sphere" id="dome-sphere">
+        {items.map((it, i) => (
+          <div
+            class="item"
+            data-src={it.src}
+            data-offset-x={it.x}
+            data-offset-y={it.y}
+            data-size-x={it.sizeX}
+            data-size-y={it.sizeY}
+            style={`--offset-x: ${it.x}; --offset-y: ${it.y}; --item-size-x: ${it.sizeX}; --item-size-y: ${it.sizeY};`}
+          >
+            <div class="item__image" role="button" tabindex={0} aria-label={it.alt || "Open image"}>
+              <img src={it.src} draggable="false" alt={it.alt} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+
+    <div class="dg-overlay"></div>
+    <div class="dg-overlay dg-overlay--blur"></div>
+    <div class="edge-fade edge-fade--top"></div>
+    <div class="edge-fade edge-fade--bottom"></div>
+
+    <div class="viewer" id="dome-viewer">
+      <div class="scrim" id="dome-scrim"></div>
+    </div>
+  </main>
+</div>
+
+<style>
+  .sphere-root {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    --radius: 520px;
+    --viewer-pad: 72px;
+    --circ: calc(var(--radius) * 3.14);
+    --rot-y: calc((360deg / var(--segments-x)) / 2);
+    --rot-x: calc((360deg / var(--segments-y)) / 2);
+    --item-width: calc(var(--circ) / var(--segments-x));
+    --item-height: calc(var(--circ) / var(--segments-y));
+  }
+
+  .sphere-root * { box-sizing: border-box; }
+
+  .sphere, .item, .item__image { transform-style: preserve-3d; }
+
+  main.sphere-main {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    overflow: visible;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    background: transparent;
+  }
+
+  .stage {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    perspective: calc(var(--radius) * 2);
+    perspective-origin: 50% 50%;
+    contain: layout paint size;
+  }
+
+  .sphere {
+    transform: translateZ(calc(var(--radius) * -1));
+    will-change: transform;
+  }
+
+  .dg-overlay, .dg-overlay--blur {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    z-index: 3;
+    pointer-events: none;
+  }
+
+  .dg-overlay {
+    background-image: radial-gradient(rgba(235, 235, 235, 0) 65%, var(--overlay-blur-color, #120F17) 100%);
+  }
+  :root.dark .sphere-root {
+    --overlay-blur-color: rgba(0,0,0,0.85) !important;
+  }
+
+  .dg-overlay--blur {
+    -webkit-mask-image: radial-gradient(rgba(235, 235, 235, 0) 70%, var(--overlay-blur-color, #120F17) 90%);
+    mask-image: radial-gradient(rgba(235, 235, 235, 0) 70%, var(--overlay-blur-color, #120F17) 90%);
+    backdrop-filter: blur(3px);
+  }
+
+  .item {
+    width: calc(var(--item-width) * var(--item-size-x));
+    height: calc(var(--item-height) * var(--item-size-y));
+    position: absolute;
+    top: -999px; bottom: -999px; left: -999px; right: -999px;
+    margin: auto;
+    transform-origin: 50% 50%;
+    backface-visibility: hidden;
+    transition: transform 300ms;
+    transform:
+      rotateY(calc(var(--rot-y) * (var(--offset-x) + ((var(--item-size-x) - 1) / 2)) + var(--rot-y-delta, 0deg)))
+      rotateX(calc(var(--rot-x) * (var(--offset-y) - ((var(--item-size-y) - 1) / 2)) + var(--rot-x-delta, 0deg)))
+      translateZ(var(--radius));
+  }
+
+  .item__image {
+    position: absolute;
+    display: block;
+    inset: 10px;
+    border-radius: var(--tile-radius, 12px);
+    background: transparent;
+    overflow: hidden;
+    backface-visibility: hidden;
+    transition: transform 300ms;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    pointer-events: auto;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+
+  .item__image:focus { outline: none; }
+
+  .item__image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    backface-visibility: hidden;
+    filter: var(--image-filter, none);
+  }
+
+  .viewer {
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .viewer .scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 500ms ease;
+    backdrop-filter: blur(3px);
+  }
+
+  .sphere-root[data-enlarging="true"] .viewer .scrim {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .viewer .enlarge {
+    position: absolute;
+    z-index: 30;
+    border-radius: var(--enlarge-radius, 32px);
+    overflow: hidden;
+    transition: transform 500ms ease, opacity 500ms ease;
+    transform-origin: center center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 90vw;
+    max-height: 90vh;
+  }
+
+  .viewer .enlarge img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    filter: var(--image-filter, none);
+  }
+
+  .edge-fade {
+    position: absolute;
+    left: 0; right: 0;
+    height: 120px;
+    z-index: 5;
+    pointer-events: none;
+    background: linear-gradient(to bottom, transparent, var(--overlay-blur-color, #120F17));
+  }
+
+  .edge-fade--top { top: 0; transform: rotate(180deg); }
+  .edge-fade--bottom { bottom: 0; }
+</style>
+
+<script>
+  function initDomeGallery() {
+    const root = document.getElementById("dome-gallery");
+    const mainEl = document.getElementById("dome-main");
+    const sphere = document.getElementById("dome-sphere");
+    const viewer = document.getElementById("dome-viewer");
+    const scrim = document.getElementById("dome-scrim");
+
+    if (!root || !mainEl || !sphere || !viewer || !scrim) return;
+
+    // 读取配置
+    const cfg = {
+      fit: parseFloat(root.dataset.fit || "0.5"),
+      minRadius: parseFloat(root.dataset.minRadius || "600"),
+      maxRadius: parseFloat(root.dataset.maxRadius || "999999"),
+      padFactor: parseFloat(root.dataset.padFactor || "0.25"),
+      maxVertical: parseFloat(root.dataset.maxVertical || "5"),
+      dragSensitivity: parseFloat(root.dataset.dragSensitivity || "20"),
+      dragDampening: parseFloat(root.dataset.dragDampening || "2"),
+      enlargeMs: parseInt(root.dataset.enlargeMs || "300"),
+      openedWidth: root.dataset.openedWidth || "400px",
+      openedHeight: root.dataset.openedHeight || "400px",
+      overlayColor: root.dataset.overlayColor || "#120F17",
+    };
+
+    const segments = parseInt(getComputedStyle(root).getPropertyValue("--segments-x") || "35");
+
+    // 状态
+    const rot = { x: 0, y: 0 };
+    let lockedRadius = 520;
+    let dragging = false;
+    let moved = false;
+    let startRot = { x: 0, y: 0 };
+    let startPos = { x: 0, y: 0 };
+    let inertiaRAF: number | null = null;
+    let focusedEl: HTMLElement | null = null;
+    let opening = false;
+    let openStartedAt = 0;
+    let lastDragEndAt = 0;
+    let originalTilePos: any = null;
+
+    function applyTransform(xDeg: number, yDeg: number) {
+      sphere.style.transform = `translateZ(calc(var(--radius) * -1)) rotateX(${xDeg}deg) rotateY(${yDeg}deg)`;
+    }
+
+    // 计算半径
+    function recalcRadius() {
+      const cr = root!.getBoundingClientRect();
+      const w = Math.max(1, cr.width);
+      const h = Math.max(1, cr.height);
+      const minDim = Math.min(w, h);
+      const maxDim = Math.max(w, h);
+      const aspect = w / h;
+      const basis = aspect >= 1.3 ? w : minDim;
+      let radius = basis * cfg.fit;
+      radius = Math.min(radius, h * 1.35);
+      radius = Math.max(cfg.minRadius, Math.min(cfg.maxRadius, radius));
+      lockedRadius = Math.round(radius);
+      const viewerPad = Math.max(8, Math.round(minDim * cfg.padFactor));
+      root!.style.setProperty("--radius", `${lockedRadius}px`);
+      root!.style.setProperty("--viewer-pad", `${viewerPad}px`);
+      applyTransform(rot.x, rot.y);
+    }
+
+    recalcRadius();
+    new ResizeObserver(() => recalcRadius()).observe(root!);
+
+    // 拖拽
+    function clamp(v: number, min: number, max: number) { return Math.min(Math.max(v, min), max); }
+    function wrapAngle(deg: number) { let a = ((deg + 180) % 360 + 360) % 360; return a - 180; }
+
+    function stopInertia() {
+      if (inertiaRAF) { cancelAnimationFrame(inertiaRAF); inertiaRAF = null; }
+    }
+
+    function startInertia(vx: number, vy: number) {
+      const MAX_V = 1.4;
+      let vX = clamp(vx, -MAX_V, MAX_V) * 80;
+      let vY = clamp(vy, -MAX_V, MAX_V) * 80;
+      let frames = 0;
+      const d = clamp(cfg.dragDampening, 0, 1);
+      const friction = 0.94 + 0.055 * d;
+      const threshold = 0.015 - 0.01 * d;
+      const maxFrames = Math.round(90 + 270 * d);
+      const step = () => {
+        vX *= friction; vY *= friction;
+        if (Math.abs(vX) < threshold && Math.abs(vY) < threshold) { inertiaRAF = null; return; }
+        if (++frames > maxFrames) { inertiaRAF = null; return; }
+        rot.x = clamp(rot.x - vY / 200, -cfg.maxVertical, cfg.maxVertical);
+        rot.y = wrapAngle(rot.y + vX / 200);
+        applyTransform(rot.x, rot.y);
+        inertiaRAF = requestAnimationFrame(step);
+      };
+      stopInertia();
+      inertiaRAF = requestAnimationFrame(step);
+    }
+
+    mainEl.addEventListener("pointerdown", (e) => {
+      if (focusedEl) return;
+      stopInertia();
+      dragging = true; moved = false;
+      startRot = { ...rot };
+      startPos = { x: e.clientX, y: e.clientY };
+    });
+
+    mainEl.addEventListener("pointermove", (e) => {
+      if (!dragging || focusedEl) return;
+      const dx = e.clientX - startPos.x;
+      const dy = e.clientY - startPos.y;
+      if (!moved && dx * dx + dy * dy > 16) moved = true;
+      rot.x = clamp(startRot.x - dy / cfg.dragSensitivity, -cfg.maxVertical, cfg.maxVertical);
+      rot.y = wrapAngle(startRot.y + dx / cfg.dragSensitivity);
+      applyTransform(rot.x, rot.y);
+    });
+
+    mainEl.addEventListener("pointerup", (e) => {
+      if (!dragging) return;
+      dragging = false;
+      if (moved) {
+        lastDragEndAt = performance.now();
+        // 简单惯性：根据最后移动方向给一个初速度
+        const dx = e.clientX - startPos.x;
+        const dy = e.clientY - startPos.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 20) {
+          startInertia(dx / cfg.dragSensitivity * 0.02, dy / cfg.dragSensitivity * 0.02);
+        }
+      }
+      moved = false;
+    });
+
+    // 点击放大
+    function getDataNum(el: HTMLElement, name: string, fallback: number) {
+      const attr = el.dataset[name];
+      const n = attr == null ? NaN : parseFloat(attr);
+      return Number.isFinite(n) ? n : fallback;
+    }
+
+    function computeBaseRot(ox: number, oy: number, sx: number, sy: number) {
+      const unit = 360 / segments / 2;
+      return { rotateY: unit * (ox + (sx - 1) / 2), rotateX: unit * (oy - (sy - 1) / 2) };
+    }
+
+    function normalizeAngle(d: number) { return ((d % 360) + 360) % 360; }
+
+    function openItem(el: HTMLElement) {
+      if (opening) return;
+      opening = true;
+      openStartedAt = performance.now();
+      document.body.style.overflow = "hidden";
+
+      const parent = el.parentElement as HTMLElement;
+      focusedEl = el;
+
+      const ox = getDataNum(parent, "offsetX", 0);
+      const oy = getDataNum(parent, "offsetY", 0);
+      const sx = getDataNum(parent, "sizeX", 2);
+      const sy = getDataNum(parent, "sizeY", 2);
+      const parentRot = computeBaseRot(ox, oy, sx, sy);
+
+      const parentY = normalizeAngle(parentRot.rotateY);
+      const globalY = normalizeAngle(rot.y);
+      let rotY = -(parentY + globalY) % 360;
+      if (rotY < -180) rotY += 360;
+      const rotX = -parentRot.rotateX - rot.x;
+
+      parent.style.setProperty("--rot-y-delta", `${rotY}deg`);
+      parent.style.setProperty("--rot-x-delta", `${rotX}deg`);
+
+      el.style.visibility = "hidden";
+
+      const mainR = mainEl.getBoundingClientRect();
+      const imgSrc = parent.dataset.src || el.querySelector("img")?.src || "";
+
+      // 创建图片元素来获取实际尺寸
+      const tempImg = new Image();
+      tempImg.onload = function() {
+        const imgWidth = tempImg.naturalWidth;
+        const imgHeight = tempImg.naturalHeight;
+        const imgAspect = imgWidth / imgHeight;
+
+        // 计算适合屏幕的尺寸
+        const maxWidth = mainR.width * 0.9;
+        const maxHeight = mainR.height * 0.9;
+        let width, height;
+
+        if (imgAspect > 1) {
+          // 横图
+          width = Math.min(maxWidth, imgWidth);
+          height = width / imgAspect;
+          if (height > maxHeight) {
+            height = maxHeight;
+            width = height * imgAspect;
+          }
+        } else {
+          // 竖图或正方形
+          height = Math.min(maxHeight, imgHeight);
+          width = height * imgAspect;
+          if (width > maxWidth) {
+            width = maxWidth;
+            height = width / imgAspect;
+          }
+        }
+
+        // 居中定位
+        const left = (mainR.width - width) / 2;
+        const top = (mainR.height - height) / 2;
+
+        const overlay = document.createElement("div");
+        overlay.className = "enlarge";
+        overlay.style.position = "absolute";
+        overlay.style.left = `${left}px`;
+        overlay.style.top = `${top}px`;
+        overlay.style.width = `${width}px`;
+        overlay.style.height = `${height}px`;
+        overlay.style.opacity = "0";
+        overlay.style.zIndex = "30";
+        overlay.style.transition = `opacity ${cfg.enlargeMs}ms ease`;
+
+        const img = document.createElement("img");
+        img.src = imgSrc;
+        img.style.width = "100%";
+        img.style.height = "100%";
+        img.style.objectFit = "contain";
+        overlay.appendChild(img);
+        viewer.appendChild(overlay);
+
+        root!.setAttribute("data-enlarging", "true");
+
+        requestAnimationFrame(() => {
+          overlay.style.opacity = "1";
+          opening = false;
+        });
+      };
+      tempImg.src = imgSrc;
+    }
+
+    function closeEnlarge() {
+      if (performance.now() - openStartedAt < 250) return;
+      const overlay = viewer.querySelector(".enlarge") as HTMLElement | null;
+      if (!overlay) return;
+
+      overlay.style.opacity = "0";
+      setTimeout(() => {
+        overlay.remove();
+        if (focusedEl) {
+          focusedEl.style.visibility = "";
+          const parent = focusedEl.parentElement as HTMLElement;
+          parent.style.setProperty("--rot-y-delta", "0deg");
+          parent.style.setProperty("--rot-x-delta", "0deg");
+          focusedEl = null;
+        }
+        root!.removeAttribute("data-enlarging");
+        document.body.style.overflow = "";
+      }, cfg.enlargeMs);
+    }
+
+    // 点击委托
+    mainEl.addEventListener("click", (e) => {
+      if (moved || performance.now() - lastDragEndAt < 80) return;
+      const imgEl = (e.target as HTMLElement).closest(".item__image") as HTMLElement | null;
+      if (!imgEl) return;
+      if (focusedEl) return;
+      openItem(imgEl);
+    });
+
+    scrim.addEventListener("click", closeEnlarge);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeEnlarge();
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initDomeGallery);
+  } else {
+    initDomeGallery();
+  }
+  document.addEventListener("astro:page-load", initDomeGallery);
+</script>

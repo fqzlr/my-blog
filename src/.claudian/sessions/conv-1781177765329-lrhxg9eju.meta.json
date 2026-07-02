@@ -1,0 +1,24 @@
+{
+	"id": "conv-1781177765329-lrhxg9eju",
+	"providerId": "claude",
+	"title": "如何整理这份文件为我的笔记？",
+	"titleGenerationStatus": "failed",
+	"createdAt": 1781177765330,
+	"updatedAt": 1781177821979,
+	"lastResponseAt": 1781177821979,
+	"sessionId": "68289b6a-1b1c-497e-8629-9e53f2f6de9b",
+	"providerState": {
+		"providerSessionId": "68289b6a-1b1c-497e-8629-9e53f2f6de9b"
+	},
+	"currentNote": "notes/草稿/未整理为笔记/Web开发介绍.md",
+	"usage": {
+		"model": "haiku",
+		"inputTokens": 0,
+		"cacheCreationInputTokens": 0,
+		"cacheReadInputTokens": 0,
+		"contextWindow": 200000,
+		"contextTokens": 0,
+		"percentage": 0,
+		"contextWindowIsAuthoritative": true
+	}
+}

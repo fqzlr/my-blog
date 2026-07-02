@@ -1,25 +1,69 @@
 ---
 import { Picture } from "astro:assets";
 import * as path from "node:path";
-import Icon from "@components/common/Icon.astro";
 import type { ImageMetadata } from "astro";
-import GlassSurface from "@/components/common/GlassSurface.svelte";
-import { navBarConfig, siteConfig } from "@/config";
+import { Icon } from "astro-icon/components";
+import DisplaySettings from "@/components/controls/DisplaySettingsIntegrated.svelte";
+import LightDarkSwitch from "@/components/controls/LightDarkSwitch.svelte";
+import MusicPlayer from "@/components/features/MusicPlayer.astro";
+import { backgroundWallpaper, navBarConfig, siteConfig } from "@/config";
+import { musicPlayerConfig } from "@/config/musicConfig";
 import { LinkPresets } from "@/constants/link-presets";
+import I18nKey from "@/i18n/i18nKey";
+import { i18n } from "@/i18n/translation";
+import { LinkPreset, type NavBarLink } from "@/types/config";
 import { getFallbackFormat, getImageFormats } from "@/utils/image-utils";
+import { isHomePage } from "@/utils/layout-utils";
 import { url } from "@/utils/url-utils";
 import DropdownMenu from "./DropdownMenu.astro";
+import NavMenuPanel from "./NavMenuPanel.astro";
 
 const className = Astro.props.class;
 
+// 获取导航栏透明模式配置
+const navbarTransparentMode =
+	backgroundWallpaper.mode === "banner"
+		? backgroundWallpaper.banner?.navbar?.transparentMode || "semi"
+		: "semi";
+
+// 获取导航栏毛玻璃效果配置
+const navbarEnableBlur =
+	backgroundWallpaper.mode === "banner"
+		? (backgroundWallpaper.banner?.navbar?.enableBlur ?? true)
+		: false;
+
+// 获取导航栏模糊度
+const navbarBlur =
+	backgroundWallpaper.mode === "banner"
+		? (backgroundWallpaper.banner?.navbar?.blur ?? 20)
+		: 0;
+
+// 获取导航栏标题，如果没有设置则使用 siteConfig.title
 const navbarTitle = siteConfig.navbar.title || siteConfig.title;
-void siteConfig.navbar.widthFull;
 
-let links = navBarConfig.links.map((item) => {
-	if (typeof item === "number") return LinkPresets[item];
-	return item;
-});
+// 获取导航栏宽度配置
+const navbarWidthFull = siteConfig.navbar.widthFull ?? false;
 
+// 检查是否为首页
+const isHomePageCheck = isHomePage(Astro.url.pathname);
+
+// 检查是否有任何显示设置可用
+const showThemeColor = !siteConfig.themeColor.fixed;
+const isWallpaperSwitchable = backgroundWallpaper.switchable ?? true;
+const allowLayoutSwitch = siteConfig.postListLayout.allowSwitch;
+const hasDisplaySettings =
+	showThemeColor || isWallpaperSwitchable || allowLayoutSwitch;
+
+let links: NavBarLink[] = navBarConfig.links.map(
+	(item: NavBarLink | LinkPreset): NavBarLink => {
+		if (typeof item === "number") {
+			return LinkPresets[item];
+		}
+		return item;
+	},
+);
+
+// 处理导航栏 Logo 图片
 const logoValue = siteConfig.navbar.logo?.value || "";
 const isLocalSrcLogo =
 	siteConfig.navbar.logo?.type === "image" &&
@@ -37,86 +81,140 @@ if (isLocalSrcLogo) {
 		.normalize(path.join("../../", logoValue))
 		.replace(/\\/g, "/");
 	const file = files[normalizedPath];
-	if (file) logoImg = await file();
+	if (file) {
+		logoImg = await file();
+	}
 }
 ---
-
-<div id="navbar" class="z-50">
-    <div class:list={[className, "navbar-pill relative"]}>
-        <div class="navbar-glass-layer absolute inset-0 z-0 opacity-0 pointer-events-none">
-            <GlassSurface
-                client:load
-                width="100%"
-                height="100%"
-                borderRadius={50}
-                backgroundOpacity={0.15}
-                saturation={1}
-                borderWidth={0.05}
-                brightness={50}
-                opacity={1}
-                blur={7}
-                displace={0.5}
-                distortionScale={-220}
-                redOffset={0}
-                greenOffset={5}
-                blueOffset={10}
-            />
+<div id="navbar" class="z-50" style={`--navbar-glass-blur: ${navbarBlur}px;`} data-transparent-mode={navbarTransparentMode} data-enable-blur={String(navbarEnableBlur)} data-is-home={isHomePageCheck} data-full-width={navbarWidthFull}>
+    <div class:list={[
+        className,
+        "overflow-visible! h-18 mx-auto flex items-center px-4",
+        navbarWidthFull ? "" : "justify-between max-w-(--page-width)"
+    ]}>
+        <a href={url('/')} class="btn-plain scale-animation rounded-lg h-13 px-5 font-bold active:scale-95 navbar-logo-link">
+            <div class:list={[
+                "flex flex-row items-center text-md navbar-logo-content",
+                siteConfig.navbar.followTheme ? "text-(--primary)" : "dark:text-white text-black"
+            ]}>
+                                {siteConfig.navbar.logo?.type === "icon" ? (
+                                    <Icon name={siteConfig.navbar.logo.value || "material-symbols:home-pin-outline"} class="text-[1.75rem] mb-1 mr-2 navbar-logo-icon" />
+                                ) : siteConfig.navbar.logo?.type === "image" && logoImg ? (
+                                    <Picture
+                                        src={logoImg}
+                                        alt={siteConfig.navbar.logo.alt || siteConfig.title}
+                                        class="h-7 w-7 mb-1 mr-2 object-contain navbar-logo-img"
+                                        formats={getImageFormats()}
+                                        fallbackFormat={getFallbackFormat()}
+                                        widths={[28, 56]}
+                                        loading="eager"
+                                        fetchpriority="high"
+                                    />
+                                ) : siteConfig.navbar.logo?.type === "image" ? (
+                                    <img src={url(siteConfig.navbar.logo.value)} alt={siteConfig.navbar.logo.alt || siteConfig.title} class="h-7 w-7 mb-1 mr-2 object-contain navbar-logo-img" fetchpriority="high" />
+                                ) : siteConfig.navbar.logo?.type === "url" ? (
+                                    <img src={siteConfig.navbar.logo.value} alt={siteConfig.navbar.logo.alt || siteConfig.title} class="h-7 w-7 mb-1 mr-2 object-contain navbar-logo-img" fetchpriority="high" />
+                                ) : (
+                                    <Icon name="material-symbols:home-pin-outline" class="text-[1.75rem] mb-1 mr-2 navbar-logo-icon" />
+                                )}
+                <span class="navbar-logo-text">{navbarTitle}</span>
+            </div>
+        </a>
+        <div class="hidden lg:flex items-center space-x-1 relative" data-navbar-nav>
+            <div class="navbar-hover-border" data-hover-border></div>
+            {links.map((l) => {
+                return <DropdownMenu link={l} />;
+            })}
         </div>
-        <div class="navbar-inner relative z-10" data-nav-body>
-            <a href={url('/')} class="navbar-logo scale-animation flex items-center text-(--deep-text)">
-                {siteConfig.navbar.logo?.type === "icon" ? (
-                    <Icon name={siteConfig.navbar.logo.value || "material-symbols:home-pin-outline"} is:inline class="text-[1.5rem] mr-2 flex-shrink-0" />
-                ) : siteConfig.navbar.logo?.type === "image" && logoImg ? (
-                    logoImg.format === "svg" ? (
-                        <img src={logoImg.src} alt={siteConfig.navbar.logo.alt || siteConfig.title} class="h-7 w-7 mr-2 object-contain flex-shrink-0" fetchpriority="high" />
-                    ) : (
-                    <Picture
-                        src={logoImg}
-                        alt={siteConfig.navbar.logo.alt || siteConfig.title}
-                        class="h-7 w-7 mr-2 object-contain flex-shrink-0"
-                        formats={getImageFormats()}
-                        fallbackFormat={getFallbackFormat()}
-                        widths={[28, 56]}
-                        loading="eager"
-                        fetchpriority="high"
-                    />
-                    )
-                ) : siteConfig.navbar.logo?.type === "image" ? (
-                    <img src={url(siteConfig.navbar.logo.value)} alt={siteConfig.navbar.logo.alt || siteConfig.title} class="h-7 w-7 mr-2 object-contain flex-shrink-0" fetchpriority="high" />
-                ) : siteConfig.navbar.logo?.type === "url" ? (
-                    <img src={siteConfig.navbar.logo.value} alt={siteConfig.navbar.logo.alt || siteConfig.title} class="h-7 w-7 mr-2 object-contain flex-shrink-0" fetchpriority="high" />
-                ) : (
-                    <Icon name="material-symbols:home-pin-outline" is:inline class="text-[1.5rem] mr-2 flex-shrink-0" />
-                )}
-                <span class="navbar-logo-text font-mono uppercase tracking-[0.15em] text-sm font-semibold ml-1">{navbarTitle}</span>
+        <div class:list={["flex items-center gap-0.5", navbarWidthFull ? "ml-auto" : ""]}>
+            <!-- 太阳/月亮主题切换 -->
+            <button id="sun-moon-theme-btn" class="btn-plain rounded-lg sun-moon-btn" title="切换主题" aria-label="切换主题">
+                <span class="sun-moon-icon sun-icon">
+                    <Icon name="material-symbols:wb-sunny-rounded" class="text-[1.25rem]" />
+                </span>
+                <span class="sun-moon-icon moon-icon">
+                    <Icon name="material-symbols:dark-mode-rounded" class="text-[1.25rem]" />
+                </span>
+            </button>
+            <a href="/admin/" aria-label="后台管理" class="btn-plain rounded-lg w-11 h-11 flex items-center justify-center admin-entry-btn" title="后台管理" data-no-swup>
+                <Icon name="material-symbols:login-rounded" class="text-[1.25rem]" />
             </a>
-
-            <div class="navbar-nav hidden lg:flex items-center gap-1 relative" data-navbar-nav>
-                <div class="navbar-hover-border" data-hover-border></div>
-                {links.map((l) => <DropdownMenu link={l} />)}
-            </div>
-
-            <div class="navbar-right flex items-center gap-0.5 lg:gap-1">
-                <button aria-label="Search" name="Search" class="btn-plain h-9 w-9 lg:h-11 lg:w-11" id="nav-search-btn">
-                    <Icon name="material-symbols:search-rounded" is:inline class="text-[1.25rem] lg:text-[1.65rem]" style="font-variation-settings: 'wght' 700"></Icon>
-                </button>
-                <a href="/config/" aria-label="站点设置" class="btn-plain h-9 w-9 lg:h-11 lg:w-11 hidden lg:flex items-center justify-center" title="站点设置" data-no-swup>
-                    <Icon name="material-symbols:settings-rounded" is:inline class="text-[1.1rem] lg:text-[1.25rem]" />
-                </a>
-                <button id="nav-theme-btn" class="btn-plain h-9 w-9 lg:h-11 lg:w-11" aria-label="Toggle theme" name="Theme">
-                    <Icon name="material-symbols:dark-mode-rounded" is:inline class="text-[1.1rem] lg:text-[1.25rem]" />
-                </button>
-                <button aria-label="Menu" name="Nav Menu" class="btn-plain h-9 w-9 lg:h-11 lg:w-11 lg:hidden!" id="nav-menu-switch">
-                    <Icon name="material-symbols:menu-rounded" is:inline class="text-[1.1rem] lg:text-[1.25rem]"></Icon>
-                </button>
-            </div>
+            <button aria-label="Menu" name="Nav Menu" class="btn-plain rounded-lg w-11 h-11 lg:hidden! nav-hamburger-btn" id="nav-menu-switch">
+                <Icon name="material-symbols:menu-rounded" class="text-[1.5rem] hamburger-icon-menu" /><Icon name="material-symbols:close-rounded" class="text-[1.5rem] hamburger-icon-close hidden" />
+            </button>
         </div>
+        <NavMenuPanel links={links} siteTitle={navbarTitle}></NavMenuPanel>
+        <DisplaySettings client:load></DisplaySettings>
     </div>
 </div>
 
-<!-- 样式已迁移至 src/styles/layout/navbar-new.css -->
+<style>
+  /* ============ 太阳/月亮主题切换按钮 ============ */
+  .sun-moon-btn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .sun-moon-icon {
+    position: absolute;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 亮色模式：显示太阳，隐藏月亮 */
+  .sun-icon { opacity: 1; transform: rotate(0deg) scale(1); }
+  .moon-icon { opacity: 0; transform: rotate(-90deg) scale(0.5); }
+
+  /* 暗色模式：显示月亮，隐藏太阳 */
+  :root.dark .sun-icon { opacity: 0; transform: rotate(90deg) scale(0.5); }
+  :root.dark .moon-icon { opacity: 1; transform: rotate(0deg) scale(1); }
+
+  /* ============ hover 滑动边框指示器 ============ */
+  .navbar-hover-border {
+    position: absolute;
+    height: 2.5rem;
+    border-radius: 9999px;
+    border: 1.5px solid oklch(0.35 0 0);
+    background-color: transparent;
+    opacity: 0;
+    transition:
+      left 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+      width 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+      height 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+      top 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+      opacity 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+      border-color 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  :root.dark .navbar-hover-border {
+    border-color: oklch(0.6 0 0);
+  }
+
+  [data-navbar-nav]:hover .navbar-hover-border,
+  [data-navbar-nav].nav-has-active .navbar-hover-border {
+    opacity: 1;
+  }
+
+  /* 禁用各 item 自身的悬浮背景 */
+  [data-navbar-nav] .dropdown-container > .btn-plain:hover,
+  [data-navbar-nav] .dropdown-container > .btn-plain:active,
+  [data-navbar-nav] .dropdown-container > .btn-plain:focus-visible {
+    background-color: transparent !important;
+  }
+
+</style>
 
 <script>
+// ============ hover 滑动边框指示器 ============
 let _hoverSliderAbortController: AbortController | null = null;
 let _hoverSliderMouseEnterHandlers: Array<[Element, (e: Event) => void]> = [];
 
@@ -209,83 +307,77 @@ function initHoverSlider() {
 }
 
 initHoverSlider();
+document.addEventListener('astro:page-load', initHoverSlider);
 
+function loadButtonScript() {
+    document.addEventListener("click", function(event) {
+        const panel = document.getElementById("display-setting");
+        if (panel && !panel.classList.contains("float-panel-closed")) {
+            if (event.target instanceof Node && !panel.contains(event.target)) {
+                panel.classList.add("float-panel-closed");
+            }
+        }
+    });
+}
+
+loadButtonScript();
+
+// 滚动方向检测：向下滚动隐藏导航栏，向上滚动显示
 (function() {
     const navbar = document.getElementById('navbar');
-    const navbarWrapper = document.getElementById('navbar-wrapper');
     if (!navbar) return;
 
-    const SCROLL_IN  = 80;   // 超过此值收缩
-    const SCROLL_OUT = 40;   // 低于此值展开
-
+    let lastScrollY = window.scrollY;
     let ticking = false;
+    const threshold = 10;
 
-    function handleScroll() {
-        const y = window.scrollY;
+    function updateNavbar() {
+        const currentScrollY = window.scrollY;
+        const diff = currentScrollY - lastScrollY;
 
-        if (y > SCROLL_IN) {
-            navbar?.classList.add('scrolled');
-            navbarWrapper?.classList.add('navbar-scrolled');
-        } else if (y < SCROLL_OUT) {
-            navbar?.classList.remove('scrolled');
-            navbarWrapper?.classList.remove('navbar-scrolled');
+        if (currentScrollY <= 0) {
+            // 在页面顶部，始终显示 + 恢复药丸态
+            navbar.classList.remove('nav-hidden');
+            navbar.classList.remove('scrolled');
+        } else if (diff > threshold) {
+            // 向下滚动：隐藏
+            navbar.classList.add('nav-hidden');
+        } else if (diff < -threshold) {
+            // 向上滚动：显示 + 收缩为药丸
+            navbar.classList.remove('nav-hidden');
+            navbar.classList.add('scrolled');
         }
 
+        lastScrollY = currentScrollY;
         ticking = false;
     }
 
-    window.addEventListener('scroll', () => {
+    window.addEventListener('scroll', function() {
         if (!ticking) {
-            requestAnimationFrame(handleScroll);
+            requestAnimationFrame(updateNavbar);
             ticking = true;
         }
     }, { passive: true });
-
-    handleScroll();
 })();
-
-document.addEventListener("astro:page-load", () => {
-    initHoverSlider();
-});
-
-// Navbar search button → open search modal
-// 使用事件委托绑定在 #navbar 上，Swup 导航后无需重新绑定
-// Theme toggle button
-document.getElementById("navbar")?.addEventListener("click", (e) => {
-    const themeBtn = (e.target as HTMLElement)?.closest?.("#nav-theme-btn");
-    if (themeBtn) {
-        e.stopPropagation();
-        const isDark = document.documentElement.classList.contains("dark");
-        if (isDark) {
-            document.documentElement.classList.remove("dark");
-            localStorage.setItem("theme", "light");
-        } else {
-            document.documentElement.classList.add("dark");
-            localStorage.setItem("theme", "dark");
-        }
-        return;
-    }
-});
-
-document.getElementById("navbar")?.addEventListener("click", (e) => {
-    const btn = (e.target as HTMLElement)?.closest?.("#nav-search-btn");
-    if (!btn) return;
-    e.stopPropagation();
-    window.dispatchEvent(new CustomEvent("toggle-search-modal"));
-});
 </script>
 
 {
     import.meta.env.PROD && (
         <script is:inline data-swup-ignore-script define:vars={{ scriptUrl: url('/pagefind/pagefind.js') }}>
+            {/* 你的 loadPagefind 函数的完整内容放在这里 */}
             async function loadPagefind() {
                 try {
                     const response = await fetch(scriptUrl, { method: 'HEAD' });
-                    if (!response.ok) throw new Error(`Pagefind script not found: ${response.status}`);
+                    if (!response.ok) {
+                        throw new Error(`Pagefind script not found: ${response.status}`);
+                    }
                     const pagefind = await import(scriptUrl);
-                    await pagefind.options({ excerptLength: 20 });
+                    await pagefind.options({
+                        excerptLength: 20
+                    });
                     window.pagefind = pagefind;
                     document.dispatchEvent(new CustomEvent('pagefindready'));
+                    console.log('Pagefind loaded and initialized successfully, event dispatched.');
                 } catch (error) {
                     console.error('Failed to load Pagefind:', error);
                     window.pagefind = {
@@ -293,8 +385,10 @@ document.getElementById("navbar")?.addEventListener("click", (e) => {
                         options: () => Promise.resolve(),
                     };
                     document.dispatchEvent(new CustomEvent('pagefindloaderror'));
+                    console.log('Pagefind load error, event dispatched.');
                 }
             }
+
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', loadPagefind);
             } else {

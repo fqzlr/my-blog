@@ -2,9 +2,9 @@ import type { BackgroundWallpaperConfig } from "@/types/config";
 
 export const backgroundWallpaper: BackgroundWallpaperConfig = {
 	// 壁纸模式："banner" 横幅壁纸，"overlay" 全屏透明，"none" 纯色背景无壁纸
-	mode: "banner",
+	mode: "none",
 	// 是否允许用户通过导航栏切换壁纸模式，设为false可提升性能（只渲染当前模式）
-	switchable: true,
+	switchable: false,
 	/**
 	 * 背景图片配置
 	 * 图片路径支持三种格式：
@@ -39,22 +39,14 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 		// 桌面背景图片（支持单张或多张随机）
 		// desktop: "assets/images/DesktopWallpaper/d1.avif",
 		desktop: [
-			"assets/images/DesktopWallpaper/d1.avif",
-			"assets/images/DesktopWallpaper/d2.avif",
-			"assets/images/DesktopWallpaper/d3.avif",
-			"assets/images/DesktopWallpaper/d4.avif",
-			"assets/images/DesktopWallpaper/d5.avif",
-			"assets/images/DesktopWallpaper/d6.avif",
+			// "assets/images/DesktopWallpaper/003.jpeg",
+			"https://re.tsh520.cn/img/DesktopWallpaper/003.webp",
 		],
 		// 移动背景图片（支持单张或多张随机）
 		// mobile: "assets/images/MobileWallpaper/m1.avif",
 		mobile: [
-			"assets/images/MobileWallpaper/m1.avif",
-			"assets/images/MobileWallpaper/m2.avif",
-			"assets/images/MobileWallpaper/m3.avif",
-			"assets/images/MobileWallpaper/m4.avif",
-			"assets/images/MobileWallpaper/m5.avif",
-			"assets/images/MobileWallpaper/m6.avif",
+			// "assets/images/MobileWallpaper/18188682411036032.jpeg",
+			"https://re.tsh520.cn/img/MobileWallpaper/18188682411036032.webp",
 		],
 	},
 	// Banner模式特有配置
@@ -67,21 +59,18 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 		// 主页横幅文字
 		homeText: {
 			// 是否启用主页横幅文字
-			enable: false,
+			enable: true,
 			// 是否允许用户通过控制面板切换横幅标题显示
 			switchable: true,
 			// 主页横幅主标题
-			title: "Lovely firefly!",
+			title: "Record more, talk less!",
 			// 主页横幅主标题字体大小
 			titleSize: "3.8rem",
 			// 主页横幅副标题
 			subtitle: [
-				"In Reddened Chrysalis, I Once Rest",
-				"From Shattered Sky, I Free Fall",
-				"Amidst Silenced Stars, I Deep Sleep",
-				"Upon Lighted Fyrefly, I Soon Gaze",
-				"From Undreamt Night, I Thence Shine",
-				"In Finalized Morrow, I Full Bloom",
+				"请耐心做好目前的事吧，上岸是迟早的，潮水退去以后一定会收获到贝壳。",
+				"不要怕，无论什么困难的事，只要硬着头皮去做，就闯过去了。",
+				"你可以不优秀，但不能不努力。",
 			],
 			// 主页横幅副标题字体大小
 			subtitleSize: "1.5rem",
@@ -108,7 +97,7 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 			},
 			text: {
 				// 桌面端要显示的来源文本
-				desktop: "Pixiv - 晚晚喵",
+				desktop: "网站浏览量",
 				// 移动端要显示的来源文本
 				mobile: "Pixiv - KiraraShss",
 			},
@@ -122,23 +111,11 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 		// 横幅导航栏配置
 		navbar: {
 			// 横幅导航栏透明模式："semi" 半透明，"full" 完全透明，"semifull" 动态透明
-			transparentMode: "semi",
+			transparentMode: "semifull",
 			// 是否开启毛玻璃模糊效果，开启可能会影响页面性能，如果不开启则是半透明，请根据自己的喜好开启
 			enableBlur: true,
 			// 毛玻璃模糊度
-			blur: 5,
-		},
-		// 横幅图片轮播配置，仅在当配置多张图片时生效
-		carousel: {
-			// 是否启用横幅图片轮播；关闭时保持每次刷新随机显示一张
-			// 开启轮播可能会有点奇怪，为了让图片之间的切换自然，图片会在下一张加载完成后，当前图片才会消失，所以会导致过渡有重影，可能会影响观感
-			// 目前还没有找到更好的过渡效果方案，所以如果你觉得轮播切换时的过渡效果不好，可以考虑关闭轮播，保持每次刷新随机显示一张图片
-			// 反正我目前不是很满意这个过渡效果，所以默认关闭了，如果你有更好的过渡效果方案，欢迎提交PR改进这个功能
-			enable: false,
-			// 轮播切换间隔（毫秒）
-			interval: 5000,
-			// 是否允许用户通过控制面板切换横幅轮播
-			switchable: false,
+			blur: 3,
 		},
 		// 水波纹动画效果配置，开启会影响页面性能，请根据自己的喜好开启
 		waves: {
@@ -154,19 +131,11 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 	},
 	// 全屏透明覆盖模式特有配置
 	overlay: {
-		// 是否允许用户通过控制面板调整全屏透明模式参数
-		switchable: {
-			opacity: true,
-			blur: true,
-			cardOpacity: true,
-		},
 		// 层级，确保壁纸在背景层
 		zIndex: -1,
 		// 壁纸透明度
 		opacity: 0.8,
-		// 背景模糊度
-		blur: 10,
-		// 卡片透明度，0-1之间，值越小越透明
-		cardOpacity: 0.5,
+		// 背景模糊程度
+		blur: 1,
 	},
 };

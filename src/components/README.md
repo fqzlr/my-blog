@@ -26,7 +26,8 @@ Firefly 项目中所有可复用组件的集中管理。组件按照功能和职
 **导航控件**
 - `BackToHome.astro` - 返回主页按钮
 - `BackToTop.astro` - 返回顶部按钮
-- `FloatingDock.astro` - 极简悬浮坞（替代原 FloatingControls）
+- `FloatingControls.astro` - 右下角悬浮控件容器
+- `FloatingTOC.astro` - 浮动目录组件
 
 **交互组件**
 - `ArchivePanel.svelte` - 归档面板组件
@@ -72,6 +73,7 @@ Firefly 项目中所有可复用组件的集中管理。组件按照功能和职
 - `Music.astro` - 音乐播放器小部件
 - `Profile.astro` - 个人信息/社交链接小部件
 - `SidebarTOC.astro` - 侧边栏目录组件
+- `SiteStats.astro` - 站点统计组件
 - `SpineModel.astro` - Spine 看板娘组件
 - `Tags.astro` - 标签组件
 

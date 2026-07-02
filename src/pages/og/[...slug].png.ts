@@ -4,7 +4,6 @@ import * as fs from "node:fs";
 import type { APIContext, GetStaticPaths } from "astro";
 import satori from "satori";
 import sharp from "sharp";
-import type { PostData } from "@/types/post";
 import { removeFileExtension } from "@/utils/url-utils";
 
 import { profileConfig } from "../../config/profileConfig";
@@ -28,9 +27,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
 	}
 
 	const allPosts = await getCollection("posts");
-	const publishedPosts = allPosts.filter(
-		(post) => !(post.data as PostData).draft,
-	);
+	const publishedPosts = allPosts.filter((post) => !post.data.draft);
 
 	return publishedPosts.map((post) => {
 		// 将 id 转换为 slug（移除扩展名）以匹配路由参数
@@ -42,26 +39,69 @@ export const getStaticPaths: GetStaticPaths = async () => {
 	});
 };
 
-let fontCache: Buffer | null = null;
+let fontCache: { regular: Buffer | null; bold: Buffer | null } | null = null;
 
-function loadLocalAaZongYiYuanFont() {
+async function fetchNotoSansSCFonts() {
 	if (fontCache) return fontCache;
 	try {
-		const fontPath = "./public/fonts/AaZongYiYuan/AaZongYiYuan-2.ttf";
-		fontCache = fs.existsSync(fontPath) ? fs.readFileSync(fontPath) : null;
+		const cssResp = await fetch(
+			"https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap",
+		);
+		if (!cssResp.ok) throw new Error("Failed to fetch Google Fonts CSS");
+		const cssText = await cssResp.text();
+
+		const getUrlForWeight = (weight: number) => {
+			const blockRe = new RegExp(
+				`@font-face\\s*{[^}]*font-weight:\\s*${weight}[^}]*}`,
+				"g",
+			);
+			const match = cssText.match(blockRe);
+			if (!match || match.length === 0) return null;
+			const urlMatch = match[0].match(/url\((https:[^)]+)\)/);
+			return urlMatch ? urlMatch[1] : null;
+		};
+
+		const regularUrl = getUrlForWeight(400);
+		const boldUrl = getUrlForWeight(700);
+
+		if (!regularUrl || !boldUrl) {
+			console.warn(
+				"Could not find font urls in Google Fonts CSS; falling back to no fonts.",
+			);
+			fontCache = { regular: null, bold: null };
+			return { regular: null, bold: null };
+		}
+
+		const [rResp, bResp] = await Promise.all([
+			fetch(regularUrl),
+			fetch(boldUrl),
+		]);
+		if (!rResp.ok || !bResp.ok) {
+			console.warn(
+				"Failed to download font files from Google; falling back to no fonts.",
+			);
+			fontCache = { regular: null, bold: null };
+			return { regular: null, bold: null };
+		}
+
+		const rBuf = Buffer.from(await rResp.arrayBuffer());
+		const bBuf = Buffer.from(await bResp.arrayBuffer());
+		fontCache = { regular: rBuf, bold: bBuf };
 		return fontCache;
 	} catch (err) {
-		console.warn("Error loading local fonts:", err);
-		fontCache = null;
-		return null;
+		console.warn("Error fetching fonts:", err);
+		fontCache = { regular: null, bold: null };
+		return { regular: null, bold: null };
 	}
 }
 
 export async function GET({
 	props,
-}: APIContext<{ post: CollectionEntry<"posts"> }>): Promise<Response> {
+}: APIContext<{ post: CollectionEntry<"posts"> }>) {
 	const { post } = props;
-	const data = post.data as PostData;
+
+	// Try to fetch fonts from Google Fonts (woff2) at runtime.
+	const { regular: fontRegular, bold: fontBold } = await fetchNotoSansSCFonts();
 
 	// Avatar + icon: still read from disk (small assets)
 	let avatarBase64: string;
@@ -93,13 +133,13 @@ export async function GET({
 	const subtleTextColor = `hsl(${hue}, 10%, 75%)`;
 	const backgroundColor = `hsl(${hue}, 15%, 12%)`;
 
-	const pubDate = data.published.toLocaleDateString("en-US", {
+	const pubDate = post.data.published.toLocaleDateString("en-US", {
 		year: "numeric",
 		month: "short",
 		day: "numeric",
 	});
 
-	const description = data.description;
+	const description = post.data.description;
 
 	const template = {
 		type: "div",
@@ -111,7 +151,7 @@ export async function GET({
 				flexDirection: "column",
 				backgroundColor: backgroundColor,
 				fontFamily:
-					'"AaZongYiYuan", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+					'"Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
 				padding: "60px",
 			},
 			children: [
@@ -196,7 +236,7 @@ export async function GET({
 													WebkitLineClamp: 3,
 													WebkitBoxOrient: "vertical",
 												},
-												children: data.title,
+												children: post.data.title,
 											},
 										},
 									],
@@ -279,13 +319,20 @@ export async function GET({
 		},
 	};
 
-	const fontData = loadLocalAaZongYiYuanFont();
 	const fonts: FontOptions[] = [];
-	if (fontData) {
+	if (fontRegular) {
 		fonts.push({
-			name: "AaZongYiYuan",
-			data: fontData,
+			name: "Noto Sans SC",
+			data: fontRegular,
 			weight: 400,
+			style: "normal",
+		});
+	}
+	if (fontBold) {
+		fonts.push({
+			name: "Noto Sans SC",
+			data: fontBold,
+			weight: 700,
 			style: "normal",
 		});
 	}

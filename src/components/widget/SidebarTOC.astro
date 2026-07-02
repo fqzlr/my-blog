@@ -1,6 +1,6 @@
 ---
 import type { MarkdownHeading } from "astro";
-import "@/styles/toc.css";
+import "@/styles/features/toc.css";
 import WidgetLayout from "@/components/common/WidgetLayout.astro";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
@@ -30,10 +30,15 @@ const { headings: _headings = [], class: className, style } = Astro.props;
   </div>
 </WidgetLayout>
 
-<!-- 样式已迁移至 src/styles/widgets/sidebar-toc.css -->
+<style>
+/* SidebarTOC 特定样式 */
+.toc-scroll-container {
+  max-height: calc(100vh - 20rem);
+}
+</style>
 
 <script>
-  import { TOCManager } from "@/utils/toc-utils";
+  import { TOCManager } from "@/utils/tocUtils";
 
   if (typeof window.SidebarTOC === "undefined") {
     window.SidebarTOC = {
@@ -75,7 +80,12 @@ const { headings: _headings = [], class: className, style } = Astro.props;
     initSidebarTOC();
   }
 
-  // Astro 页面切换事件（swup:contentReplaced 不再需要，astro:page-load 已覆盖）
+  // 页面切换时重新初始化
+  document.addEventListener("swup:contentReplaced", () => {
+    setTimeout(initSidebarTOC, 100);
+  });
+  
+  // Astro 页面切换事件
   document.addEventListener("astro:page-load", () => {
     setTimeout(initSidebarTOC, 100);
   });
@@ -91,10 +101,5 @@ const { headings: _headings = [], class: className, style } = Astro.props;
       setTimeout(initSidebarTOC, 100);
     }
     window.tocInternalNavigation = false;
-  });
-
-  // 密码解密后重新初始化 TOC
-  document.addEventListener("password:decrypted", () => {
-    setTimeout(initSidebarTOC, 200);
   });
 </script>

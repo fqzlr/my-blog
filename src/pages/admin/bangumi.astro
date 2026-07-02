@@ -1,0 +1,635 @@
+---
+import { externalMomentsConfig } from "@/config/externalMomentsConfig";
+import { externalBangumiConfig } from "@/config/externalBangumiConfig";
+---
+
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>影视管理</title>
+  <style is:inline>
+    :root {
+      --bg: #fff; --card: #fff; --border: #e8e8e8; --text: #1a1a1a;
+      --text-2: #666; --text-3: #999; --primary: #8b5cf6;
+      --input-bg: #fafafa; --hover: #f3f0ff; --danger: #ef4444;
+      --success: #22c55e; --radius: 12px;
+    }
+    :root.dark {
+      --bg: #111; --card: #1a1a1a; --border: #2a2a2a; --text: #eee;
+      --text-2: #aaa; --text-3: #666; --input-bg: #222; --hover: #2a2040;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Roboto', sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .navbar { position: sticky; top: 0; z-index: 50; background: var(--bg); border-bottom: 1px solid var(--border); }
+    .navbar-inner { max-width: 720px; margin: 0 auto; padding: 0 1rem; display: flex; align-items: center; justify-content: space-between; height: 48px; }
+    .navbar-left { display: flex; align-items: center; gap: 0.5rem; }
+    .navbar-left .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); }
+    .navbar-left h1 { font-size: 0.9375rem; font-weight: 600; }
+    .nav-right { display: flex; align-items: center; gap: 0.75rem; }
+    .back-link { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8125rem; color: var(--text-2); text-decoration: none; }
+    .back-link:hover { color: var(--primary); }
+    .logout-btn { font-size: 0.8125rem; color: var(--danger); background: none; border: none; cursor: pointer; }
+
+    .container { max-width: 720px; margin: 0 auto; padding: 1.25rem 1rem; }
+
+    .token-bar { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 1.25rem; padding: 0.75rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+    .token-bar input { flex: 1; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); color: var(--text); font-size: 0.8125rem; outline: none; }
+    .token-bar input:focus { border-color: var(--primary); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); flex-shrink: 0; }
+    .status-dot.ok { background: var(--success); }
+    #status-text { font-size: 0.75rem; color: var(--text-2); flex-shrink: 0; }
+
+    .btn { padding: 0.5rem 1rem; border: none; border-radius: 8px; font-size: 0.8125rem; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: var(--text-2); border: 1px solid var(--border); }
+    .btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-sm { padding: 0.25rem 0.625rem; font-size: 0.75rem; }
+
+    .form-section { margin-bottom: 1.25rem; }
+    .form-label { display: block; font-size: 0.8125rem; font-weight: 600; color: var(--text); margin-bottom: 0.375rem; }
+    .form-hint { font-size: 0.75rem; color: var(--text-3); margin-bottom: 0.5rem; }
+    input[type="text"], select { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--input-bg); color: var(--text); font-size: 0.875rem; outline: none; }
+    input[type="text"]:focus, select:focus { border-color: var(--primary); }
+
+    .search-bar { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .search-bar input { flex: 1; }
+
+    .search-results { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1.5rem; max-height: 400px; overflow-y: auto; }
+    .search-result { display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; transition: all 0.2s; }
+    .search-result:hover { border-color: var(--primary); background: var(--hover); }
+    .search-result.selected { border-color: var(--primary); background: var(--hover); }
+    .search-result .poster { width: 45px; height: 65px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: var(--border); }
+    .search-result .info { flex: 1; min-width: 0; }
+    .search-result .title { font-size: 0.875rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .search-result .meta { font-size: 0.75rem; color: var(--text-2); margin-top: 0.125rem; }
+    .search-result .source { font-size: 0.625rem; padding: 0.0625rem 0.375rem; border-radius: 4px; background: var(--hover); color: var(--primary); flex-shrink: 0; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+    @media (max-width: 480px) { .form-grid { grid-template-columns: 1fr; } }
+
+    .preview-area { display: flex; gap: 1rem; padding: 1rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 1rem; }
+    .preview-area .poster-preview { width: 100px; height: 140px; border-radius: 8px; object-fit: cover; flex-shrink: 0; background: var(--border); }
+    .preview-area .info-preview { flex: 1; }
+    .preview-area .info-preview .title { font-size: 1rem; font-weight: 700; }
+    .preview-area .info-preview .meta { font-size: 0.8125rem; color: var(--text-2); margin-top: 0.25rem; }
+
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+    .section-title { font-size: 1rem; font-weight: 600; }
+    .count-badge { font-size: 0.75rem; padding: 0.125rem 0.5rem; border-radius: 9999px; background: var(--hover); color: var(--primary); }
+    .bangumi-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .bangumi-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); }
+    .bangumi-item .poster { width: 40px; height: 56px; border-radius: 6px; object-fit: cover; flex-shrink: 0; background: var(--border); }
+    .bangumi-item .info { flex: 1; min-width: 0; }
+    .bangumi-item .title { font-size: 0.875rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bangumi-item .meta { font-size: 0.75rem; color: var(--text-2); }
+
+    .toast { position: fixed; top: 60px; left: 50%; transform: translateX(-50%) translateY(-20px); padding: 0.5rem 1.25rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 500; opacity: 0; transition: all 0.3s; z-index: 100; pointer-events: none; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.ok { background: var(--success); color: #fff; }
+    .toast.err { background: var(--danger); color: #fff; }
+
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hidden { display: none !important; }
+    .empty-state { text-align: center; padding: 1.5rem; color: var(--text-3); font-size: 0.875rem; }
+    .dark-fab { position: fixed; bottom: 1.5rem; right: 1.5rem; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border); background: var(--card); font-size: 1.25rem; cursor: pointer; z-index: 50; display: flex; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body>
+  <div class="page-wrapper">
+    <nav class="navbar">
+      <div class="navbar-inner">
+        <div class="navbar-left">
+          <span class="dot"></span>
+          <h1>影视管理</h1>
+        </div>
+        <div class="nav-right">
+          <a href="/admin/" class="back-link" data-no-swup>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+            <span>后台</span>
+          </a>
+          <button class="logout-btn" onclick="doLogout()">退出</button>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container">
+      <!-- Token -->
+      <div class="token-bar">
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status-text">未连接</span>
+        <input type="text" id="token-manual" placeholder="GitHub Token" />
+        <button class="btn btn-primary btn-sm" onclick="applyManualToken()">连接</button>
+        <button class="btn btn-ghost btn-sm hidden" id="disconnect-btn" onclick="disconnectToken()">断开</button>
+      </div>
+
+      <!-- 搜索 -->
+      <div class="form-section">
+        <label class="form-label">搜索影视</label>
+        <p class="form-hint">同时搜索 TMDB、豆瓣、Bangumi，点击结果自动填充</p>
+        <div class="search-bar">
+          <input type="text" id="search-input" placeholder="输入影视名称..." />
+          <button class="btn btn-primary" id="search-btn" onclick="doSearch()">搜索</button>
+        </div>
+        <div id="search-results" class="search-results hidden"></div>
+      </div>
+
+      <!-- 预览 -->
+      <div id="preview-area" class="preview-area hidden">
+        <img id="preview-poster" class="poster-preview" src="" alt="" />
+        <div class="info-preview">
+          <div id="preview-title" class="title"></div>
+          <div id="preview-meta" class="meta"></div>
+        </div>
+      </div>
+
+      <!-- 表单 -->
+      <div id="form-area" class="hidden">
+        <div class="form-grid">
+          <div class="form-section">
+            <label class="form-label">标题（英文/原名）</label>
+            <input type="text" id="field-title" />
+          </div>
+          <div class="form-section">
+            <label class="form-label">中文名</label>
+            <input type="text" id="field-name-cn" />
+          </div>
+          <div class="form-section">
+            <label class="form-label">类型</label>
+            <select id="field-category">
+              <option value="anime">动漫</option>
+              <option value="movie">电影</option>
+              <option value="tv">电视剧</option>
+              <option value="documentary">纪录片</option>
+              <option value="game">游戏</option>
+            </select>
+          </div>
+          <div class="form-section">
+            <label class="form-label">时间</label>
+            <input type="text" id="field-date" placeholder="YYYY-MM-DD（默认今天）" />
+          </div>
+          <div class="form-section">
+            <label class="form-label">状态</label>
+            <select id="field-status">
+              <option value="1">想看</option>
+              <option value="2" selected>看过</option>
+              <option value="3">在看</option>
+              <option value="4">搁置</option>
+              <option value="5">抛弃</option>
+            </select>
+          </div>
+          <div class="form-section">
+            <label class="form-label">评分 (0-10)</label>
+            <input type="text" id="field-score" value="0" />
+          </div>
+        </div>
+        <div class="form-section">
+          <label class="form-label">封面 URL</label>
+          <input type="text" id="field-image" />
+        </div>
+        <div class="form-section">
+          <label class="form-label">标签（逗号分隔）</label>
+          <input type="text" id="field-tags" />
+        </div>
+        <div class="form-section">
+          <label class="form-label">评价/备注</label>
+          <input type="text" id="field-comment" />
+        </div>
+        <div id="edit-bar" class="hidden" style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem;padding:0.5rem 0.75rem;background:var(--hover);border-radius:8px;font-size:0.8125rem;color:var(--primary);">
+          <span>✏️ 编辑模式</span>
+          <button class="btn btn-ghost btn-sm" onclick="cancelEdit()">取消编辑</button>
+        </div>
+        <div style="display:flex;gap:0.5rem;margin-bottom:1.5rem;">
+          <button class="btn btn-primary" id="submit-btn" onclick="submitBangumi()">保存到 Gist</button>
+          <button class="btn btn-ghost" onclick="clearForm()">清空</button>
+        </div>
+      </div>
+
+      <!-- 已添加列表 -->
+      <div id="bangumi-section" class="hidden">
+        <div class="section-header">
+          <span class="section-title">已添加的影视</span>
+          <span id="list-count" class="count-badge"></span>
+        </div>
+        <div id="bangumi-list" class="bangumi-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <button class="dark-fab" onclick="toggleDark()" title="切换暗色模式">🌙</button>
+
+  <script is:inline
+    data-gist={externalBangumiConfig.gistId || ""}
+    data-hash={externalMomentsConfig.adminPasswordHash || ""}>
+    (function() {
+      var _s = document.currentScript;
+      var GIST_ID = _s.getAttribute("data-gist") || "";
+      var FILE_NAME = "bangumi.json";
+      var API = "https://api.github.com";
+      var TOKEN = localStorage.getItem("gh_moments_token") || "";
+      var TMDB_KEY = "8a9a0dd41f7b6fe6d4d20f6cc9bd26f2";
+
+      function $(id) { return document.getElementById(id); }
+      function esc(t) { var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+
+      function toast(msg, type) {
+        var el = $("toast"); el.textContent = msg; el.className = "toast " + type + " show";
+        clearTimeout(el._t); el._t = setTimeout(function() { el.className = "toast"; }, 2800);
+      }
+
+      function toggleDark() {
+        document.documentElement.classList.toggle("dark");
+        localStorage.setItem("theme", document.documentElement.classList.contains("dark") ? "dark" : "light");
+      }
+      if (localStorage.getItem("theme") === "dark") document.documentElement.classList.add("dark");
+
+      function doLogout() {
+        sessionStorage.removeItem("admin_auth");
+        window.location.href = "/admin/";
+      }
+
+      // ===== Token =====
+      function setStatus(ok, text) {
+        $("status-dot").className = "status-dot " + (ok ? "ok" : "err");
+        $("status-text").textContent = text;
+      }
+      function applyManualToken() {
+        var t = $("token-manual").value.trim();
+        if (!t) { toast("请输入 Token", "err"); return; }
+        TOKEN = t;
+        localStorage.setItem("gh_moments_token", t);
+        validateAndLoad();
+      }
+      function disconnectToken() {
+        TOKEN = "";
+        localStorage.removeItem("gh_moments_token");
+        $("token-manual").value = "";
+        $("disconnect-btn").classList.add("hidden");
+        setStatus(false, "已断开");
+        $("bangumi-section").classList.add("hidden");
+      }
+      function validateAndLoad() {
+        if (!TOKEN) { setStatus(false, "请输入 Token"); return; }
+        if (!GIST_ID) { setStatus(false, "未配置 Gist ID"); return; }
+        setStatus(false, "正在连接...");
+        $("disconnect-btn").classList.add("hidden");
+        fetch(API + "/gists/" + GIST_ID, {
+          headers: { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json" }
+        }).then(function(r) {
+          if (r.ok) { setStatus(true, "已连接"); $("disconnect-btn").classList.remove("hidden"); loadBangumiList(); }
+          else if (r.status === 401) { setStatus(false, "Token 无效"); }
+          else { setStatus(false, "连接失败 (" + r.status + ")"); }
+        }).catch(function() { setStatus(false, "网络错误"); });
+      }
+
+      // ===== 搜索 =====
+      var searchResults = [];
+      var selectedIndex = -1;
+
+      function doSearch() {
+        var query = $("search-input").value.trim();
+        if (!query) { toast("请输入搜索关键词", "err"); return; }
+        $("search-btn").disabled = true;
+        $("search-btn").textContent = "搜索中...";
+        $("search-results").innerHTML = '<div class="empty-state"><span class="spinner"></span> 搜索中...</div>';
+        $("search-results").classList.remove("hidden");
+        searchResults = [];
+        selectedIndex = -1;
+
+        var promises = [
+          searchTMDB(query).catch(function() { return []; }),
+          searchDouban(query).catch(function() { return []; }),
+          searchBangumi(query).catch(function() { return []; }),
+        ];
+
+        Promise.all(promises).then(function(results) {
+          searchResults = results[0].concat(results[1]).concat(results[2]);
+          renderSearchResults();
+        }).finally(function() {
+          $("search-btn").disabled = false;
+          $("search-btn").textContent = "搜索";
+        });
+      }
+
+      function searchTMDB(query) {
+        return fetch("https://api.themoviedb.org/3/search/multi?api_key=" + TMDB_KEY + "&language=zh-CN&query=" + encodeURIComponent(query))
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            return (data.results || []).filter(function(item) {
+              return item.media_type === "movie" || item.media_type === "tv";
+            }).slice(0, 5).map(function(item) {
+              var title = item.title || item.name || "";
+              var year = (item.release_date || item.first_air_date || "").slice(0, 4);
+              var poster = item.poster_path ? "https://image.tmdb.org/t/p/w200" + item.poster_path : "";
+              return { title: title, year: year, poster: poster, source: "TMDB", id: item.id, media_type: item.media_type };
+            });
+          });
+      }
+
+      function searchDouban(query) {
+        return fetch("https://movie.douban.com/j/subject_suggest?q=" + encodeURIComponent(query), {
+          headers: { "Referer": "https://movie.douban.com/" }
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            return data.filter(function(item) {
+              return item.type === "movie" || item.type === "tv";
+            }).slice(0, 5).map(function(item) {
+              return { title: item.title, year: item.year || "", poster: item.img || "", source: "豆瓣", id: item.id, sub_title: item.sub_title || "" };
+            });
+          });
+      }
+
+      function searchBangumi(query) {
+        return fetch("https://api.bgm.tv/search/subject/" + encodeURIComponent(query) + "?type=2&limit=5")
+          .then(function(r) { return r.json(); })
+          .then(function(data) {
+            return (data.data || []).slice(0, 5).map(function(item) {
+              var img = (item.images || {}).large || "";
+              return { title: item.name_cn || item.name, original_title: item.name, year: (item.date || "").slice(0, 4), poster: img, source: "Bangumi", id: item.id };
+            });
+          });
+      }
+
+      function renderSearchResults() {
+        var container = $("search-results");
+        if (!searchResults.length) {
+          container.innerHTML = '<div class="empty-state">未找到结果</div>';
+          return;
+        }
+        container.innerHTML = "";
+        searchResults.forEach(function(item, i) {
+          var d = document.createElement("div");
+          d.className = "search-result";
+          d.setAttribute("data-index", i);
+          var posterHtml = item.poster ? '<img class="poster" src="' + esc(item.poster) + '" alt="" />' : '<div class="poster"></div>';
+          var yearStr = item.year ? " (" + item.year + ")" : "";
+          var subTitle = item.sub_title ? " · " + esc(item.sub_title) : "";
+          d.innerHTML = posterHtml +
+            '<div class="info"><div class="title">' + esc(item.title) + yearStr + '</div>' +
+            '<div class="meta">' + esc(item.source) + subTitle + '</div></div>' +
+            '<span class="source">' + esc(item.source) + '</span>';
+          d.addEventListener("click", function() { selectResult(i); });
+          container.appendChild(d);
+        });
+      }
+
+      function selectResult(index) {
+        selectedIndex = index;
+        var item = searchResults[index];
+
+        // 高亮选中
+        document.querySelectorAll(".search-result").forEach(function(el) {
+          el.classList.toggle("selected", parseInt(el.getAttribute("data-index")) === index);
+        });
+
+        // 填充表单
+        $("field-title").value = item.original_title || item.title || "";
+        $("field-name-cn").value = item.title || "";
+        $("field-image").value = item.poster || "";
+
+        // 类型判断
+        if (item.source === "Bangumi") {
+          $("field-category").value = "anime";
+        } else if (item.media_type === "tv") {
+          $("field-category").value = "real";
+        } else {
+          $("field-category").value = "movie";
+        }
+
+        // 标签
+        if (item.source === "TMDB" && item.media_type) {
+          $("field-tags").value = item.media_type === "tv" ? "电视剧" : "电影";
+        }
+
+        // 预览
+        $("preview-area").classList.remove("hidden");
+        $("preview-poster").src = item.poster || "";
+        $("preview-poster").style.display = item.poster ? "" : "none";
+        $("preview-title").textContent = item.title;
+        $("preview-meta").textContent = (item.year || "") + " · " + item.source;
+
+        $("form-area").classList.remove("hidden");
+        toast("已选择: " + item.title, "ok");
+      }
+
+      // ===== 编辑状态 =====
+      var editingId = null;
+
+      function editBangumi(id) {
+        fetch(API + "/gists/" + GIST_ID, {
+          headers: { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json" }
+        }).then(function(r) { return r.json(); }).then(function(gist) {
+          var file = gist.files[FILE_NAME];
+          var items = []; try { items = JSON.parse(file.content || "[]"); } catch(e) {}
+          var item = items.find(function(x) { return x.id === id; });
+          if (!item) { toast("未找到该影视", "err"); return; }
+
+          editingId = id;
+          $("field-title").value = item.title || "";
+          $("field-name-cn").value = item.name_cn || "";
+          $("field-category").value = item.category || "anime";
+          $("field-status").value = String(item.status || 2);
+          $("field-score").value = String(item.score || 0);
+          $("field-image").value = item.image || "";
+          $("field-tags").value = (item.tags || []).join(", ");
+          $("field-comment").value = item.comment || "";
+          $("field-date").value = item.updated_at ? item.updated_at.slice(0, 10) : "";
+
+          $("submit-btn").textContent = "保存修改";
+          $("edit-bar").classList.remove("hidden");
+          $("form-area").classList.remove("hidden");
+          $("preview-area").classList.add("hidden");
+
+          if (item.image) {
+            $("preview-area").classList.remove("hidden");
+            $("preview-poster").src = item.image;
+            $("preview-poster").style.display = "";
+            $("preview-title").textContent = item.name_cn || item.title;
+            $("preview-meta").textContent = "编辑中";
+          }
+
+          $("field-title").focus();
+          $("field-title").scrollIntoView({ behavior: "smooth", block: "center" });
+          toast("正在编辑: " + (item.name_cn || item.title), "ok");
+        }).catch(function() { toast("加载失败", "err"); });
+      }
+
+      function cancelEdit() {
+        editingId = null;
+        $("submit-btn").textContent = "保存到 Gist";
+        $("edit-bar").classList.add("hidden");
+        clearForm();
+      }
+
+      // ===== 提交 =====
+      function submitBangumi() {
+        var title = $("field-title").value.trim();
+        var nameCn = $("field-name-cn").value.trim();
+        if (!title && !nameCn) { toast("请填写标题", "err"); return; }
+
+        var btn = $("submit-btn");
+        var isEdit = !!editingId;
+        btn.disabled = true;
+        btn.textContent = isEdit ? "保存中..." : "保存中...";
+
+        var dateVal = $("field-date").value.trim();
+        var entry = {
+          id: editingId || ("ext-" + Date.now()),
+          title: title || nameCn,
+          name_cn: nameCn || title,
+          category: $("field-category").value,
+          status: parseInt($("field-status").value),
+          score: parseInt($("field-score").value) || 0,
+          image: $("field-image").value.trim(),
+          tags: ($("field-tags").value || "").split(",").map(function(s) { return s.trim(); }).filter(Boolean),
+          comment: $("field-comment").value.trim(),
+          updated_at: dateVal ? new Date(dateVal).toISOString() : new Date().toISOString(),
+          source: searchResults[selectedIndex] ? searchResults[selectedIndex].source : "手动",
+        };
+
+        fetch(API + "/gists/" + GIST_ID, {
+          headers: { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json" }
+        }).then(function(r) { return r.json(); }).then(function(gist) {
+          var file = gist.files[FILE_NAME];
+          var list = [];
+          if (file) { try { list = JSON.parse(file.content || "[]"); } catch(e) {} }
+
+          if (isEdit) {
+            var idx = list.findIndex(function(x) { return x.id === editingId; });
+            if (idx !== -1) {
+              list[idx] = entry;
+            } else {
+              list.push(entry);
+            }
+          } else {
+            list.push(entry);
+          }
+
+          return fetch(API + "/gists/" + GIST_ID, {
+            method: "PATCH",
+            headers: { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
+            body: JSON.stringify({ files: { [FILE_NAME]: { content: JSON.stringify(list, null, 2) } } })
+          });
+        }).then(function(r) {
+          if (r && r.ok) { toast(isEdit ? "已保存 ✓" : "保存成功 ✓", "ok"); cancelEdit(); loadBangumiList(); }
+          else if (r) { toast("保存失败", "err"); }
+        }).catch(function() { toast("网络错误", "err"); })
+        .finally(function() { btn.disabled = false; if (!editingId) btn.textContent = "保存到 Gist"; });
+      }
+
+      // ===== 列表 =====
+      function loadBangumiList() {
+        var list = $("bangumi-list");
+        list.innerHTML = '<div class="empty-state"><span class="spinner"></span></div>';
+        $("bangumi-section").classList.remove("hidden");
+
+        fetch(API + "/gists/" + GIST_ID, {
+          headers: { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json" }
+        }).then(function(r) { return r.json(); }).then(function(gist) {
+          var file = gist.files[FILE_NAME];
+          var items = [];
+          if (file) { try { items = JSON.parse(file.content || "[]"); } catch(e) {} }
+          if (!items.length) {
+            list.innerHTML = '<div class="empty-state">还没有影视数据</div>';
+            $("list-count").textContent = "";
+            return;
+          }
+          $("list-count").textContent = items.length + " 部";
+          list.innerHTML = "";
+          items.forEach(function(item) {
+            var d = document.createElement("div");
+            d.className = "bangumi-item";
+            var posterHtml = item.image ? '<img class="poster" src="' + esc(item.image) + '" alt="" />' : '<div class="poster"></div>';
+            var statusMap = { 1: "想看", 2: "看过", 3: "在看", 4: "搁置", 5: "抛弃" };
+            d.innerHTML = posterHtml +
+              '<div class="info"><div class="title">' + esc(item.name_cn || item.title) + '</div>' +
+              '<div class="meta">' + esc(statusMap[item.status] || "") + (item.score ? " · " + item.score + "分" : "") + '</div></div>' +
+              '<div style="display:flex;gap:0.375rem;flex-shrink:0;">' +
+              '<button class="btn btn-ghost btn-sm" onclick="editBangumi(\'' + item.id + '\')">编辑</button>' +
+              '<button class="btn btn-danger btn-sm" onclick="deleteBangumi(\'' + item.id + '\')">删除</button>' +
+              '</div>';
+            list.appendChild(d);
+          });
+        }).catch(function() { list.innerHTML = '<div class="empty-state" style="color:var(--danger)">加载失败</div>'; });
+      }
+
+      function deleteBangumi(id) {
+        if (!confirm("确定删除？")) return;
+        fetch(API + "/gists/" + GIST_ID, {
+          headers: { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json" }
+        }).then(function(r) { return r.json(); }).then(function(gist) {
+          var file = gist.files[FILE_NAME];
+          var items = []; try { items = JSON.parse(file.content || "[]"); } catch(e) {}
+          items = items.filter(function(item) { return item.id !== id; });
+          return fetch(API + "/gists/" + GIST_ID, {
+            method: "PATCH",
+            headers: { "Authorization": "Bearer " + TOKEN, "Accept": "application/vnd.github+json", "Content-Type": "application/json" },
+            body: JSON.stringify({ files: { [FILE_NAME]: { content: JSON.stringify(items, null, 2) } } })
+          });
+        }).then(function(r) {
+          if (r && r.ok) { toast("已删除", "ok"); loadBangumiList(); }
+          else if (r) { toast("删除失败", "err"); }
+        }).catch(function() { toast("网络错误", "err"); });
+      }
+
+      function clearForm() {
+        $("search-input").value = "";
+        $("search-results").classList.add("hidden");
+        $("search-results").innerHTML = "";
+        $("preview-area").classList.add("hidden");
+        $("form-area").classList.add("hidden");
+        $("field-title").value = "";
+        $("field-name-cn").value = "";
+        $("field-category").value = "anime";
+        $("field-status").value = "2";
+        $("field-score").value = "0";
+        $("field-image").value = "";
+        $("field-tags").value = "";
+        $("field-comment").value = "";
+        $("field-date").value = "";
+        searchResults = [];
+        selectedIndex = -1;
+      }
+
+      // ===== 搜索回车 =====
+      $("search-input").addEventListener("keydown", function(e) {
+        if (e.key === "Enter") { e.preventDefault(); doSearch(); }
+      });
+
+      // ===== 暴露全局 =====
+      window.toggleDark = toggleDark;
+      window.doLogout = doLogout;
+      window.applyManualToken = applyManualToken;
+      window.disconnectToken = disconnectToken;
+      window.doSearch = doSearch;
+      window.submitBangumi = submitBangumi;
+      window.editBangumi = editBangumi;
+      window.cancelEdit = cancelEdit;
+      window.deleteBangumi = deleteBangumi;
+      window.clearForm = clearForm;
+
+      // ===== 初始化 =====
+      (function() {
+        if (sessionStorage.getItem("admin_auth") !== "1") {
+          window.location.href = "/admin/";
+          return;
+        }
+        if (TOKEN) { $("token-manual").value = TOKEN; }
+        if (GIST_ID) validateAndLoad();
+        else setStatus(false, "未配置 Gist ID，请在 externalBangumiConfig.ts 中设置");
+      })();
+    })();
+  </script>
+</body>
+</html>

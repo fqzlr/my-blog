@@ -1,25 +1,13 @@
 ---
-import { getEntry } from "astro:content";
+import { getCollection, getEntry, render } from "astro:content";
 import Comment from "@components/comment/index.astro";
-import Icon from "@components/common/Icon.astro";
-import FriendCard from "@components/features/FriendCard.astro";
-import FriendRulesModal from "@components/features/FriendRulesModal.astro";
-import PageTitle from "@/components/common/PageTitle.astro";
-import FriendsEditor from "@/components/edit/FriendsEditor.svelte";
-import {
-	commentConfig,
-	friendsPageConfig,
-	getEnabledFriends,
-	siteConfig,
-} from "@/config";
+import Markdown from "@components/common/Markdown.astro";
+import { Icon } from "astro-icon/components";
+import { friendsPageConfig } from "@/config";
+import { externalFriendsConfig } from "@/config/externalFriendsConfig";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
-
-// 检查页面是否启用
-if (!siteConfig.pages.friends) {
-	return Astro.redirect("/404/");
-}
 
 const friendsPost = await getEntry("spec", "friends");
 
@@ -27,93 +15,330 @@ if (!friendsPost) {
 	throw new Error("friends page content not found");
 }
 
-// 检查评论系统是否启用
-const isCommentEnabled =
-	commentConfig?.type &&
-	commentConfig.type !== "none" &&
-	friendsPageConfig.showComment !== false;
+const { Content } = await render(friendsPost);
 
-// 使用配置文件中的友链数据，按权重排序
-const items = getEnabledFriends();
+// 从 content/friends 目录读取友链数据，按权重排序
+const friendsEntries = await getCollection("friends");
+const items = friendsEntries
+	.filter((item) => item.data.enabled !== false)
+	.sort((a, b) => (b.data.weight || 0) - (a.data.weight || 0));
+
+const allTags = [
+	...new Set(items.flatMap((item) => item.data.tags || [])),
+].sort();
 
 // 页面标题和描述
-const title = friendsPageConfig.title || i18n(I18nKey.friends);
-const description =
-	friendsPageConfig.description || i18n(I18nKey.friendsDescription);
+const title = i18n(I18nKey.friends);
+const description = i18n(I18nKey.friendsDescription);
 ---
 
 <MainGridLayout title={title} description={description}>
   <div
-    class="flex w-full rounded-(--radius-large) relative min-h-32"
+    class="flex w-full rounded-(--radius-large) overflow-hidden relative min-h-32"
   >
     <div class="card-base z-10 px-9 py-6 relative w-full">
       <!-- 页面标题和描述 -->
-      <div class="mb-4 flex justify-between items-start gap-4 flex-wrap">
-        <div class="flex-1 min-w-0">
-          <PageTitle title={title} eyebrow="Friends" variant="stacked" />
-          {
-            description && (
-              <p class="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed mb-4 mt-3">
-                {description}
-              </p>
-            )
-          }
-        </div>
-        <div class="page-header-toolbar-slot flex-shrink-0 flex items-center gap-2 flex-wrap">
-            {
-              friendsPageConfig.applyLink && (
-                <button
-                  data-open-friend-rules
-                  class="px-4 py-2 rounded-lg border border-neutral-900 dark:border-neutral-100 text-neutral-900 dark:text-neutral-100 hover:bg-neutral-900 hover:text-neutral-100 dark:hover:bg-neutral-100 dark:hover:text-neutral-900 transition-colors duration-200 text-sm font-medium flex items-center gap-2 cursor-pointer"
-                >
-                  <Icon name="material-symbols:help-outline-rounded" class="text-base" />
-                  如何申请友链
-                </button>
-              )
-            }
-        </div>
-      </div>
-
-      <!-- 友链编辑器工具栏（编辑按钮 + 外部Gist友链注入） -->
-      <div data-no-swup>
-        <FriendsEditor client:only />
-      </div>
-
-      <!-- 友链网格（SSR 渲染本地友链） -->
-      <div class="friends-grid" id="friends-grid">
-        {items.map((item) => (
-          <div class="friend-card" data-friend-id={item.id || item.siteurl} data-tags={item.tags?.join(",")}>
-            <FriendCard
-              title={item.title}
-              href={item.siteurl}
-              imgurl={item.imgurl}
-              desc={item.desc}
-              tags={item.tags}
-            />
+      <div class="mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <div
+              class="h-8 w-8 rounded-lg bg-(--primary) flex items-center justify-center text-white dark:text-black/70"
+            >
+              <Icon name="material-symbols:group" class="text-[1.5rem]" />
+            </div>
+            <h1 class="text-3xl font-bold text-neutral-900 dark:text-neutral-100">
+              {title}
+            </h1>
           </div>
-        ))}
+          <button
+            id="btn-add-friend"
+            class="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium hover:opacity-85 transition-opacity cursor-pointer"
+          >
+            <Icon name="material-symbols:person-add-rounded" class="text-base" />
+            添加友链
+          </button>
+        </div>
+        {
+          description && (
+            <p class="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed mb-4">
+              {description}
+            </p>
+          )
+        }
       </div>
+
+      <!-- 标签筛选 -->
+      {
+        items.length > 0 && (
+          <friend-filter class="flex flex-wrap gap-2 mb-6">
+            <button
+              data-tag="all"
+              class="btn-regular px-3 py-1.5 rounded-lg bg-(--primary) text-white dark:text-neutral-900 hover:bg-(--primary) transition-colors duration-200 text-sm font-medium"
+            >
+              {i18n(I18nKey.all)}
+            </button>
+            {allTags.map((tag) => (
+              <button
+                data-tag={tag}
+                class="btn-regular px-3 py-1.5 rounded-lg bg-(--btn-regular-bg) text-(--btn-content) hover:bg-(--btn-regular-bg-hover) transition-colors duration-200 text-sm font-medium"
+              >
+                {tag}
+              </button>
+            ))}
+          </friend-filter>
+        )
+      }
+
+      <div class={`grid grid-cols-1 sm:grid-cols-2 ${friendsPageConfig.columns === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3'} gap-3 my-4`}>
+        {
+          items.map((item) => (
+            <a
+              href={item.data.siteurl}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-tags={item.data.tags?.join(",")}
+              class="friend-card group flex items-center gap-3 p-2.5 rounded-xl border border-(--line-divider) hover:border-(--primary) hover:bg-(--card-bg) transition-all duration-300 hover:shadow-lg relative overflow-hidden"
+            >
+              {/* 背景装饰 - 仅悬停显示 */}
+              <div class="absolute inset-0 bg-(--primary) opacity-0 group-hover:opacity-5 transition-opacity duration-300 pointer-events-none" />
+
+              {/* 头像 */}
+              <div class="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-black/5 dark:border-white/5 group-hover:scale-105 transition-transform duration-300">
+                <img
+                  src={item.data.imgurl}
+                  alt={item.data.title}
+                  class="w-full h-full object-cover"
+                />
+              </div>
+
+              {/* 内容 */}
+              <div class="grow min-w-0 flex flex-col justify-center gap-0.5">
+                <div class="flex items-center justify-between">
+                  <div class="font-bold text-base text-neutral-900 dark:text-neutral-100 group-hover:text-(--primary) transition-colors truncate pr-4">
+                    {item.data.title}
+                  </div>
+                  {/* 外部链接图标 */}
+                  <Icon
+                    name="material-symbols:arrow-outward-rounded"
+                    class="text-(--primary) text-lg opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300"
+                  />
+                </div>
+
+                <div
+                  class="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-1"
+                  title={item.data.desc}
+                >
+                  {item.data.desc}
+                </div>
+
+                {/* 标签 */}
+                <div class="flex flex-wrap gap-1 mt-1">
+                  {item.data.tags && item.data.tags.length > 0
+                    ? item.data.tags
+                        .slice(0, 3)
+                        .map((tag) => (
+                          <span class="text-[0.65rem] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 transition-colors duration-300">
+                            {tag}
+                          </span>
+                        ))
+                    : null}
+                </div>
+              </div>
+            </a>
+          ))
+        }
+      </div>
+      <Markdown class="mt-2">
+        <Content />
+      </Markdown>
     </div>
   </div>
 
   <!-- 评论区 -->
-  {isCommentEnabled && (
-    <div class="mt-4">
-      <Comment post={friendsPost} customPath="/friends/" />
-    </div>
-  )}
+  <div class="mt-4">
+    <Comment post={friendsPost} customPath="/friends/" />
+  </div>
 
-  <!-- 友链申请指南弹窗 -->
-  <FriendRulesModal applyLink={friendsPageConfig.applyLink} />
+  <script slot="head" is:inline>
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('#btn-add-friend');
+      if (!btn) return;
+      var comment = document.querySelector('.comment-container, #waline, #tcomment, .giscus');
+      if (comment) { comment.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    });
+  </script>
+
+  <script slot="head" is:inline>
+    if (!customElements.get("friend-filter")) {
+      class FriendFilter extends HTMLElement {
+        constructor() {
+          super();
+        }
+
+        connectedCallback() {
+          this.addEventListener("click", this.handleClick);
+        }
+
+        disconnectedCallback() {
+          this.removeEventListener("click", this.handleClick);
+        }
+
+        handleClick(e) {
+          const target = e.target;
+          const button = target.closest("button");
+          if (!button) return;
+
+          const selectedTag = button.dataset.tag;
+          const filters = this.querySelectorAll("button");
+          const container = this.closest(".card-base");
+          if (!container) return;
+
+          const cards = container.querySelectorAll(".friend-card");
+
+          filters.forEach((f) => {
+            f.classList.remove("bg-(--primary)", "text-white", "dark:text-neutral-900");
+            f.classList.remove("hover:bg-(--primary)");
+            f.classList.add(
+              "bg-(--btn-regular-bg)",
+              "text-(--btn-content)"
+            );
+            f.classList.add("hover:bg-(--btn-regular-bg-hover)");
+
+            if (f === button) {
+              f.classList.remove(
+                "bg-(--btn-regular-bg)",
+                "text-(--btn-content)"
+              );
+              f.classList.remove("hover:bg-(--btn-regular-bg-hover)");
+              f.classList.add("bg-(--primary)", "text-white", "dark:text-neutral-900");
+              f.classList.add("hover:bg-(--primary)");
+            }
+          });
+
+          cards.forEach((card) => {
+            const cardEl = card;
+            const tags = (cardEl.dataset.tags || "").split(",");
+            if (
+              selectedTag === "all" ||
+              (selectedTag && tags.includes(selectedTag))
+            ) {
+              cardEl.style.display = "";
+              cardEl.classList.add("animate-fade-in-up");
+            } else {
+              cardEl.style.display = "none";
+              cardEl.classList.remove("animate-fade-in-up");
+            }
+          });
+        }
+      }
+      customElements.define("friend-filter", FriendFilter);
+    }
+  </script>
+
+  <!-- 从 Gist 加载外部友链 -->
+  <script is:inline
+    data-gist={externalFriendsConfig.gistId || ""}
+    data-file={externalFriendsConfig.fileName || "friends.json"}>
+    (function() {
+      var _s = document.currentScript;
+      var GIST_ID = _s.getAttribute("data-gist");
+      var FILE_NAME = _s.getAttribute("data-file");
+      if (!GIST_ID) return;
+
+      var cacheKey = "__externalFriendsCache";
+      var MARKER = "data-ext-friends-inserted";
+
+      function esc(t) { var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+
+      function createFriendCard(f) {
+        var a = document.createElement("a");
+        a.href = f.siteurl || "#";
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.className = "friend-card group flex items-center gap-3 p-2.5 rounded-xl border border-(--line-divider) hover:border-(--primary) hover:bg-(--card-bg) transition-all duration-300 hover:shadow-lg relative overflow-hidden";
+        a.setAttribute("data-ext-friend", "1");
+
+        var avatarSrc = f.imgurl || "";
+        var avatarHtml = avatarSrc
+          ? '<img src="' + esc(avatarSrc) + '" alt="' + esc(f.title) + '" class="w-full h-full object-cover" />'
+          : '<div class="w-full h-full flex items-center justify-center text-lg">🔗</div>';
+
+        a.innerHTML =
+          '<div class="absolute inset-0 bg-(--primary) opacity-0 group-hover:opacity-5 transition-opacity duration-300 pointer-events-none"></div>' +
+          '<div class="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800 border border-black/5 dark:border-white/5 group-hover:scale-105 transition-transform duration-300">' + avatarHtml + '</div>' +
+          '<div class="grow min-w-0 flex flex-col justify-center gap-0.5">' +
+            '<div class="flex items-center justify-between">' +
+              '<div class="font-bold text-base text-neutral-900 dark:text-neutral-100 group-hover:text-(--primary) transition-colors truncate pr-4">' + esc(f.title) + '</div>' +
+              '<svg class="text-(--primary) text-lg opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7"/><path d="M7 7h10v10"/></svg>' +
+            '</div>' +
+            '<div class="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-1" title="' + esc(f.desc || "") + '">' + esc(f.desc || f.siteurl || "") + '</div>' +
+          '</div>';
+
+        return a;
+      }
+
+      function insertFriends(friends) {
+        var container = document.querySelector('.card-base .grid');
+        if (!container) return;
+        if (container.hasAttribute(MARKER)) return;
+
+        var enabledFriends = friends.filter(function(f) { return f.enabled !== false; });
+        if (!enabledFriends.length) return;
+
+        enabledFriends.forEach(function(f) {
+          var card = createFriendCard(f);
+          container.appendChild(card);
+        });
+
+        container.setAttribute(MARKER, "1");
+      }
+
+      function fetchFriends() {
+        console.log("[友链] fetchFriends called, GIST_ID:", GIST_ID);
+        var container = document.querySelector('.card-base .grid');
+        console.log("[友链] container:", container);
+        if (!container) { console.log("[友链] container not found"); return; }
+
+        if (window[cacheKey] && window[cacheKey].time > Date.now() - 300000) {
+          console.log("[友链] using cache");
+          insertFriends(window[cacheKey].data);
+          return;
+        }
+
+        console.log("[友链] fetching from API...");
+        fetch("https://api.github.com/gists/" + GIST_ID, {
+          headers: { "Accept": "application/vnd.github+json" }
+        })
+          .then(function(r) {
+            console.log("[友链] API response status:", r.status);
+            if (!r.ok) throw new Error("HTTP " + r.status);
+            return r.json();
+          })
+          .then(function(gist) {
+            console.log("[友链] gist files:", Object.keys(gist.files || {}));
+            var file = gist.files[FILE_NAME];
+            if (!file) { console.log("[友链] file not found:", FILE_NAME); return; }
+            var data = [];
+            try { data = JSON.parse(file.content || "[]"); } catch(e) { console.log("[友链] parse error:", e); return; }
+            console.log("[友链] parsed data:", data.length, "items");
+            if (!Array.isArray(data) || !data.length) return;
+            window[cacheKey] = { data: data, time: Date.now() };
+            insertFriends(data);
+          })
+          .catch(function(e) {
+            console.warn("[友链] 加载失败:", e.message);
+          });
+      }
+
+      fetchFriends();
+
+      document.addEventListener("swup:content:replace", function() {
+        setTimeout(fetchFriends, 50);
+      });
+
+      document.addEventListener("astro:page-load", function() {
+        fetchFriends();
+      });
+    })();
+  </script>
 </MainGridLayout>
-
-<style>
-  @media (max-width: 768px) {
-    :has(> .page-header-toolbar-slot) {
-      flex-direction: column;
-    }
-    .page-header-toolbar-slot {
-      width: 100%;
-    }
-  }
-</style>

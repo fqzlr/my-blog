@@ -1,0 +1,19 @@
+{
+  "name": "obsidian-sync-to-github",
+  "version": "1.0.0",
+  "description": "Obsidian 插件：一键构建并同步到 GitHub",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "node esbuild.config.mjs production"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.28.0",
+    "obsidian": "latest",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "tslib": "^2.8.1"
+  }
+}

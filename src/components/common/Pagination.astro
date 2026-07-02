@@ -1,6 +1,6 @@
 ---
-import Icon from "@components/common/Icon.astro";
 import type { Page } from "astro";
+import { Icon } from "astro-icon/components";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
 import { url } from "@/utils/url-utils";
@@ -20,6 +20,7 @@ const className = Astro.props.class;
 const ADJ_DIST = 2;
 const VISIBLE = ADJ_DIST * 2 + 1;
 
+// for test
 let count = 1;
 let l = page.currentPage;
 let r = page.currentPage;
@@ -46,13 +47,14 @@ if (r < page.lastPage - 2) pages.push(HIDDEN);
 if (r === page.lastPage - 2) pages.push(page.lastPage - 1);
 if (r < page.lastPage) pages.push(page.lastPage);
 
+const base = Astro.url.pathname.replace(/\/\d+\/?$/, "").replace(/\/$/, "");
 const getPageUrl = (p: number) => {
-	if (p === 1) return "/";
-	return `/${p}/`;
+	if (p === 1) return `${base}/`;
+	return `${base}/${p}/`;
 };
 ---
 
-<div class:list={[className, "flex flex-col gap-4 items-center mt-8"]} style={style}>
+<div class:list={[className, "flex flex-col gap-4 items-center"]} style={style}>
   <!-- 分页信息 - 已禁用 -->
   <!--
   {
@@ -72,7 +74,7 @@ const getPageUrl = (p: number) => {
       aria-disabled={page.url.prev === undefined ? "true" : "false"}
       tabindex={page.url.prev === undefined ? "-1" : "0"}
       class:list={[
-        "pagination-btn w-11 h-11 flex items-center justify-center",
+        "btn-card overflow-hidden rounded-lg text-(--primary) w-11 h-11",
         { disabled: page.url.prev == undefined },
       ]}
     >
@@ -83,7 +85,7 @@ const getPageUrl = (p: number) => {
       />
     </a>
     <div
-      class="pagination-group flex flex-row items-center"
+      class="bg-(--card-bg) flex flex-row rounded-lg items-center text-neutral-700 dark:text-neutral-300 font-bold"
     >
       {
         pages.map((p) => {
@@ -92,7 +94,8 @@ const getPageUrl = (p: number) => {
           if (p == page.currentPage)
             return (
               <div
-                class="pagination-current h-11 w-11 flex items-center justify-center"
+                class="h-11 w-11 rounded-lg bg-(--primary) flex items-center justify-center
+                        font-bold text-white dark:text-black/70"
                 aria-current="page"
               >
                 {p}
@@ -102,7 +105,7 @@ const getPageUrl = (p: number) => {
             <a
               href={url(getPageUrl(p))}
               aria-label={`${i18n(I18nKey.paginationPage)} ${p}`}
-              class="pagination-page w-11 h-11 flex items-center justify-center active:scale-[0.85]"
+              class="btn-card w-11 h-11 rounded-lg overflow-hidden active:scale-[0.85]"
             >
               {p}
             </a>
@@ -116,7 +119,7 @@ const getPageUrl = (p: number) => {
       aria-disabled={page.url.next === undefined ? "true" : "false"}
       tabindex={page.url.next === undefined ? "-1" : "0"}
       class:list={[
-        "pagination-btn w-11 h-11 flex items-center justify-center",
+        "btn-card overflow-hidden rounded-lg text-(--primary) w-11 h-11",
         { disabled: page.url.next == undefined },
       ]}
     >
@@ -128,5 +131,3 @@ const getPageUrl = (p: number) => {
     </a>
   </div>
 </div>
-
-<!-- 样式已迁移至 src/styles/components/pagination.css -->

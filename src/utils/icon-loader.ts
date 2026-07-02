@@ -3,7 +3,7 @@
  * 负责处理图标的加载状态显示
  */
 
-export function initIconLoader(): void {
+export function initIconLoader() {
 	// 初始化单个图标容器
 	function initContainer(container: Element) {
 		if (container.hasAttribute("data-icon-initialized")) return;
@@ -79,6 +79,9 @@ export function initIconLoader(): void {
 			// 设置超时，避免无限等待
 			setTimeout(() => {
 				observer.disconnect();
+				if (!checkIconLoaded()) {
+					// console.warn(`Icon load timeout: ${iconName}`);
+				}
 			}, 5000);
 		}
 

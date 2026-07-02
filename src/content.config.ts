@@ -35,6 +35,24 @@ const specCollection = defineCollection({
 	schema: z.object({}),
 });
 
+const momentsCollection = defineCollection({
+	loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/moments" }),
+	schema: ({ image }) =>
+		z.object({
+			author: z.string().optional().default(""),
+			avatar: z.string().optional().default(""),
+			pinned: z.boolean().optional().default(false),
+			published: z.date(),
+			images: z
+				.array(image().or(z.string()))
+				.or(z.string())
+				.optional()
+				.default([]),
+			tags: z.array(z.string()).optional().default([]),
+			location: z.string().optional().default(""),
+			device: z.string().optional().default(""),
+		}),
+});
 
 const bangumiCollection = defineCollection({
 	loader: glob({
@@ -144,6 +162,96 @@ const routinesCollection = defineCollection({
 		updatedAt: z.union([z.string(), z.date()]).optional(),
 	}),
 });
+
+const albumCollection = defineCollection({
+	loader: glob({ pattern: "**/*.{md,mdx,json}", base: "./src/content/album" }),
+	schema: ({ image }) =>
+		z.object({
+			title: z.string(),
+			subtitle: z.string().optional().default(""),
+			cover: image().or(z.string()).optional(),
+			date: z.coerce.date(),
+			location: z.string().optional().default(""),
+			photos: z
+				.array(
+					image()
+						.or(z.string())
+						.or(
+							z.object({
+								src: z.string(),
+								alt: z.string().optional(),
+								caption: z.string().optional(),
+							}),
+						),
+				)
+				.optional()
+				.default([]),
+			tags: z.array(z.string()).optional().default([]),
+			draft: z.boolean().optional().default(false),
+		}),
+});
+
+const ziyuanCollection = defineCollection({
+	loader: glob({ pattern: "**/*.md", base: "./src/content/ziyuan" }),
+	schema: z.union([
+		z.object({
+			title: z.string(),
+			content: z.string(),
+			closable: z.boolean().optional().default(true),
+			link: z
+				.object({
+					enable: z.boolean().optional().default(true),
+					text: z.string(),
+					url: z.string(),
+					external: z.boolean().optional().default(false),
+				})
+				.optional(),
+			quotes: z.undefined().optional(),
+		}),
+		z.object({
+			title: z.string(),
+			quotes: z.array(
+				z.object({
+					text: z.string(),
+					author: z.string(),
+				}),
+			),
+			content: z.undefined().optional(),
+			closable: z.undefined().optional(),
+			link: z.undefined().optional(),
+		}),
+	]),
+});
+
+const friendsCollection = defineCollection({
+	loader: glob({ pattern: "**/*.md", base: "./src/content/friends" }),
+	schema: z.object({
+		title: z.string(),
+		imgurl: z.string(),
+		desc: z.string(),
+		siteurl: z.string(),
+		tags: z.array(z.string()).optional().default([]),
+		weight: z.number().optional().default(0),
+		enabled: z.boolean().optional().default(true),
+	}),
+});
+
+const daohangCollection = defineCollection({
+	loader: glob({ pattern: "**/*.md", base: "./src/content/daohang" }),
+	schema: z.object({
+		name: z.string(),
+		url: z.string(),
+		icon: z.string().optional().default(""),
+		description: z.string().optional().default(""),
+		category: z.string().default("未分类"),
+		tags: z.array(z.string()).optional().default([]),
+		color: z.string().optional().default(""),
+		image: z.string().optional().default(""),
+		featured: z.boolean().optional().default(false),
+		order: z.number().optional().default(0),
+	}),
+});
+
 const changelogCollection = defineCollection({
 	loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/changelog" }),
 	schema: z.object({
@@ -154,28 +262,27 @@ const changelogCollection = defineCollection({
 		description: z.string(),
 	}),
 });
-// Moments Collection（复刻 tianshihao2003 的实现）
-const momentsCollection = defineCollection({
-	loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/moments" }),
-	schema: ({ image }) =>
-		z.object({
-			author: z.string().optional().default(""),
-			avatar: z.string().optional().default(""),
-			pinned: z.boolean().optional().default(false),
-			published: z.date(),
-			images: z.array(image().or(z.string())).or(z.string()).optional().default([]),
-			tags: z.array(z.string()).optional().default([]),
-			location: z.string().optional().default(""),
-			device: z.string().optional().default(""),
-		}),
+
+const danmuCollection = defineCollection({
+	loader: glob({ pattern: "**/*.{md,mdx}", base: "./src/content/danmu" }),
+	schema: z.object({
+		nickname: z.string(),
+		time: z.string().optional().default(""),
+	}),
 });
+
 export const collections = {
 	posts: postsCollection,
 	spec: specCollection,
+	moments: momentsCollection,
 	bangumi: bangumiCollection,
 	life: lifeCollection,
 	notebooks: notebooksCollection,
 	routines: routinesCollection,
+	album: albumCollection,
+	daohang: daohangCollection,
+	ziyuan: ziyuanCollection,
+	friends: friendsCollection,
 	changelog: changelogCollection,
-	moments: momentsCollection,
+	danmu: danmuCollection,
 };

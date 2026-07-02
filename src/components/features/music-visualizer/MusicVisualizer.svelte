@@ -1,17 +1,21 @@
 <script lang="ts">
 import { onDestroy, onMount } from "svelte";
+import { musicPlayerConfig } from "@/config/musicConfig";
 import { AudioAnalyzer } from "./AudioAnalyzer";
 import LyricsOverlay from "./LyricsOverlay.svelte";
 import ThreeScene from "./ThreeScene.svelte";
 import VisualizerControls from "./VisualizerControls.svelte";
 
 const audioAnalyzer = new AudioAnalyzer();
-const isDark = true;
 let sceneReady = $state(false);
-let useLightBackground = $state(false);
+let backgroundColor = $state(
+	musicPlayerConfig.visualizer?.background?.dark ?? "#0a0a15",
+);
 
-function syncPageTheme() {
-	useLightBackground = !document.documentElement.classList.contains("dark");
+function syncPageBackground() {
+	backgroundColor = document.documentElement.classList.contains("dark")
+		? (musicPlayerConfig.visualizer?.background?.dark ?? "#0a0a15")
+		: (musicPlayerConfig.visualizer?.background?.light ?? "#ffffff");
 }
 
 function connectAudio() {
@@ -22,8 +26,17 @@ function connectAudio() {
 		setTimeout(connectAudio, 200);
 		return;
 	}
-	audio.crossOrigin = "anonymous";
-	audioAnalyzer.connect(audio);
+	// 尝试连接 Web Audio API
+	// 注意：crossOrigin 需要在 audio src 设置之前设置才有效
+	// 如果音频源不支持 CORS，Web Audio 分析会静默失败，但音频仍能正常播放
+	if (!audio.crossOrigin) {
+		audio.crossOrigin = "anonymous";
+	}
+	try {
+		audioAnalyzer.connect(audio);
+	} catch (e) {
+		console.warn("[MusicVisualizer] AudioAnalyzer connect failed:", e);
+	}
 
 	if (audioCtxState() === "suspended") {
 		audioAnalyzer.resume();
@@ -35,9 +48,9 @@ function audioCtxState() {
 }
 
 onMount(() => {
-	syncPageTheme();
+	syncPageBackground();
 
-	const themeObserver = new MutationObserver(syncPageTheme);
+	const themeObserver = new MutationObserver(syncPageBackground);
 	themeObserver.observe(document.documentElement, {
 		attributes: true,
 		attributeFilter: ["class"],
@@ -77,15 +90,14 @@ onDestroy(() => {
 });
 </script>
 
-<div class="music-visualizer" class:music-visualizer--dark={isDark}>
+<div class="music-visualizer" style={`background: ${backgroundColor};`}>
 	{#if sceneReady}
 		<VisualizerControls />
 		<LyricsOverlay />
 	{/if}
 	<ThreeScene
 		{audioAnalyzer}
-		{isDark}
-		{useLightBackground}
+		{backgroundColor}
 		onSceneReady={() => (sceneReady = true)}
 	/>
 </div>

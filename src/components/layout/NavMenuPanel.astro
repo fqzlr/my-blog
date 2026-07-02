@@ -1,227 +1,413 @@
 ---
-import Icon from "@components/common/Icon.astro";
+import { getCollection } from "astro:content";
+import { Icon } from "astro-icon/components";
+import ImageWrapper from "@/components/common/ImageWrapper.astro";
+import { profileConfig } from "@/config/profileConfig";
 import { LinkPresets } from "@/constants/link-presets";
 import { LinkPreset, type NavBarLink } from "@/types/config";
-import { siteConfig } from "@/config";
-import { profileConfig } from "@/config/profileConfig";
+import { getTagList } from "@/utils/content-utils";
 import { url } from "@/utils/url-utils";
 
 interface Props {
 	links: NavBarLink[];
+	siteTitle?: string;
+	siteLogo?: string;
 }
 
-const imageFiles = import.meta.glob<{ default: ImageMetadata }>(
-	"../../assets/images/**/*.{png,jpg,jpeg,webp,avif,gif}",
-	{ import: "default" },
-);
+const { siteTitle } = Astro.props;
 
-async function resolveAvatar(src?: string) {
-	if (!src) return "";
-	if (src.startsWith("/") || src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) {
-		return src;
-	}
-	const normalizedPath = `../../${src}`.replace(/\\/g, "/");
-	const loadImage = imageFiles[normalizedPath];
-	if (!loadImage) return `/${src}`;
-	const image = await loadImage();
-	return image.src;
-}
+const mobileExcludeUrls = ["/archive/", "/categories/"];
 
-const avatarUrl = await resolveAvatar(profileConfig.avatar);
+const processedLinks = Astro.props.links
+	.filter((link: NavBarLink) => {
+		return !mobileExcludeUrls.includes(link.url || "");
+	})
+	.map((link: NavBarLink) => ({
+		...link,
+		children: link.children?.map(
+			(child: NavBarLink | LinkPreset): NavBarLink => {
+				if (typeof child === "number") return LinkPresets[child];
+				return child;
+			},
+		),
+	}));
 
-const processedLinks = Astro.props.links.map((link: NavBarLink) => ({
-	...link,
-	children: link.children?.map((child: NavBarLink | LinkPreset): NavBarLink => {
-		if (typeof child === "number") {
-			return LinkPresets[child];
-		}
-		return child;
-	}),
-}));
+// Profile stats
+const posts = await getCollection("posts", ({ data }) => {
+	return import.meta.env.PROD ? data.draft !== true : true;
+});
+const tags = await getTagList();
+const moments = await getCollection("moments");
+
+const stats = [
+	{ label: "文章", count: posts.length },
+	{ label: "标签", count: tags.length },
+	{ label: "动态", count: moments.length },
+];
+
+const githubLink =
+	profileConfig.links.find((item) => item.name === "GitHub")?.url || "#";
 ---
 
-<div id="nav-drawer-overlay" class="nav-drawer-overlay" aria-hidden="true"></div>
+<div id="nav-menu-overlay" class="menu-overlay"></div>
 
-<div id="nav-menu-panel" class="nav-drawer">
-	<div class="nav-drawer-profile">
-		<div class="nav-drawer-avatar-wrap">
-			<img
-				src={avatarUrl}
-				alt={profileConfig.name}
-				class="nav-drawer-avatar"
-			/>
-		</div>
-		<div class="nav-drawer-profile-info">
-			<div class="nav-drawer-profile-name">{profileConfig.displayName || profileConfig.name}</div>
-			{profileConfig.occupation && (
-				<div class="nav-drawer-profile-occupation">{profileConfig.occupation}</div>
-			)}
-		</div>
-		<div class="nav-drawer-social-links">
-			{profileConfig.links.map((link) => (
-				<a
-					href={link.url}
-					target="_blank"
-					rel="noopener noreferrer"
-					class="nav-drawer-social-link"
-					title={link.name}
-				>
-					<Icon name={link.icon} is:inline class="text-[1.25rem]" />
-				</a>
-			))}
+<div
+	id="nav-menu-panel"
+	class="menu-panel"
+	data-menu-open="false"
+	role="dialog"
+	aria-modal="true"
+	aria-label="导航菜单"
+	aria-hidden="true"
+>
+	<!-- Profile Card Section -->
+	<div class="menu-profile">
+		<div class="flex flex-col items-center">
+			<!-- Avatar -->
+			<a
+				aria-label="Go to About Page"
+				href={url("/about/")}
+				class="group relative block w-20 h-20 mb-3 rounded-full overflow-hidden border-2 border-white dark:border-neutral-700 shadow-md active:scale-95 transition-all flex-shrink-0"
+			>
+				<div class="absolute inset-0 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100 bg-black/30 transition-opacity pointer-events-none">
+					<Icon name="material-symbols:account-circle" class="text-white text-2xl" />
+				</div>
+				<ImageWrapper
+					src={profileConfig.avatar || ""}
+					alt="Profile Image"
+					class="w-full h-full object-cover"
+					loading="eager"
+					fetchpriority="high"
+					widths={[150]}
+					sizes="150px"
+				/>
+			</a>
+
+			<!-- Name & Bio -->
+			<div class="text-center mb-2">
+				<div class="font-bold text-lg text-neutral-800 dark:text-neutral-100 mb-0.5">
+					{profileConfig.name}
+				</div>
+				<div class="text-xs text-neutral-500 dark:text-neutral-400">
+					{Array.isArray(profileConfig.bio) ? profileConfig.bio[1] || profileConfig.bio[0] : profileConfig.bio}
+				</div>
+			</div>
+
+			<!-- Stats -->
+			<div class="flex w-full justify-around py-3 border-y border-neutral-100 dark:border-neutral-800 my-2">
+				{stats.map(stat => (
+					<div class="flex flex-col items-center">
+						<div class="text-[10px] text-neutral-500 dark:text-neutral-400 mb-0.5">{stat.label}</div>
+						<div class="text-base font-bold text-neutral-800 dark:text-neutral-100 leading-none">{stat.count}</div>
+					</div>
+				))}
+			</div>
+
+			<!-- CTA Button -->
+			<a
+				href={githubLink}
+				target="_blank"
+				class="btn-regular w-full py-2 rounded-xl bg-(--primary) text-white dark:text-neutral-900 text-sm font-bold flex items-center justify-center gap-1.5 mb-3 hover:opacity-90 active:scale-95 transition-all"
+			>
+				<Icon name="material-symbols:sports-esports" class="text-lg" />
+				前往小窝~
+			</a>
+
+			<!-- Social Icons -->
+			<div class="flex flex-wrap gap-3 justify-center">
+				{profileConfig.links.map(item => (
+					<a
+						rel="me"
+						aria-label={item.name}
+						href={item.url}
+						target={item.url.startsWith("mailto:") ? "_self" : "_blank"}
+						class="text-neutral-500 hover:text-(--primary) transition-colors transform hover:scale-110 active:scale-90"
+					>
+						<Icon name={item.icon} class="text-[1.2rem]" />
+					</a>
+				))}
+			</div>
 		</div>
 	</div>
 
-	<nav class="nav-drawer-body">
-		{processedLinks.map((link, index) => (
-			<div
-				class="nav-drawer-item"
-				style={`--item-index: ${index}`}
-			>
+	<!-- Divider -->
+	<div class="border-t border-neutral-100 dark:border-neutral-800"></div>
+
+	<!-- Navigation Links -->
+	<nav class="menu-nav">
+		{processedLinks.map((link) => (
+			<div>
 				{link.children && link.children.length > 0 ? (
-					<div class="mobile-dropdown" data-collapsible="true" data-collapsed="false">
-						<button type="button" class="nav-drawer-link group nav-drawer-toggle">
-							<div class="flex items-center gap-3">
-								{link.icon && <Icon name={link.icon} is:inline class="text-[1.25rem] nav-drawer-icon" />}
-								<span class="nav-drawer-link-text">{link.name}</span>
-							</div>
-							<Icon name="material-symbols:keyboard-arrow-down-rounded" is:inline class="text-[1.25rem] nav-drawer-arrow" />
+					<div class="menu-dropdown" data-mobile-dropdown>
+						<button
+							class="menu-link"
+							data-mobile-dropdown-trigger
+							aria-expanded="false"
+						>
+							{link.icon && <Icon name={link.icon} class="menu-link-icon" />}
+							<span class="menu-link-text">{link.name}</span>
+							<Icon name="material-symbols:chevron-right-rounded" class="menu-arrow" />
 						</button>
-						<div class="mobile-submenu">
-							{link.children.map((child) => {
-								if (child.action) {
-									return <button type="button" class="nav-drawer-sublink group" data-action={child.action}><div class="flex items-center gap-3">{child.icon && <Icon name={child.icon} is:inline class="text-[1.1rem]" />}<span>{child.name}</span></div></button>;
-								}
-								const noSwup = ['/friends/', '/collections/', '/moments/', '/bangumi/', '/write/', '/config/'].includes(child.url);
-								return <a href={child.external ? child.url : url(child.url)} class="nav-drawer-sublink group" target={child.external ? "_blank" : null} {...(noSwup ? { 'data-no-swup': true } : {})}><div class="flex items-center gap-3">{child.icon && <Icon name={child.icon} is:inline class="text-[1.1rem]" />}<span>{child.name}</span></div>{child.external && <Icon name="fa7-solid:arrow-up-right-from-square" is:inline class="text-[0.7rem] text-black/25 dark:text-white/25" />}</a>;
-							})}
+						<div class="menu-submenu" data-mobile-submenu>
+							{link.children.map((child) => (
+								<a
+									href={child.external ? child.url : url(child.url)}
+									class="menu-sublink"
+									target={child.external ? "_blank" : undefined}
+								>
+									{child.icon && <Icon name={child.icon} class="menu-link-icon sub-icon" />}
+									<span>{child.name}</span>
+								</a>
+							))}
 						</div>
 					</div>
 				) : (
-					<a href={link.external ? link.url : url(link.url)}
-						class="nav-drawer-link group"
-						target={link.external ? "_blank" : null}
+					<a
+						href={link.external ? link.url : url(link.url)}
+						class="menu-link"
+						target={link.external ? "_blank" : undefined}
 					>
-						<div class="flex items-center gap-3">
-							{link.icon && <Icon name={link.icon} is:inline class="text-[1.25rem] nav-drawer-icon" />}
-							<span class="nav-drawer-link-text">{link.name}</span>
-						</div>
-						{link.external && <Icon name="fa7-solid:arrow-up-right-from-square" is:inline
-							class="text-[0.7rem] text-black/25 dark:text-white/25"
-						/>}
+						{link.icon && <Icon name={link.icon} class="menu-link-icon" />}
+						<span class="menu-link-text">{link.name}</span>
 					</a>
 				)}
 			</div>
 		))}
 	</nav>
-
-	<div class="nav-drawer-footer">
-		<a href={url('/config/')} class="nav-drawer-link group" data-no-swup>
-			<div class="flex items-center gap-3">
-				<Icon name="material-symbols:settings-rounded" is:inline class="text-[1.25rem] nav-drawer-icon" />
-				<span class="nav-drawer-link-text">站点设置</span>
-			</div>
-		</a>
-		<a href={url('/')} class="nav-drawer-link group">
-			<div class="flex items-center gap-3">
-				<Icon name="material-symbols:home-pin-outline" is:inline class="text-[1.25rem] nav-drawer-icon" />
-				<span class="nav-drawer-link-text">返回首页</span>
-			</div>
-		</a>
-	</div>
 </div>
 
-<!-- 样式已迁移至 src/styles/layout/nav-menu-panel.css -->
+<style>
+	/* Overlay */
+	.menu-overlay {
+		position: fixed; inset: 0; z-index: 998;
+		background: rgba(0, 0, 0, 0.35);
+		opacity: 0; visibility: hidden; pointer-events: none;
+		transition: opacity 0.3s ease, visibility 0.3s ease;
+	}
+	.menu-overlay.active {
+		opacity: 1; visibility: visible; pointer-events: auto;
+	}
+
+	/* Panel */
+	.menu-panel {
+		position: fixed; top: 0; right: 0; bottom: 0;
+		width: min(82vw, 20rem);
+		height: 100dvh;
+		background: var(--page-bg);
+		box-shadow: -8px 0 30px rgba(0, 0, 0, 0.1);
+		transform: translate3d(100%, 0, 0);
+		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		z-index: 999;
+		display: flex; flex-direction: column;
+		overflow: hidden;
+	}
+	.menu-panel[data-menu-open="true"] { transform: translate3d(0, 0, 0); }
+
+	html.dark .menu-panel {
+		box-shadow: -8px 0 30px rgba(0, 0, 0, 0.35);
+	}
+
+	@media (min-width: 1024px) {
+		.menu-overlay, .menu-panel { display: none !important; }
+	}
+
+	@media (max-width: 420px) {
+		.menu-panel { width: min(88vw, 18rem); }
+	}
+
+	/* ── Profile Section ── */
+	.menu-profile {
+		flex-shrink: 0;
+		padding: 1.25rem 1.25rem 1rem;
+	}
+
+	/* ── Navigation ── */
+	.menu-nav {
+		flex: 1; overflow-y: auto;
+		padding: 0.5rem 0.75rem;
+		-webkit-overflow-scrolling: touch;
+	}
+
+	.menu-link {
+		display: flex; align-items: center; gap: 0.625rem;
+		width: 100%; padding: 0.7rem 0.75rem;
+		border-radius: 0.5rem;
+		font-size: 0.9375rem; font-weight: 500;
+		color: var(--deep-text); text-decoration: none;
+		transition: background 0.15s, color 0.15s;
+		cursor: pointer; background: none; border: none;
+		text-align: left;
+	}
+	.menu-link:hover { background: var(--btn-regular-bg); }
+	.menu-link:active { background: var(--btn-regular-bg-active); }
+
+	.menu-link-icon {
+		font-size: 1.25rem; color: var(--content-meta); flex-shrink: 0;
+		transition: color 0.15s;
+	}
+	.menu-link:hover .menu-link-icon { color: var(--primary); }
+	.menu-link-text { flex: 1; text-align: left; }
+
+	.menu-arrow {
+		font-size: 1.2rem; color: var(--content-meta); flex-shrink: 0;
+		transition: transform 0.2s ease, color 0.15s;
+	}
+	.menu-dropdown[data-expanded="true"] .menu-arrow {
+		transform: rotate(90deg); color: var(--primary);
+	}
+	.menu-dropdown[data-expanded="true"] > .menu-link {
+		color: var(--primary); background: var(--btn-regular-bg);
+	}
+
+	/* Submenu */
+	.menu-submenu {
+		max-height: 0; overflow: hidden;
+		transition: max-height 0.25s ease;
+		padding-left: 2.25rem;
+	}
+	.menu-dropdown[data-expanded="true"] .menu-submenu { max-height: 20rem; }
+
+	.menu-sublink {
+		display: flex; align-items: center; gap: 0.5rem;
+		padding: 0.55rem 0.75rem;
+		border-radius: 0.375rem;
+		font-size: 0.875rem; font-weight: 400;
+		color: var(--content-meta); text-decoration: none;
+		transition: background 0.15s, color 0.15s;
+	}
+	.menu-sublink:hover { background: var(--btn-regular-bg); color: var(--primary); }
+	.menu-sublink:active { background: var(--btn-regular-bg-active); }
+	.sub-icon { font-size: 1.1rem !important; }
+
+	html.dark .nav-drawer-link-icon { color: var(--content-meta); }
+</style>
 
 <script>
-let drawerAbortController: AbortController | null = null;
+	var isMenuOpen = false;
+	var pageTransitionTimer;
 
-function initNavDrawer() {
-	if (drawerAbortController) drawerAbortController.abort();
-	drawerAbortController = new AbortController();
-	const signal = drawerAbortController.signal;
+	function getPanel() { return document.getElementById("nav-menu-panel"); }
+	function getOverlay() { return document.getElementById("nav-menu-overlay"); }
+	function getSwitch() { return document.getElementById("nav-menu-switch"); }
 
-	const panelEl = document.getElementById('nav-menu-panel');
-	const overlayEl = document.getElementById('nav-drawer-overlay');
-	const menuBtn = document.getElementById('nav-menu-switch');
-	const closeBtn = document.getElementById('nav-drawer-close');
-
-	if (!panelEl || !overlayEl) return;
-
-	const panel = panelEl;
-	const overlay = overlayEl;
-
-	function openDrawer() {
-		panel.classList.add('is-open');
-		overlay.classList.add('is-open');
-		overlay.setAttribute('aria-hidden', 'false');
-		document.body.style.overflow = 'hidden';
+	function ensureMenuPortal() {
+		var panel = getPanel();
+		var overlay = getOverlay();
+		if (!panel || !overlay || !document.body) return;
+		var portal = document.getElementById("nav-menu-portal");
+		if (!portal) {
+			portal = document.createElement("div");
+			portal.id = "nav-menu-portal";
+			document.body.appendChild(portal);
+		}
+		if (overlay.parentElement !== portal) portal.appendChild(overlay);
+		if (panel.parentElement !== portal) portal.appendChild(panel);
 	}
 
-	function closeDrawer() {
-		panel.classList.remove('is-open');
-		overlay.classList.remove('is-open');
-		overlay.setAttribute('aria-hidden', 'true');
-		document.body.style.overflow = '';
+	function resetDropdowns() {
+		var list = document.querySelectorAll("[data-mobile-dropdown]");
+		for (var i = 0; i < list.length; i++) {
+			list[i].setAttribute("data-expanded", "false");
+			var t = list[i].querySelector("[data-mobile-dropdown-trigger]");
+			if (t) t.setAttribute("aria-expanded", "false");
+		}
 	}
 
-	function toggleCollapsible(toggleEl: HTMLElement) {
-		const dropdown = toggleEl.closest('[data-collapsible]');
-		if (!dropdown) return;
-		const isCollapsed = dropdown.getAttribute('data-collapsed') === 'true';
-		dropdown.setAttribute('data-collapsed', isCollapsed ? 'false' : 'true');
+	function openMenu() {
+		ensureMenuPortal();
+		resetDropdowns();
+		var panel = getPanel();
+		var overlay = getOverlay();
+		var btn = getSwitch();
+		if (panel) { panel.setAttribute("data-menu-open", "true"); panel.removeAttribute("aria-hidden"); }
+		if (overlay) overlay.classList.add("active");
+		if (btn) btn.classList.add("hamburger-open");
+		document.body.style.overflow = "hidden";
+		isMenuOpen = true;
 	}
 
-	closeDrawer();
+	function closeMenu() {
+		var panel = getPanel();
+		var overlay = getOverlay();
+		var btn = getSwitch();
+		if (panel) {
+			panel.setAttribute("data-menu-open", "false");
+			panel.setAttribute("aria-hidden", "true");
+		}
+		if (overlay) overlay.classList.remove("active");
+		if (btn) btn.classList.remove("hamburger-open");
+		document.body.style.overflow = "";
+		isMenuOpen = false;
+		resetDropdowns();
+	}
 
-	if (menuBtn) {
-		menuBtn.onclick = (e) => {
-			e.stopPropagation();
-			const isOpen = panel.classList.contains('is-open');
-			if (isOpen) {
-				closeDrawer();
-			} else {
-				openDrawer();
+	function toggleMenu() { isMenuOpen ? closeMenu() : openMenu(); }
+
+	function handleDropdownClick(e) {
+		var trigger = e.target.closest("[data-mobile-dropdown-trigger]");
+		if (!trigger) return;
+		e.preventDefault();
+		var dd = trigger.closest("[data-mobile-dropdown]");
+		if (!dd) return;
+		var expanded = dd.getAttribute("data-expanded") === "true";
+		var all = document.querySelectorAll("[data-mobile-dropdown]");
+		for (var i = 0; i < all.length; i++) {
+			if (all[i] !== dd) {
+				all[i].setAttribute("data-expanded", "false");
+				var ot = all[i].querySelector("[data-mobile-dropdown-trigger]");
+				if (ot) ot.setAttribute("aria-expanded", "false");
 			}
-		};
-	}
-
-	if (closeBtn) {
-		closeBtn.onclick = () => closeDrawer();
-	}
-
-	overlay.addEventListener('click', () => closeDrawer(), { signal });
-
-	// 处理折叠/展开
-	panel.addEventListener('click', (e) => {
-		const toggleEl = (e.target as HTMLElement).closest('.nav-drawer-toggle');
-		if (toggleEl) {
-			e.stopPropagation();
-			toggleCollapsible(toggleEl as HTMLElement);
-			return;
 		}
+		dd.setAttribute("data-expanded", String(!expanded));
+		trigger.setAttribute("aria-expanded", String(!expanded));
+	}
 
-		// 处理 action 按钮
-		const actionBtn = (e.target as HTMLElement).closest('[data-action]');
-		if (actionBtn) {
-			const action = actionBtn.getAttribute('data-action');
-			if (action) {
-				window.dispatchEvent(new CustomEvent(action));
-				closeDrawer();
+	function handleClick(e) {
+		var el = e.target;
+		if (el.closest("#nav-menu-switch")) { e.preventDefault(); e.stopPropagation(); toggleMenu(); return; }
+		if (el.id === "nav-menu-overlay" || el.classList.contains("menu-overlay")) { e.preventDefault(); closeMenu(); return; }
+		if (el.closest("[data-mobile-dropdown-trigger]")) { handleDropdownClick(e); return; }
+		if (isMenuOpen) {
+			var panel = getPanel();
+			var btn = getSwitch();
+			if (panel && !panel.contains(el) && (!btn || !btn.contains(el))) {
+				closeMenu();
 			}
 		}
-	}, { signal });
+	}
 
-	document.addEventListener('keydown', (e) => {
-		if (e.key === 'Escape' && panel.classList.contains('is-open')) {
-			closeDrawer();
-		}
-	}, { signal });
-}
+	function handleKeydown(e) { if (e.key === "Escape" && isMenuOpen) closeMenu(); }
 
-initNavDrawer();
+	// 全局事件委托，用标志位防止脚本因 Swup 导航被重复执行时多次注册
+	if (!window.__navMenuListenersReady) {
+		window.__navMenuListenersReady = true;
+		document.addEventListener("click", handleClick);
+		document.addEventListener("keydown", handleKeydown);
+	}
 
-document.addEventListener('astro:page-load', () => {
-	initNavDrawer();
-});
+	function init() {
+		isMenuOpen = false;
+		var btn = getSwitch();
+		if (btn) btn.classList.remove("hamburger-open");
+		ensureMenuPortal();
+		// 事件监听器在脚本首次执行时已注册（下方），这里不再 remove/add，
+		// 避免生产打包后因函数引用不一致导致重复/丢失绑定
+	}
+
+	function onLoad() { init(); }
+
+	function onPageTransition() {
+		closeMenu();
+		if (pageTransitionTimer) clearTimeout(pageTransitionTimer);
+		pageTransitionTimer = setTimeout(function() { init(); pageTransitionTimer = null; }, 80);
+	}
+
+	document.addEventListener("astro:page-load", onLoad);
+	document.addEventListener("swup:page:view", onPageTransition);
+	document.addEventListener("swup:contentReplaced", onPageTransition);
+	if (document.readyState === "complete" || document.readyState === "interactive") onLoad();
+
+	window.openNavMenu = openMenu;
+	window.closeNavMenu = closeMenu;
+	window.toggleNavMenu = toggleMenu;
 </script>

@@ -3,10 +3,12 @@ import type { Translation } from "../translation";
 
 export const zh_TW: Translation = {
 	[Key.home]: "首頁",
-	[Key.about]: "關於",
+	[Key.categories]: "分類",
+	[Key.categoryList]: "分類列表",
+	[Key.categoryPosts]: "該分類下的文章",
+	[Key.allCategories]: "全部分類",
+	[Key.about]: "關於我",
 	[Key.archive]: "歸檔",
-	[Key.postHeatmap]: "文章分布",
-	[Key.githubHeatmap]: "GitHub 貢獻",
 	[Key.search]: "搜尋",
 	[Key.searchNoResults]: "找不到相關結果。",
 	[Key.searchTypeSomething]: "請輸入搜尋關鍵字。",
@@ -22,7 +24,6 @@ export const zh_TW: Translation = {
 	[Key.recentPosts]: "最新文章",
 	[Key.postList]: "文章列表",
 	[Key.tableOfContents]: "目錄",
-	[Key.tocEmpty]: "目前頁面沒有目錄",
 	[Key.music]: "音樂",
 	[Key.musicNoPlaying]: "暫未播放",
 	[Key.musicLyrics]: "歌詞",
@@ -42,7 +43,6 @@ export const zh_TW: Translation = {
 	[Key.musicCover]: "封面",
 	[Key.musicNoCover]: "暫無封面",
 	[Key.musicAudioPlayer]: "音頻播放器",
-	[Key.musicFloatingLyrics]: "懸浮歌詞",
 
 	// 公告欄
 	[Key.announcement]: "公告",
@@ -56,7 +56,6 @@ export const zh_TW: Translation = {
 		"您還未在配置文件中啟用評論系統，啟用後訪客才可在此留言",
 	[Key.friends]: "友鏈",
 	[Key.friendsDescription]: "這裡是我的朋友們，歡迎互相訪問交流",
-	[Key.friendsApply]: "自助申請友鏈",
 	[Key.guestbook]: "留言",
 	[Key.guestbookDescription]: "歡迎在這裡留下你的足跡，分享你的想法和建議",
 	[Key.untitled]: "無標題",
@@ -77,7 +76,6 @@ export const zh_TW: Translation = {
 	[Key.systemMode]: "跟隨系統",
 
 	[Key.more]: "更多",
-	[Key.collapse]: "收起",
 
 	[Key.author]: "作者",
 	[Key.publishedAt]: "發布於",
@@ -85,6 +83,14 @@ export const zh_TW: Translation = {
 	[Key.readTime]: "閱讀時長",
 	[Key.license]: "許可協議",
 	[Key.bangumi]: "番組計劃",
+
+	[Key.recentMoments]: "最近動態",
+	[Key.portalRecentPosts]: "最近文章",
+	[Key.portalRecentMoments]: "最近動態",
+	[Key.portalViewAll]: "查看全部",
+	[Key.portalViewMore]: "查看更多",
+	[Key.portalRunningDays]: "已運行",
+	[Key.portalDays]: "天",
 
 	// 番組計劃
 	[Key.bangumiTitle]: "我的番組計劃",
@@ -146,6 +152,33 @@ export const zh_TW: Translation = {
 	[Key.bangumiUpdatedAt]: "構建時間",
 	[Key.bangumiDataStatic]: "靜態數據",
 
+	// 書架頁面
+	[Key.books]: "書架",
+	[Key.booksTitle]: "我的書架",
+	[Key.booksSubtitle]: "記錄閱讀歷程，分享書中精彩。",
+	[Key.bookshelfReading]: "在讀",
+	[Key.bookshelfRead]: "讀過",
+	[Key.bookshelfWantRead]: "想讀",
+	[Key.booksNoData]: "書架上還沒有書籍",
+
+	// 影視與遊戲頁面
+	[Key.moviesGames]: "影視與遊戲",
+	[Key.moviesGamesTitle]: "影視與遊戲",
+	[Key.moviesGamesSubtitle]: "記錄看過的影視作品和玩過的遊戲。",
+	[Key.moviesGamesTabAll]: "全部",
+	[Key.moviesGamesTabMovie]: "電影",
+	[Key.moviesGamesTabTV]: "電視劇",
+	[Key.moviesGamesTabAnime]: "動漫",
+	[Key.moviesGamesTabDocumentary]: "紀錄片",
+	[Key.moviesGamesTabGame]: "遊戲",
+	[Key.moviesGamesNoData]: "暫無內容",
+
+	// 音樂頁面
+	[Key.musicPage]: "音樂",
+	[Key.musicPageTitle]: "我的音樂",
+	[Key.musicPageSubtitle]: "記錄喜歡的音樂，分享旋律中的故事。",
+	[Key.musicPageNoData]: "暫無音樂條目",
+
 	// 分頁
 	[Key.paginationFirst]: "首頁",
 	[Key.paginationPrev]: "上一頁",
@@ -200,15 +233,6 @@ export const zh_TW: Translation = {
 	// 置頂
 	[Key.pinned]: "置頂",
 
-	// 相關文章推薦
-	[Key.relatedPosts]: "相關文章",
-	[Key.randomPosts]: "隨機文章",
-	[Key.smartRecommend]: "智慧推薦",
-	[Key.randomRecommend]: "隨機推薦",
-
-	// 加密
-	[Key.postEncrypted]: "本文已加密",
-
 	// 壁紙模式
 	[Key.wallpaperMode]: "壁紙模式",
 	[Key.wallpaperBannerMode]: "橫幅壁紙",
@@ -218,12 +242,7 @@ export const zh_TW: Translation = {
 	// 橫幅設置
 	[Key.bannerSettings]: "橫幅設置",
 	[Key.bannerTitle]: "首頁橫幅標題",
-	[Key.bannerCarousel]: "橫幅輪播",
 	[Key.wavesAnimation]: "水波紋動畫",
-	[Key.overlaySettings]: "透明設定",
-	[Key.overlayOpacity]: "桌布透明度",
-	[Key.overlayBlur]: "背景模糊度",
-	[Key.overlayCardOpacity]: "卡片透明度",
 
 	// 文章佈局
 	[Key.postListLayout]: "文章佈局",
@@ -261,19 +280,12 @@ export const zh_TW: Translation = {
 	[Key.siteStatsLastUpdate]: "最後活動",
 	[Key.siteStatsDaysAgo]: "{days} 天前",
 	[Key.siteStatsDays]: "{days} 天",
-	[Key.siteStatsVisitors]: "訪客",
-	[Key.siteStatsPageViews]: "訪問",
-	[Key.siteStatsLoading]: "--",
-	[Key.siteStatsVisitorPrefix]: "恭喜你是第",
-	[Key.siteStatsVisitorSuffix]: "個訪問本網站的人",
-	[Key.siteStatsPageViewPrefix]: "小破站訪問量為",
+	[Key.siteStatsVisitorPrefix]: "您是造訪本站的第 ",
+	[Key.siteStatsVisitorSuffix]: " 位旅人，很高興與你相遇。",
+	[Key.siteStatsPageViewPrefix]: "小破站訪問量為 ",
 	[Key.siteStatsPageViewSuffix]: "",
-	[Key.siteStatsHoverHint]: "懸停查看更多",
-	[Key.siteStatsRevealLine1]:
-		"{posts} 篇文章 · {categories} 個分類 · {tags} 個標籤",
-	[Key.siteStatsRevealLine2]: "累計 {words} 字",
-	[Key.footerRunningDays]: "已運行 {days} 天",
-	[Key.footerLastUpdate]: "最後更新於 {days} 天前",
+	[Key.siteStatsLoading]: "--",
+	[Key.siteHeatmap]: "更新熱力圖",
 	[Key.today]: "今天",
 
 	// 日曆組件
@@ -305,72 +317,21 @@ export const zh_TW: Translation = {
 	[Key.scanToRead]: "掃碼閱讀文章",
 
 	// 代碼區塊折疊配置
-	[Key.codeCollapsibleShowMore]: "展開",
-	[Key.codeCollapsibleShowLess]: "收起",
+	[Key.codeCollapsibleShowMore]: "顯示更多",
+	[Key.codeCollapsibleShowLess]: "顯示更少",
 	[Key.codeCollapsibleExpanded]: "代碼區塊已展開",
 	[Key.codeCollapsibleCollapsed]: "代碼區塊已折疊",
 
-	// 相簿頁面
-	[Key.gallery]: "相簿",
-	[Key.galleryDescription]: "記錄生活中的美好瞬間",
-	[Key.galleryPhotos]: "張照片",
-	[Key.galleryAlbums]: "本相簿",
-	[Key.galleryNoAlbums]: "暫無相簿",
-	[Key.galleryBackToAlbums]: "返回相簿列表",
-	[Key.galleryLocalAlbum]: "本地相簿",
-	[Key.galleryNetworkAlbum]: "網路相簿",
-	[Key.galleryCategory]: "分類",
-	[Key.galleryQuantity]: "數量",
-	[Key.galleryRandomFetch]: "隨機獲取",
-	[Key.galleryFetching]: "獲取中...",
-	[Key.galleryFetchError]: "獲取失敗，請重試",
-	[Key.galleryNoImages]: "暫無圖片，點擊上方按鈕隨機獲取",
+	// 相關閱讀
+	[Key.relatedPosts]: "相關閱讀",
 
-	// 收藏API頁面
-	[Key.collections]: "工具導航",
-	[Key.collectionsDescription]: "收集和管理常用的 API 與工具",
-	[Key.collectionsEmpty]: "暫無收藏的 API",
-	[Key.collectionsCopy]: "複製連結",
-	[Key.collectionsCopied]: "已複製",
-
-	// 統計頁面
-	[Key.stats]: "統計",
-	[Key.statsDescription]: "站點數據統計與分析",
-	[Key.statsDeveloping]: "正在開發中",
-	[Key.statsDevelopingDesc]: "此頁面正在緊鑼密鼓地開發中，敬請期待",
-
-	// 密碼保護
-	[Key.passwordProtected]: "密碼保護",
-	[Key.passwordProtectedDesc]: "這篇文章已被密碼保護，請輸入密碼查看內容。",
-	[Key.passwordHint]: "提示",
-	[Key.passwordPlaceholder]: "請輸入密碼",
-	[Key.passwordSubmit]: "解鎖",
-	[Key.passwordError]: "密碼錯誤，請重試。",
-	[Key.passwordProtectedRss]: "本文已加密保護，請訪問網站查看。",
-
-	// 日曆頁面
-	[Key.calendar]: "日曆",
-	[Key.Fhome]: "番茄主页",
-	[Key.Fnote]: "番茄笔记",
-	[Key.contactMe]: "聯繫我",
-	[Key.qqGroup]: "QQ群",
-	[Key.navPosts]: "文章",
-	[Key.navMy]: "我的",
-	[Key.calendarDescription]: "節日、生日、安排與文章發布的綜合日曆",
-	[Key.calendarToday]: "今日",
-	[Key.calendarTomorrow]: "明日",
-	[Key.calendarDaysLater]: "{n} 天後",
-	[Key.calendarBirthday]: "生日",
-	[Key.calendarHoliday]: "節日",
-	[Key.calendarSchedule]: "安排",
-	[Key.calendarPost]: "文章",
-	[Key.calendarLunar]: "農曆",
-	[Key.calendarUpcoming]: "近期事件",
-	[Key.calendarTodayEvents]: "今日事件",
-	[Key.calendarNoEvents]: "這一天沒有日程",
-	[Key.calendarMore]: "還有 {n} 項",
-	[Key.calendarBackToToday]: "回到今日",
-	[Key.calendarNearestHoliday]: "最近的節日",
-	[Key.calendarNearestBirthday]: "最近的生日/紀念日",
-	[Key.calendarNearestSchedule]: "最近的安排",
+	// 歡迎卡片
+	[Key.welcomeCardLocation]: "遠方",
+	[Key.welcomeCardGreeting]: "的朋友！",
+	[Key.welcomeCardRecentUpdates]: "最近我更新了這些內容：",
+	[Key.welcomeCardFlipHint]: "點擊翻轉查看更多",
+	[Key.welcomeCardDragHint]: "拖拽關閉",
+	[Key.welcomeCardClose]: "關閉",
+	[Key.welcomeCardLearnMore]: "了解更多",
+	[Key.welcomeCardRecentLabel]: "最近更新",
 };

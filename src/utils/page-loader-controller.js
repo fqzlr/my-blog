@@ -1,5 +1,5 @@
 const DEFAULT_HIDE_DELAY = 0;
-const DEFAULT_MAX_WAIT = 8000;
+const DEFAULT_MAX_WAIT = 2000;
 export const LOADER_READY_EVENT = "firefly:page-loader-ready";
 export const LOADER_HIDDEN_EVENT = "firefly:page-loader-hidden";
 
@@ -244,6 +244,13 @@ export function initPageLoader({
 
 	if (documentRef.readyState === "complete") hideInitialLoader();
 	else windowRef.addEventListener("load", hideInitialLoader, { once: true });
+
+	// 硬超时：2秒后无论如何隐藏加载动画
+	setTimeout(() => {
+		if (controller.isVisible()) {
+			controller.hideNow();
+		}
+	}, 2000);
 
 	documentRef.addEventListener("astro:page-load", () => {
 		documentRef.dispatchEvent(new CustomEvent(LOADER_READY_EVENT));

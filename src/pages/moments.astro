@@ -5,7 +5,6 @@ import { Icon } from "astro-icon/components";
 import Comment from "@/components/comment/index.astro";
 import MomentCard from "@/components/moments/MomentCard.astro";
 import MomentsCover from "@/components/moments/MomentsCover.astro";
-import MomentsEditor from "@/components/edit/MomentsEditor.svelte";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
 
 const moments = await getCollection("moments");
@@ -67,16 +66,13 @@ const pinnedData = pinnedMoments.map((m) => ({
 	body: m.body || "",
 	date: m.data.published,
 }));
+
+const albums = await getCollection("album");
 ---
 
 <MainGridLayout title="动态" description="记录生活中的点点滴滴">
   <!-- 微信朋友圈风格封面 -->
   <MomentsCover />
-
-  <!-- 说说编辑器（Svelte 组件，保留编辑功能） -->
-  <div data-no-swup>
-    <MomentsEditor client:only />
-  </div>
 
   <!-- 置顶说说（始终渲染容器，JS 可动态追加外部置顶） -->
   <a href="/moments/pinned/" class="wx-pinned" id="pinned-block" style={pinnedData.length === 0 ? 'display:none' : ''}>
@@ -186,13 +182,9 @@ const pinnedData = pinnedMoments.map((m) => ({
   .wx-empty {
     text-align: center;
     padding: 3rem 1rem;
-    background: #ffffff;
-    border: 1px solid var(--border, #e5e7eb);
+    background: var(--card-bg);
+    border: 1px solid var(--border);
     border-radius: 12px;
-  }
-  :root.dark .wx-empty {
-    background: #18181b;
-    border-color: #3f3f46;
   }
 
   .wx-empty-icon {
@@ -251,3 +243,4 @@ const pinnedData = pinnedMoments.map((m) => ({
     }
   }
 </style>
+

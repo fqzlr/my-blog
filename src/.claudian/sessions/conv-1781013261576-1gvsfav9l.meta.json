@@ -1,0 +1,23 @@
+{
+	"id": "conv-1781013261576-1gvsfav9l",
+	"providerId": "claude",
+	"title": "整理一下",
+	"titleGenerationStatus": "failed",
+	"createdAt": 1781013261577,
+	"updatedAt": 1781177648559,
+	"lastResponseAt": 1781177617658,
+	"sessionId": "cc8700a5-70a0-4d3f-a080-4f7032b2acf2",
+	"providerState": {
+		"providerSessionId": "cc8700a5-70a0-4d3f-a080-4f7032b2acf2"
+	},
+	"usage": {
+		"model": "haiku",
+		"inputTokens": 28896,
+		"cacheCreationInputTokens": 0,
+		"cacheReadInputTokens": 0,
+		"contextWindow": 200000,
+		"contextTokens": 28896,
+		"percentage": 14,
+		"contextWindowIsAuthoritative": true
+	}
+}

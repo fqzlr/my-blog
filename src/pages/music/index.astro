@@ -1,18 +1,176 @@
 ---
+import { getCollection } from "astro:content";
+import Comment from "@components/comment/index.astro";
+import Navbar from "@components/layout/Navbar.astro";
 import MusicVisualizer from "@components/features/music-visualizer/MusicVisualizer.svelte";
-import { siteConfig } from "@/config";
+import Layout from "@layouts/Layout.astro";
+import { musicPlayerConfig, siteConfig } from "@/config";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
-import Layout from "@layouts/Layout.astro";
-import "@/styles/pages/music-visualizer.css";
+
+const metingApiBase = musicPlayerConfig.meting?.api
+	? musicPlayerConfig.meting.api.split("?")[0]
+	: "https://mu.tsh520.cn/api";
 
 if (!siteConfig.pages.musicPage) {
 	return Astro.redirect("/404/");
 }
+
+const customBangumi = await getCollection("bangumi");
+
+const musicEntries = customBangumi
+	.filter((item) => item.data.category === "music")
+	.map((item) => {
+		const { data } = item;
+		const imageSrc =
+			typeof data.image === "string" ? data.image : data.image.src;
+		return {
+			title: data.title,
+			artist: data.artist || "",
+			image: imageSrc,
+			audioUrl: data.audioUrl || "",
+			lrcUrl: data.lrcUrl || "",
+			metingServer: data.metingServer || "",
+			metingId: data.metingId || "",
+			score: data.score || 0,
+			status: data.status,
+			comment: data.comment || "",
+			published: data.published?.toISOString() || new Date().toISOString(),
+		};
+	})
+	.sort(
+		(a, b) => new Date(b.published).getTime() - new Date(a.published).getTime(),
+	);
+
+const collectionPlaylist = musicEntries
+	.filter((item) => item.audioUrl || item.metingId)
+	.map((item) => ({
+		name: item.title,
+		artist: item.artist,
+		url: item.audioUrl,
+		pic: item.image,
+		lrc: item.lrcUrl,
+		metingServer: item.metingServer || "",
+		metingId: item.metingId || "",
+	}));
+
+const navbarWidthFull = siteConfig.navbar.widthFull ?? false;
 ---
 
-<Layout title={i18n(I18nKey.music) + " - 3D可视化"} description="音乐地形可视化，沉浸式音乐体验">
-	<main class="music-visualizer-page">
-		<MusicVisualizer client:only="svelte" />
+<Layout title={i18n(I18nKey.musicPageTitle) + " - 3D可视化"} description="音乐地形可视化，沉浸式音乐体验">
+	<div
+		id="top-row"
+		class="music-visualizer-top-row z-50 pointer-events-none"
+		class:list={[
+			navbarWidthFull ? "w-full" : "w-full max-w-(--page-width) px-0 md:px-4",
+		]}
+	>
+		<div id="navbar-wrapper" class="pointer-events-auto bg-transparent">
+			<Navbar />
+		</div>
+	</div>
+
+	<!-- Swup 期望的容器（隐藏，防止页面过渡异常） -->
+	<div id="banner-overlay-container" class="hidden"></div>
+	<div id="banner-dim-container" class="hidden"></div>
+	<div id="left-sidebar-dynamic" class="hidden"></div>
+	<div id="right-sidebar-dynamic" class="hidden"></div>
+
+	<main id="swup-container" class="music-visualizer-swup transition-main">
+		<h1 class="sr-only">{i18n(I18nKey.musicPageTitle)}</h1>
+		<div class="music-visualizer-page">
+			<MusicVisualizer client:only="svelte" />
+		</div>
 	</main>
+
+	<Comment customPath="/music/" />
+
+	<script is:inline define:vars={{ collectionPlaylistJson: JSON.stringify(collectionPlaylist), metingApiUrl: metingApiBase }}>
+	(function() {
+		var collectionPlaylist = JSON.parse(collectionPlaylistJson);
+		var metingApi = metingApiUrl;
+
+		async function resolveMetingTracks(playlist) {
+			var base = metingApi + '?server=';
+			for (var i = 0; i < playlist.length; i++) {
+				var track = playlist[i];
+				if (track.metingServer && track.metingId && !track.url) {
+					try {
+						var s = encodeURIComponent(track.metingServer);
+						var id = encodeURIComponent(track.metingId);
+						var res = await fetch(base + s + '&type=song&id=' + id);
+						if (!res.ok) throw new Error('HTTP ' + res.status);
+						var raw = await res.json();
+						var data = Array.isArray(raw) ? raw[0] : raw;
+						if (data) {
+							if (data.url) track.url = data.url;
+							if (data.pic && !track.pic) track.pic = data.pic;
+							if (data.lrc && !track.lrc) track.lrc = data.lrc;
+							track.artist = track.artist || data.author || data.artist || "";
+							track.name = (track.name && track.name !== track.metingId) ? track.name : (data.title || track.name);
+						}
+					} catch(e) {
+						console.warn('[Meting] failed:', track.name, e);
+					}
+				}
+			}
+			return playlist;
+		}
+
+		async function loadBangumiPlaylist(mgr) {
+			var resolved = await resolveMetingTracks(collectionPlaylist);
+			if (resolved.length > 0) {
+				mgr.loadExternalPlaylist(resolved);
+			}
+		}
+
+		// 只设置 fm:init 监听器，不调用 mgr.init()
+		// MusicVisualizer 会调用 mgr.init()，确保 crossOrigin 在 src 之前设置
+		function bindManager(mgr) {
+			if (mgr.getState().initialized) {
+				loadBangumiPlaylist(mgr);
+			} else {
+				window.addEventListener('fm:init', function handler() {
+					window.removeEventListener('fm:init', handler);
+					loadBangumiPlaylist(mgr);
+				});
+			}
+		}
+
+		// 等待 MusicManager 可用（内联脚本在 Svelte 组件挂载前运行）
+		var mgr = window.__fireflyMusic;
+		if (mgr) {
+			bindManager(mgr);
+		} else {
+			var attempts = 0;
+			var timer = setInterval(function() {
+				mgr = window.__fireflyMusic;
+				if (mgr || ++attempts > 50) {
+					clearInterval(timer);
+					if (mgr) bindManager(mgr);
+				}
+			}, 100);
+		}
+	})();
+	</script>
+
+	<!-- 主题切换（FloatingDock 不在此页面，需要单独处理） -->
+	<script is:inline>
+	document.addEventListener("click", function(e) {
+		var themeBtn = e.target && e.target.closest && e.target.closest("#sun-moon-theme-btn");
+		if (!themeBtn) return;
+		var isDark = document.documentElement.classList.contains("dark");
+		var next = isDark ? "light" : "dark";
+		localStorage.setItem("theme", next);
+		if (next === "dark") {
+			document.documentElement.classList.add("dark");
+			document.documentElement.setAttribute("data-theme", "one-dark-pro");
+		} else {
+			document.documentElement.classList.remove("dark");
+			document.documentElement.setAttribute("data-theme", "one-light");
+		}
+	});
+	</script>
+
+
 </Layout>

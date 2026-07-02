@@ -1,6 +1,6 @@
-import { coverImageConfig } from "../config/coverImageConfig";
-import { siteConfig } from "../config/siteConfig";
-import type { ImageFormat } from "../types/config";
+import { coverImageConfig } from "@/config/coverImageConfig";
+import { siteConfig } from "@/config/siteConfig";
+import type { ImageFormat } from "@/types/config";
 
 const { randomCoverImage } = coverImageConfig;
 
@@ -28,7 +28,7 @@ function appendSeedParam(apiUrl: string, hash: number): string {
 
 /**
  * 处理文章封面图
- * 当image字段为"api"时，返回第一个API的URL（客户端会按顺序尝试所有API）
+ * 当image字段为"api"时，基于文章信息生成独特的随机索引
  * @param image - 文章frontmatter中的image字段值
  * @param seed - 用于生成唯一URL的种子（文章id或slug）
  */
@@ -52,9 +52,11 @@ export function processCoverImageSync(
 		return "";
 	}
 
-	// 始终使用第一个API，失败时由客户端按顺序尝试后续API
+	// 基于文章ID生成固定的哈希值
+	// 确保同一篇文章在不同地方显示相同的封面图片
 	const hash = getSeedHash(seed);
-	return appendSeedParam(randomCoverImage.apis[0], hash);
+	const apiIndex = hash % randomCoverImage.apis.length;
+	return appendSeedParam(randomCoverImage.apis[apiIndex], hash);
 }
 
 /**
@@ -71,6 +73,7 @@ export function getApiUrlList(
 		return [];
 	}
 
+	// 基于文章ID生成固定的哈希值
 	const hash = getSeedHash(seed);
 	return randomCoverImage.apis.map((api) => appendSeedParam(api, hash));
 }
@@ -103,22 +106,4 @@ export function getImageQuality(): number {
 export function getFallbackFormat(): "avif" | "webp" {
 	const formatConfig = siteConfig.imageOptimization?.formats ?? "both";
 	return formatConfig === "avif" ? "avif" : "webp";
-}
-
-/**
- * 检查是否需要为图片添加 referrerpolicy="no-referrer" 以解决防盗链 403 问题
- */
-export function shouldAddNoReferrer(urlStr: string): boolean {
-	if (!urlStr.startsWith("http")) return false;
-	const domains = siteConfig.imageOptimization?.noReferrerDomains || [];
-	if (domains.length === 0) return false;
-	try {
-		const hostname = new URL(urlStr).hostname;
-		return domains.some((pattern) => {
-			const regexPattern = pattern.replace(/\./g, "\\.").replace(/\*/g, ".*");
-			return new RegExp(`^${regexPattern}$`).test(hostname);
-		});
-	} catch {
-		return false;
-	}
 }

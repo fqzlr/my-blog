@@ -19,8 +19,7 @@
 	display: block;
 	color: #ffffff;
 	isolation: isolate;
-	/* 与 Navbar 重叠：抵消 sticky navbar 在普通文档流中占用的高度 */
-	margin-top: calc(-1 * var(--home-hero-nav-offset));
+	margin-top: 0;
 	padding-top: 0;
 }
 
@@ -200,16 +199,11 @@
 	height: var(--identity-avatar-size);
 	border-radius: 50%;
 	overflow: hidden;
-	outline: 3px solid #D44E7D;
+	border: 4px solid #ffffff;
+	outline: 3px solid #000000;
 	background: #ffffff;
-	box-shadow: 0 10px 0 #D44E7D, 0 18px 38px rgba(0, 0, 0, 0.48);
-	flex-shrink: 0;
-}
-
-/* 下班时头像边框和阴影恢复黑色 */
-.home-hero__avatar-group:has(.is-off-work) .home-hero__avatar-wrapper {
-	outline-color: #000000;
 	box-shadow: 0 10px 0 rgba(0, 0, 0, 0.9), 0 18px 38px rgba(0, 0, 0, 0.48);
+	flex-shrink: 0;
 }
 
 .home-hero__avatar {
@@ -229,44 +223,39 @@
 	min-width: 5.75rem;
 	justify-content: center;
 	padding: 0.35rem 0.85rem;
-	border: 3px solid #D44E7D;
+	border: 3px solid #000000;
 	border-radius: 999px;
 	background: #ffffff;
-	color: #D44E7D;
+	color: #000000;
 	font-size: 1rem;
 	font-weight: 900;
 	line-height: 1;
 	white-space: nowrap;
-	box-shadow: 0 3px 0 #D44E7D;
+	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.9);
 }
 
 .home-hero__status-dot {
 	width: 0.55rem;
 	height: 0.55rem;
 	border-radius: 50%;
-	background: #D44E7D;
+	background: #000000;
 	flex-shrink: 0;
-	animation: status-pulse 1.2s ease-in-out infinite;
-}
-
-@keyframes status-pulse {
-	0%, 100% { opacity: 1; transform: scale(1); }
-	50% { opacity: 0.25; transform: scale(0.7); }
 }
 
 .home-hero__status-badge.is-off-work {
-	border-color: #000000;
+	background: #ffffff;
 	color: #000000;
-	box-shadow: 0 3px 0 rgba(0, 0, 0, 0.9);
 }
 
-.home-hero__status-badge.is-off-work .home-hero__status-dot {
-	background: #000000;
-	animation: none;
+[data-theme="light"] .home-hero__avatar-wrapper {
+	border-color: #ffffff;
+	outline-color: #000000;
 }
 
 [data-theme="light"] .home-hero__status-badge {
 	background: #ffffff;
+	color: #000000;
+	border-color: #000000;
 }
 
 /* 名字 */
@@ -301,7 +290,7 @@
 	align-items: center;
 	justify-content: center;
 	min-width: clamp(9.5rem, 13vw, 13.5rem);
-	margin-top: clamp(-0rem, -0vw, -0rem);
+	margin-top: clamp(-2rem, -2vw, -0.8rem);
 	padding: 0.34rem 1rem;
 	border-radius: 3px;
 	background: rgba(255, 255, 255, 0.72);
@@ -440,7 +429,7 @@
 
 .home-hero--motion-pending .home-hero__speech {
 	opacity: 0;
-	transform: translateY(34px) scale(0.92);
+	transform: translate(-50%, 34px) scale(0.92);
 	filter: blur(10px);
 }
 
@@ -473,8 +462,8 @@
 	filter: blur(12px);
 }
 
-.home-page--motion-pending > :not(#home-hero) img[data-home-motion-image]:not([data-shutter-image]):not([data-shutter-final-image]),
-.home-page--motion-pending > :not(#home-hero) [data-home-motion-image]:not([data-shutter-image]):not([data-shutter-final-image]) {
+.home-page--motion-pending > :not(#home-hero) img,
+.home-page--motion-pending > :not(#home-hero) [data-motion-image] {
 	clip-path: inset(0 0 100% 0);
 	transform: scale(1.1);
 }
@@ -512,7 +501,7 @@
 
 .home-hero__speech {
 	position: absolute;
-	right: clamp(1rem, 4vw, 3rem);
+	left: 50%;
 	bottom: clamp(4.4rem, 8.6vh, 6.2rem);
 	z-index: 32;
 	width: min(34rem, 82%);
@@ -528,6 +517,7 @@
 	color: rgba(255, 255, 255, 0.86);
 	pointer-events: none;
 	text-align: center;
+	transform: translateX(-50%);
 	transform-origin: 50% 100%;
 }
 
@@ -769,11 +759,11 @@
 		padding: 2rem;
 		align-items: center;
 		justify-content: center;
-		background: linear-gradient(180deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.7) 100%);
+		background: linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.35) 100%);
 	}
 
 	[data-theme="light"] .home-hero__left-panel {
-		background: linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0.7) 100%);
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.35) 100%);
 	}
 
 	.home-hero__profile {
@@ -802,7 +792,7 @@
 		min-width: min(12rem, 74vw);
 		margin-right: auto;
 		margin-left: auto;
-		margin-top: clamp(-0.9rem, -2.5vw, -0.4rem);
+		margin-top: clamp(0.2rem, 1vw, 0.5rem);
 		padding: 0.32rem 0.9rem;
 		font-size: clamp(0.78rem, 3.4vw, 0.98rem);
 		letter-spacing: 0.18em;
@@ -877,4 +867,101 @@
 	.home-hero__right-panel {
 		display: none;
 	}
+}
+
+/* ============================================
+   首页布局覆盖 — 隐藏侧边栏，单列居中
+   通过 .lg\:is-home body 类控制，Swup 导航时动态切换
+   ============================================ */
+
+/* 首页 html/body 背景透明，让 Hero 背景图铺满 */
+.lg\:is-home,
+.lg\:is-home body {
+	background: transparent !important;
+}
+
+/* 首页主内容区从顶部开始 — 覆盖 .no-banner-layout 的 top: 5.5rem（含移动端媒体查询） */
+.lg\:is-home .absolute.w-full.z-30,
+.lg\:is-home .absolute.w-full.z-30.no-banner-layout,
+.lg\:is-home .no-banner-layout {
+	top: 0 !important;
+	min-height: 100vh !important;
+	transition: none !important;
+}
+
+/* 首页容器全宽 — padding 由 JS 控制，此处仅处理 max-width 兜底 */
+.lg\:is-home #main-grid {
+	padding-left: 0 !important;
+	padding-right: 0 !important;
+}
+
+/* 首页隐藏侧边栏容器及其子元素 */
+.lg\:is-home #left-sidebar-wrapper,
+.lg\:is-home #left-sidebar-wrapper > *,
+.lg\:is-home #left-sidebar-dynamic,
+.lg\:is-home #left-sidebar-dynamic > *,
+.lg\:is-home #right-sidebar-static,
+.lg\:is-home #right-sidebar-static > *,
+.lg\:is-home #right-sidebar-dynamic,
+.lg\:is-home #right-sidebar-dynamic > *,
+.lg\:is-home #right-sidebar,
+.lg\:is-home #right-sidebar > *,
+.lg\:is-home #mobile-bottom-sidebar,
+.lg\:is-home #mobile-bottom-sidebar > * {
+	display: none !important;
+}
+
+/* 首页主内容区全宽单列 */
+.lg\:is-home #main-grid {
+	grid-template-columns: 1fr !important;
+}
+
+/* 首页隐藏 Banner 相关元素 */
+.lg\:is-home #wallpaper-wrapper,
+.lg\:is-home #banner-overlay-container,
+.lg\:is-home #banner-dim-container {
+	display: none !important;
+}
+
+/* 首页主内容区不需要偏移 */
+.lg\:is-home #main-grid {
+	transform: none !important;
+}
+
+/* 首页隐藏分类栏 */
+.lg\:is-home #category-bar-wrapper {
+	display: none !important;
+}
+
+/* 首页 footer 全宽 */
+.lg\:is-home .footer {
+	grid-column: 1 / -1 !important;
+	grid-row: auto !important;
+}
+
+/* 首页主内容区全宽 - 覆盖 xl:col-start-2 等定位类 */
+.lg\:is-home #main-content-wrapper {
+	grid-column: 1 / -1 !important;
+	grid-column-start: 1 !important;
+	grid-column-end: -1 !important;
+}
+
+.lg\:is-home #swup-container {
+	grid-column: 1 / -1 !important;
+}
+
+/* 首页导航栏透明 */
+.lg\:is-home #navbar > div {
+	background: transparent !important;
+	border: none !important;
+}
+
+.lg\:is-home #navbar.scrolled > div {
+	background: transparent !important;
+	border: none !important;
+}
+
+/* 首页隐藏顶部渐变高光 */
+.lg\:is-home .top-gradient-highlight {
+	display: none !important;
 }

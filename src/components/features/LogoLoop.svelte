@@ -70,7 +70,6 @@ const cssVars = $derived(
 
 function measure() {
 	if (!containerEl || !sequenceEl) return;
-	// Mobile: render only one copy, no loop needed
 	if (isMobileDevice) {
 		copyCount = 1;
 		return;

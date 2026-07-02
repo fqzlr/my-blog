@@ -1,11 +1,11 @@
 import sitemap from "@astrojs/sitemap";
 import svelte from "@astrojs/svelte";
 import tailwindcss from "@tailwindcss/vite";
-import { setMaxListeners } from "node:events";
 import { pluginCollapsibleSections } from "@expressive-code/plugin-collapsible-sections";
 import { pluginLineNumbers } from "@expressive-code/plugin-line-numbers";
 import swup from "@swup/astro";
 import { defineConfig } from "astro/config";
+import { unified } from "@astrojs/markdown-remark";
 import expressiveCode from "astro-expressive-code";
 import icon from "astro-icon";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
@@ -25,49 +25,37 @@ import { pluginLanguageBadge } from "expressive-code-language-badge"; /* Languag
 import { pluginCollapsible } from "expressive-code-collapsible"; /* Collapsible */
 import { GithubCardComponent } from "./src/plugins/rehype-component-github-card.mjs";
 import { rehypeMermaid } from "./src/plugins/rehype-mermaid.mjs";
-import { rehypePlantuml } from "./src/plugins/rehype-plantuml.mjs";
 import { parseDirectiveNode } from "./src/plugins/remark-directive-rehype.js";
 import { remarkExcerpt } from "./src/plugins/remark-excerpt.js";
 import { remarkMermaid } from "./src/plugins/remark-mermaid.js";
-import { remarkPlantuml } from "./src/plugins/remark-plantuml.js";
 import { remarkReadingTime } from "./src/plugins/remark-reading-time.mjs";
 import mdx from "@astrojs/mdx";
 import rehypeEmailProtection from "./src/plugins/rehype-email-protection.mjs";
 import rehypeExternalLinks from "./src/plugins/rehype-external-links.mjs";
 import rehypeFigure from "./src/plugins/rehype-figure.mjs";
-import { remarkImageGrid } from "./src/plugins/remark-image-grid.js";
-import { unified } from "@astrojs/markdown-remark";
-import { plantumlConfig } from "./src/config";
-
-if (process.env.NODE_ENV === "development") {
-	setMaxListeners(20);
-}
 
 // https://astro.build/config
 export default defineConfig({
 	site: siteConfig.site_url,
-	
+
 	base: "/",
 	trailingSlash: "always",
 
 	// 图像优化配置
 	image: {
 		// 全局响应式布局
-		layout: "constrained",
-	},
-
-	experimental: {
-		// Rust 编译器以提升构建性能（实验性），部分平台可能会导致构建失败，可以根据需要启用或禁用
-		rustCompiler: false,
-		// 队列渲染以优化性能（实验性）
-		queuedRendering: { enabled: true },
+		experimentalLayout: "constrained",
 	},
 
 	integrations: [
 		swup({
 			theme: false,
-			animationClass: "transition-swup-",
+			animationClass: "transition-swup-", // see https://swup.js.org/options/#animationselector
+			// the default value `transition-` cause transition delay
+			// when the Tailwind class `transition-all` is used
 			containers: [
+				"#banner-overlay-container",
+				"#banner-dim-container",
 				"#swup-container",
 				"#left-sidebar-dynamic",
 				"#right-sidebar-dynamic",
@@ -76,40 +64,42 @@ export default defineConfig({
 			cache: true,
 			preload: true,
 			accessibility: true,
-			updateHead: false,
+			updateHead: true,
 			updateBodyClass: false,
 			globalInstance: true,
+			// 滚动相关配置优化
 			resolveUrl: (url) => url,
 			animateHistoryBrowsing: false,
 			skipPopStateHandling: (event) => {
-				return event.state?.url?.includes("#");
+				// 跳过锚点链接的处理，让浏览器原生处理
+				return event.state && event.state.url && event.state.url.includes("#");
 			},
 		}),
 		icon({
-			// 不使用 include，让 astro-icon 自动从 Iconify 包加载图标
+			include: {
+				"material-symbols": ["*"],
+				"fa7-brands": ["*"],
+				"fa7-regular": ["*"],
+				"fa7-solid": ["*"],
+				"simple-icons": ["*"], 
+				mdi: ["*"],
+			},
 		}),
 		expressiveCode({
 			themes: [expressiveCodeConfig.darkTheme, expressiveCodeConfig.lightTheme],
 			useDarkModeMediaQuery: false,
 			themeCssSelector: (theme) => `[data-theme='${theme.name}']`,
 			plugins: [
-				// pluginLanguageBadge 配置 - 从expressiveCodeConfig读取设置
-				...(expressiveCodeConfig.pluginLanguageBadge?.enable === true
-					? [pluginLanguageBadge()]
-					: []),
+				pluginLanguageBadge(),
 				pluginCollapsibleSections(),
 				pluginLineNumbers(),
 				// pluginCollapsible 配置 - 从expressiveCodeConfig读取设置，使用i18n文本
 				...(expressiveCodeConfig.pluginCollapsible?.enable === true
 					? [
 							pluginCollapsible({
-								lineThreshold:
-									expressiveCodeConfig.pluginCollapsible.lineThreshold || 15,
-								previewLines:
-									expressiveCodeConfig.pluginCollapsible.previewLines || 8,
-								defaultCollapsed:
-									expressiveCodeConfig.pluginCollapsible.defaultCollapsed ??
-									true,
+								lineThreshold: expressiveCodeConfig.pluginCollapsible.lineThreshold || 15,
+								previewLines: expressiveCodeConfig.pluginCollapsible.previewLines || 8,
+								defaultCollapsed: expressiveCodeConfig.pluginCollapsible.defaultCollapsed ?? true,
 								expandButtonText: i18n(I18nKey.codeCollapsibleShowMore),
 								collapseButtonText: i18n(I18nKey.codeCollapsibleShowLess),
 								expandedAnnouncement: i18n(I18nKey.codeCollapsibleExpanded),
@@ -158,9 +148,6 @@ export default defineConfig({
 				const url = new URL(page);
 				const pathname = url.pathname;
 
-				if (pathname === "/friends/" && !siteConfig.pages.friends) {
-					return false;
-				}
 				if (pathname === "/sponsor/" && !siteConfig.pages.sponsor) {
 					return false;
 				}
@@ -170,34 +157,84 @@ export default defineConfig({
 				if (pathname === "/bangumi/" && !siteConfig.pages.bangumi) {
 					return false;
 				}
-				if (pathname === "/gallery/" && !siteConfig.pages.gallery) {
-					return false;
-				}
 
 				return true;
 			},
 		}),
-		mdx(),
+		mdx({
+			processor: unified({
+				gfm: true,
+				smartypants: true,
+				remarkPlugins: [
+					remarkMath,
+					remarkReadingTime,
+					remarkExcerpt,
+					remarkDirective,
+					remarkSectionize,
+					parseDirectiveNode,
+					remarkMermaid,
+				],
+				rehypePlugins: [
+					[rehypeKatex, { katex }],
+					[rehypeCallouts, { theme: siteConfig.rehypeCallouts.theme }],
+					rehypeSlug,
+					rehypeMermaid,
+					rehypeFigure,
+					[rehypeExternalLinks, { siteUrl: siteConfig.site_url }],
+					[rehypeEmailProtection, { method: "base64" }],
+					[
+						rehypeComponents,
+						{
+							components: {
+								github: GithubCardComponent,
+							},
+						},
+					],
+					[
+						rehypeAutolinkHeadings,
+						{
+							behavior: "append",
+							properties: {
+								className: ["anchor"],
+							},
+							content: {
+								type: "element",
+								tagName: "span",
+								properties: {
+									className: ["anchor-icon"],
+									"data-pagefind-ignore": true,
+								},
+								children: [
+									{
+										type: "text",
+										value: "#",
+									},
+								],
+							},
+						},
+					],
+				],
+			}),
+		}),
 	],
 	markdown: {
 		processor: unified({
+			gfm: true,
+			smartypants: true,
 			remarkPlugins: [
 				remarkMath,
 				remarkReadingTime,
-				remarkImageGrid,
 				remarkExcerpt,
 				remarkDirective,
 				remarkSectionize,
 				parseDirectiveNode,
 				remarkMermaid,
-				[remarkPlantuml, plantumlConfig],
 			],
 			rehypePlugins: [
 				[rehypeKatex, { katex }],
 				[rehypeCallouts, { theme: siteConfig.rehypeCallouts.theme }],
 				rehypeSlug,
 				rehypeMermaid,
-				rehypePlantuml,
 				rehypeFigure,
 				[rehypeExternalLinks, { siteUrl: siteConfig.site_url }],
 				[rehypeEmailProtection, { method: "base64" }], // 邮箱保护插件，支持 'base64' 或 'rot13'
@@ -236,17 +273,13 @@ export default defineConfig({
 		}),
 	},
 	vite: {
-		plugins: [tailwindcss()],
-		server: {
-			watch: {
-				ignored: ["**/package/**", "**/Firefly-docs/**"],
-			},
-			proxy: {
-				"/api": {
-					target: "http://localhost:8787",
-					changeOrigin: true,
-				},
-			},
+		plugins: [
+			tailwindcss(),
+		],
+		define: {
+			__VUE_OPTIONS_API__: true,
+			__VUE_PROD_DEVTOOLS__: false,
+			__VUE_PROD_HYDRATION_MISMATCH_DETAILS__: false,
 		},
 		resolve: {
 			alias: {
@@ -254,31 +287,19 @@ export default defineConfig({
 			},
 		},
 		build: {
-			// 静态资源缓存策略（需在部署平台配置）：
-			// /_astro/*  → Cache-Control: public, max-age=31536000, immutable（内容哈希，长期缓存）
-			// /assets/*  → Cache-Control: public, max-age=31536000, immutable（静态资源，长期缓存）
-			// /*.html    → Cache-Control: public, max-age=0, must-revalidate（HTML 文件，始终验证）
-			// Cloudflare Pages: public/_headers 文件 | Vercel: vercel.json 的 headers 配置
-			minify: "esbuild",
-			esbuildOptions: {
-				minify: true,
-				// 移除 console.log 和 debugger
-				drop: ["console", "debugger"],
+			// 启用资源压缩和优化
+			minify: "terser",
+			terserOptions: {
+				compress: {
+					drop_console: false, // 生产环境可改为true移除console
+					drop_debugger: true,
+				},
+				mangle: true,
+				format: {
+					comments: false,
+				},
 			},
 			rollupOptions: {
-				output: {
-					manualChunks(id) {
-						if (id.includes("node_modules")) {
-							if (id.includes("katex")) return "vendor-katex";
-							if (id.includes("mermaid")) return "vendor-mermaid";
-							if (id.includes("pixi") || id.includes("live2d")) return "vendor-live2d";
-							if (id.includes("gsap")) return "vendor-gsap";
-						}
-						if (id.includes("AISearch")) return "vendor-ai";
-						if (id.includes("Guestbook")) return "vendor-guestbook";
-						if (id.includes("CalendarGrid")) return "vendor-calendar";
-					},
-				},
 				onwarn(warning, warn) {
 					// temporarily suppress this warning
 					if (
@@ -287,20 +308,18 @@ export default defineConfig({
 					) {
 						return;
 					}
-					// gsap 在 Svelte 事件处理器中使用，Vite tree-shaking 误报
-					if (
-						warning.message.includes('"gsap"') &&
-						warning.message.includes("but never used")
-					) {
-						return;
-					}
 					warn(warning);
 				},
 			},
 			// CSS 优化
-			cssCodeSplit: false,
-			cssMinify: "esbuild",
+			cssCodeSplit: true,
+			cssMinify: true,
+			// 资源大小限制 - 减少内联资源
 			assetsInlineLimit: 4096,
+			// 减少源映射大小（可选，生产环境改为false）
+			sourcemap: false,
+			// 并行处理构建
+			workers: 4,
 		},
 	},
 });

@@ -17,6 +17,7 @@ export type UserSubjectCollection = {
 	updated_at: string; // 更新时间（ISO 8601 格式）
 	private: boolean; // 是否私有
 	subject: SlimSubject; // 条目信息
+	link?: string; // 自定义跳转链接
 };
 
 // 1: 想看，2: 看过，3: 在看，4: 搁置，5: 抛弃

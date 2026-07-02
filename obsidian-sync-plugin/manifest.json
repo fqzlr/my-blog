@@ -1,0 +1,10 @@
+{
+  "id": "sync-to-github",
+  "name": "Sync to GitHub",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "一键执行构建命令并同步到 GitHub",
+  "author": "dumplingandcake",
+  "authorUrl": "https://github.com/dumplingandcake",
+  "isDesktopOnly": true
+}

@@ -62,7 +62,7 @@ export default function rehypeEmailProtection(options = {}) {
 
 			// 检查是否是 mailto 链接
 			const href = node.properties?.href;
-			if (!href?.startsWith("mailto:")) {
+			if (!href || !href.startsWith("mailto:")) {
 				return;
 			}
 

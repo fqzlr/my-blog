@@ -1,6 +1,7 @@
 ---
-import Icon from "@components/common/Icon.astro";
+import { Icon } from "astro-icon/components";
 import DropdownItem from "@/components/common/DropdownItem.astro";
+import DropdownPanel from "@/components/common/DropdownPanel.astro";
 import { LinkPresets } from "@/constants/link-presets";
 import { LinkPreset, type NavBarLink } from "@/types/config";
 import { url } from "@/utils/url-utils";
@@ -39,177 +40,234 @@ const hasChildren = processedLink.children && processedLink.children.length > 0;
 
 <div class:list={["dropdown-container", className]} data-dropdown>
 	{hasChildren ? (
-		<button 
-			class="btn-plain scale-animation rounded-lg h-10 font-bold px-4 pr-8 active:scale-95 dropdown-trigger relative"
-			aria-expanded="false"
-			aria-haspopup="true"
-			data-dropdown-trigger
-		>
-			<div class="flex items-center gap-1.5">
-				{processedLink.icon && <Icon name={processedLink.icon} is:inline class="text-[1.1rem] mr-1.5 navbar-icon" />}
-				{processedLink.name}
-			</div>
-			<Icon name="material-symbols:keyboard-arrow-down-rounded" is:inline class="text-[1.2rem] transition-transform duration-200 dropdown-arrow absolute right-2.5 top-1/2 -translate-y-1/2" />
-		</button>
-		<div class="dropdown-menu" data-dropdown-menu>
-			<div class="dropdown-content-wrapper">
-				{processedLink.children?.map((child, index) => {
-					const isLast = index === (processedLink.children?.length || 0) - 1;
-					const noSwup = ['/friends/', '/collections/', '/moments/', '/bangumi/', '/write/', '/config/'].includes(child.url);
-					return child.action ? (
-						<button
-							type="button"
-							class={`dropdown-item action-item flex transition whitespace-nowrap items-center justify-start! w-full btn-plain scale-animation h-9 px-3 font-medium active:scale-95 ${isLast ? "" : "mb-0.5"}`}
-							data-action={child.action}
-						>
-							{child.icon && <Icon name={child.icon} is:inline class="text-[1.25rem] mr-3 navbar-icon" />}
-							<span>{child.name}</span>
-						</button>
-					) : (
+		<>
+			{/* 主按钮 - 点击展开下拉菜单，不跳转 */}
+			<button
+				aria-label={processedLink.name}
+				aria-haspopup="true"
+				aria-expanded="false"
+				class="btn-plain rounded-lg h-11 font-bold px-5 active:scale-95 dropdown-trigger-link navbar-link-item"
+				data-dropdown-trigger
+			>
+				<div class="flex items-center">
+					{processedLink.icon && <Icon name={processedLink.icon} class="text-[1.1rem] mr-2 navbar-icon" />}
+					<span class="navbar-link-text">{processedLink.name}</span>
+					<Icon name="material-symbols:keyboard-arrow-down-rounded" class="text-[1.25rem] transition-transform duration-200 dropdown-arrow ml-1" />
+				</div>
+			</button>
+			{/* 下拉菜单 */}
+			<div class="dropdown-menu" data-dropdown-menu>
+				<DropdownPanel class="dropdown-content">
+					{processedLink.children?.map((child, index) => (
 						<DropdownItem
 							href={child.external ? child.url : url(child.url)}
 							target={child.external ? "_blank" : undefined}
-							isLast={isLast}
+							isLast={index === (processedLink.children?.length || 0) - 1}
 							class="dropdown-item"
-							noSwup={noSwup}
 						>
-							{child.icon && <Icon name={child.icon} is:inline class="text-[1.25rem] mr-3 navbar-icon" />}
+							{child.icon && <Icon name={child.icon} class="text-[1.25rem] mr-3 navbar-icon" />}
 							<span>{child.name}</span>
 							{child.external && (
-								<Icon name="fa7-solid:arrow-up-right-from-square" is:inline class="text-[0.75rem] text-black/25 dark:text-white/25 ml-auto" />
+								<Icon name="fa7-solid:arrow-up-right-from-square" class="text-[0.75rem] text-black/25 dark:text-white/25 ml-auto" />
 							)}
 						</DropdownItem>
-					);
-				})}
+					))}
+				</DropdownPanel>
 			</div>
-		</div>
+		</>
 	) : (
-		<a 
-			aria-label={processedLink.name} 
-			href={processedLink.external ? processedLink.url : url(processedLink.url)} 
+		<a
+			aria-label={processedLink.name}
+			href={processedLink.external ? processedLink.url : url(processedLink.url)}
 			target={processedLink.external ? "_blank" : null}
-			class="btn-plain scale-animation rounded-lg h-10 font-bold px-4 active:scale-95"
+			class="btn-plain rounded-lg h-11 font-bold px-5 active:scale-95 navbar-link-item"
 		>
-			<div class="flex items-center gap-1.5">
-				{processedLink.icon && <Icon name={processedLink.icon} is:inline class="text-[1.1rem] mr-1.5 navbar-icon" />}
-				{processedLink.name}
-				{processedLink.external && <Icon name="fa7-solid:arrow-up-right-from-square" is:inline class="text-[0.875rem] transition -translate-y-px ml-1 text-black/20 dark:text-white/20" />}
+			<div class="flex items-center">
+				{processedLink.icon && <Icon name={processedLink.icon} class="text-[1.1rem] mr-2 navbar-icon" />}
+				<span class="navbar-link-text">{processedLink.name}</span>
+				{processedLink.external && <Icon name="fa7-solid:arrow-up-right-from-square" class="text-[0.875rem] transition -translate-y-px ml-1 text-black/20 dark:text-white/20" />}
 			</div>
 		</a>
 	)}
 </div>
 
-<!-- 样式已迁移至 src/styles/layout/dropdown-menu.css -->
+<style>
+	@reference "../../styles/main.css";
 
-<script>
-	function getDropdownParts(dropdown: Element) {
-		const trigger = dropdown.querySelector("[data-dropdown-trigger]");
-		const menu = dropdown.querySelector("[data-dropdown-menu]");
-		return { trigger, menu };
+	.dropdown-container {
+		@apply relative;
 	}
 
-	function toggleDropdown(dropdown: Element, trigger: Element, menu: Element) {
-		const isOpen = trigger.getAttribute('aria-expanded') === 'true';
-		if (isOpen) {
-			closeDropdown(dropdown, trigger, menu);
-		} else {
-			openDropdown(dropdown, trigger, menu);
-		}
-	}
-	
-	function openDropdown(dropdown: Element, trigger: Element, menu: Element) {
-		trigger.setAttribute('aria-expanded', 'true');
-		dropdown.classList.add("is-dropdown-open");
-		menu.classList.remove('opacity-0', 'invisible', 'pointer-events-none', 'translate-y-[-8px]');
-		menu.classList.add('opacity-100', 'visible', 'pointer-events-auto', 'translate-y-0');
-	}
-	
-	function closeDropdown(dropdown: Element, trigger: Element, menu: Element) {
-		trigger.setAttribute('aria-expanded', 'false');
-		dropdown.classList.remove("is-dropdown-open");
-		menu.classList.add('opacity-0', 'invisible', 'pointer-events-none', 'translate-y-[-8px]');
-		menu.classList.remove('opacity-100', 'visible', 'pointer-events-auto', 'translate-y-0');
+	.dropdown-menu {
+		@apply absolute top-full left-0 pt-2 opacity-0 invisible pointer-events-none transition-all duration-200 ease-out transform translate-y-[-8px] z-50;
 	}
 
-	function closeAllDropdowns(options: { blurActive?: boolean } = {}) {
-		document.querySelectorAll("[data-dropdown]").forEach((dropdown) => {
-			const { trigger, menu } = getDropdownParts(dropdown);
-			if (trigger && menu) closeDropdown(dropdown, trigger, menu);
-		});
+	/* 悬停时显示下拉菜单 */
+	.dropdown-container:hover .dropdown-menu,
+	.dropdown-container:focus-within .dropdown-menu,
+	.dropdown-container.dropdown-open .dropdown-menu {
+		@apply opacity-100 visible pointer-events-auto translate-y-0;
+	}
 
-		if (options.blurActive) {
-			const active = document.activeElement as HTMLElement | null;
-			if (active?.closest?.("[data-dropdown]")) active.blur();
+	/* 悬停时旋转箭头 */
+	.dropdown-container:hover .dropdown-arrow,
+	.dropdown-container:focus-within .dropdown-arrow,
+	.dropdown-container.dropdown-open .dropdown-arrow {
+		@apply rotate-180;
+	}
+
+	.dropdown-content {
+		@apply min-w-[12rem];
+	}
+
+	/* 移动端隐藏下拉菜单 */
+	@media (max-width: 768px) {
+		.dropdown-container {
+			@apply hidden;
 		}
 	}
 
-	function initDropdownMenus() {
-		if ((window as any).__navbarDropdownInitialized) return;
-		(window as any).__navbarDropdownInitialized = true;
+	/* ============================================
+	 * 导航栏链接下划线效果
+	 * 悬停/激活时：文字变为主题色 + 底部出现渐变下划线
+	 * ============================================ */
+	.navbar-link-item {
+		@apply relative no-underline;
+	}
 
-		document.addEventListener("keydown", (e: KeyboardEvent) => {
-			const target = e.target as HTMLElement | null;
-			const trigger = target?.closest?.("[data-dropdown-trigger]");
-			const item = target?.closest?.(".dropdown-item");
-			const dropdown = (trigger || item)?.closest?.("[data-dropdown]");
-			if (!dropdown) return;
+	.navbar-link-item .navbar-link-text {
+		@apply relative inline-block;
+	}
 
-			const { trigger: dropdownTrigger, menu } = getDropdownParts(dropdown);
-			if (!dropdownTrigger || !menu) return;
+	/* 下划线伪元素 */
+	.navbar-link-item .navbar-link-text::after {
+		content: '';
+		position: absolute;
+		bottom: -2px;
+		left: 0;
+		width: 100%;
+		height: 2px;
+		background: linear-gradient(90deg, var(--primary), var(--primary-light, var(--primary)));
+		border-radius: 1px;
+		transform: scaleX(0);
+		transform-origin: center;
+		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+	}
 
-			const items = Array.from(dropdown.querySelectorAll(".dropdown-item")) as HTMLElement[];
+	/* 悬停时显示下划线 */
+	.navbar-link-item:hover .navbar-link-text {
+		color: var(--primary);
+	}
 
-			if (trigger && (e.key === "Enter" || e.key === " ")) {
-				e.preventDefault();
-				toggleDropdown(dropdown, dropdownTrigger, menu);
-			} else if (trigger && e.key === "ArrowDown") {
-				e.preventDefault();
-				openDropdown(dropdown, dropdownTrigger, menu);
-				items[0]?.focus();
-			} else if (item && e.key === "ArrowDown") {
-				e.preventDefault();
-				const index = items.indexOf(item as HTMLElement);
-				items[(index + 1) % items.length]?.focus();
-			} else if (item && e.key === "ArrowUp") {
-				e.preventDefault();
-				const index = items.indexOf(item as HTMLElement);
-				items[(index - 1 + items.length) % items.length]?.focus();
-			} else if (e.key === "Escape") {
-				closeDropdown(dropdown, dropdownTrigger, menu);
-				(dropdownTrigger as HTMLElement).focus();
-			}
-		});
+	.navbar-link-item:hover .navbar-link-text::after {
+		transform: scaleX(1);
+	}
 
-		document.addEventListener("click", (e) => {
-			const target = e.target as HTMLElement;
-			const actionBtn = target.closest("[data-action]");
-			const clickedItem = target.closest(".dropdown-item");
+	/* 激活/当前页面链接 */
+	.navbar-link-item[aria-current="page"] .navbar-link-text,
+	.navbar-link-item[data-active="true"] .navbar-link-text {
+		color: var(--primary);
+	}
 
-			if (actionBtn) {
-				const action = actionBtn.getAttribute("data-action");
-				if (action) window.dispatchEvent(new CustomEvent(action));
-			}
+	.navbar-link-item[aria-current="page"] .navbar-link-text::after,
+	.navbar-link-item[data-active="true"] .navbar-link-text::after {
+		transform: scaleX(1);
+	}
 
-			if (clickedItem) {
-				const dropdown = clickedItem.closest("[data-dropdown]");
-				if (dropdown) {
-					const { trigger, menu } = getDropdownParts(dropdown);
-					if (trigger && menu) closeDropdown(dropdown, trigger, menu);
+	/* 点击时保持主题色 */
+	.navbar-link-item:active .navbar-link-text {
+		color: var(--primary);
+	}
+
+	/* 下拉箭头颜色跟随主题色 */
+	.navbar-link-item:hover .dropdown-arrow,
+	.navbar-link-item:focus .dropdown-arrow {
+		color: var(--primary);
+	}
+
+	/* button 重置样式，确保与 a 标签外观一致 */
+	.dropdown-trigger-link {
+		cursor: pointer;
+		font-family: inherit;
+		font-size: inherit;
+		line-height: inherit;
+	}
+</style>
+
+<script is:inline>
+	(function() {
+		function initDesktopDropdowns() {
+			var dropdowns = document.querySelectorAll('[data-dropdown]');
+
+			dropdowns.forEach(function(dropdown) {
+				var trigger = dropdown.querySelector('[data-dropdown-trigger]');
+				var menu = dropdown.querySelector('[data-dropdown-menu]');
+				if (!trigger || !menu) return;
+
+				// 清除旧的事件监听器（通过克隆节点）
+				var newTrigger = trigger.cloneNode(true);
+				trigger.parentNode && trigger.parentNode.replaceChild(newTrigger, trigger);
+
+				// 点击触发器 → 切换下拉菜单
+				newTrigger.addEventListener('click', function(e) {
+					e.preventDefault();
+					e.stopPropagation();
+					dropdown.classList.toggle('dropdown-open');
+					var isOpen = dropdown.classList.contains('dropdown-open');
+					newTrigger.setAttribute('aria-expanded', String(isOpen));
+				});
+
+				// 键盘导航支持
+				newTrigger.addEventListener('keydown', function(e) {
+					if (e.key === 'ArrowDown') {
+						e.preventDefault();
+						dropdown.classList.add('dropdown-open');
+						newTrigger.setAttribute('aria-expanded', 'true');
+						var firstItem = menu.querySelector('.dropdown-item');
+						if (firstItem) firstItem.focus();
+					} else if (e.key === 'Escape') {
+						dropdown.classList.remove('dropdown-open');
+						newTrigger.setAttribute('aria-expanded', 'false');
+						newTrigger.focus();
+					}
+				});
+			});
+
+			// 点击外部关闭所有下拉菜单
+			document.addEventListener('click', function(e) {
+				var target = e.target;
+				dropdowns.forEach(function(dropdown) {
+					if (!dropdown.contains(target)) {
+						dropdown.classList.remove('dropdown-open');
+						var trigger = dropdown.querySelector('[data-dropdown-trigger]');
+						if (trigger) trigger.setAttribute('aria-expanded', 'false');
+					}
+				});
+			});
+
+			// Escape 关闭所有下拉菜单
+			document.addEventListener('keydown', function(e) {
+				if (e.key === 'Escape') {
+					dropdowns.forEach(function(dropdown) {
+						dropdown.classList.remove('dropdown-open');
+						var trigger = dropdown.querySelector('[data-dropdown-trigger]');
+						if (trigger) {
+							trigger.setAttribute('aria-expanded', 'false');
+							trigger.focus();
+						}
+					});
 				}
-				(document.activeElement as HTMLElement | null)?.blur?.();
-				return;
-			}
+			});
+		}
 
-			if (!target.closest("[data-dropdown]")) closeAllDropdowns();
-		});
+		// 首次加载时初始化
+		if (document.readyState === 'loading') {
+			document.addEventListener('DOMContentLoaded', initDesktopDropdowns);
+		} else {
+			initDesktopDropdowns();
+		}
 
-		document.addEventListener("astro:page-load", () => closeAllDropdowns({ blurActive: true }));
-		window.addEventListener("pageshow", () => closeAllDropdowns({ blurActive: true }));
-	}
-
-	if (document.readyState === "loading") {
-		document.addEventListener("DOMContentLoaded", initDropdownMenus, { once: true });
-	} else {
-		initDropdownMenus();
-	}
+		// Swup 导航后重新初始化
+		document.addEventListener('swup:contentReplaced', initDesktopDropdowns);
+	})();
 </script>

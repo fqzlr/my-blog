@@ -24,15 +24,42 @@ body:has(.music-visualizer-page) {
 	overflow: hidden !important;
 }
 
-html:has(.music-visualizer-page) #main-grid-wrapper,
+html:has(.music-visualizer-page) #left-sidebar-wrapper,
 html:has(.music-visualizer-page) #left-sidebar-dynamic,
+html:has(.music-visualizer-page) #right-sidebar-static,
 html:has(.music-visualizer-page) #right-sidebar-dynamic,
+html:has(.music-visualizer-page) #mobile-bottom-sidebar,
 html:has(.music-visualizer-page) #floating-dock,
 html:has(.music-visualizer-page) #live2d-widget,
 html:has(.music-visualizer-page) #spine-model-container,
 html:has(.music-visualizer-page) .floating-dock,
 html:has(.music-visualizer-page) #floating-lyrics-container {
 	display: none !important;
+}
+
+/* 导航到音乐页面时隐藏侧边栏等（由 capture phase click 和 link:click 添加，content:replace 移除）
+   注：进出音乐页面已通过 visit:start 强制整页加载，此规则作为 SSR 初始加载和安全兜底 */
+html.is-navigating-to-music #left-sidebar-wrapper,
+html.is-navigating-to-music #left-sidebar-dynamic,
+html.is-navigating-to-music #right-sidebar-static,
+html.is-navigating-to-music #right-sidebar-dynamic,
+html.is-navigating-to-music #mobile-bottom-sidebar,
+html.is-navigating-to-music #floating-dock,
+html.is-navigating-to-music #live2d-widget,
+html.is-navigating-to-music #spine-model-container,
+html.is-navigating-to-music .floating-dock,
+html.is-navigating-to-music #floating-lyrics-container,
+html.is-navigating-to-music #progress-bar,
+html.is-navigating-to-music .footer,
+html.is-navigating-to-music #sun-moon-theme-btn {
+	display: none !important;
+}
+html.is-navigating-to-music #navbar .navbar-logo-content,
+html.is-navigating-to-music #navbar .navbar-link-item,
+html.is-navigating-to-music #navbar .btn-plain,
+html.is-navigating-to-music #navbar .admin-entry-btn,
+html.is-navigating-to-music #navbar .nav-hamburger-btn {
+	color: oklch(0.95 0 0 / 0.85) !important;
 }
 
 html:has(.music-visualizer-page) #swup-container {
@@ -65,14 +92,6 @@ html:has(.music-visualizer-page) .footer {
 		linear-gradient(180deg, rgba(0, 6, 18, 0.82) 0%, transparent 22%, transparent 72%, rgba(0, 0, 0, 0.55) 100%);
 }
 
-.music-visualizer--dark {
-	background: linear-gradient(to bottom, #0a0a15 0%, #0d1020 40%, #0f1425 100%);
-}
-
-:root:not(.dark) .music-visualizer--dark {
-	background: #fff;
-}
-
 .mv-three-container {
 	width: 100%;
 	height: 100%;
@@ -87,6 +106,233 @@ html:has(.music-visualizer-page) .footer {
 	display: block;
 	width: 100% !important;
 	height: 100% !important;
+}
+
+.mv-controls {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	z-index: 50;
+	padding: 24px 32px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	background: linear-gradient(to bottom, rgba(0, 0, 0, 0.4), transparent);
+	pointer-events: none;
+}
+
+.mv-controls__group {
+	display: flex;
+	gap: 12px;
+	align-items: center;
+	pointer-events: auto;
+}
+
+.mv-controls__btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	border: none;
+	border-radius: 50%;
+	background: rgba(255, 255, 255, 0.15);
+	backdrop-filter: blur(10px);
+	color: rgba(255, 255, 255, 0.9);
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.mv-controls__btn:hover {
+	background: rgba(255, 255, 255, 0.25);
+	transform: scale(1.05);
+}
+
+.mv-controls__title {
+	color: rgba(255, 255, 255, 0.9);
+	font-size: 18px;
+	font-weight: 600;
+	text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.mv-controls__title small {
+	display: block;
+	font-size: 12px;
+	font-weight: 400;
+	opacity: 0.7;
+	margin-top: 2px;
+}
+
+.mv-player-bar {
+	position: fixed;
+	bottom: 0;
+	left: 0;
+	right: 0;
+	z-index: 50;
+	padding: 20px 32px;
+	padding-bottom: max(20px, env(safe-area-inset-bottom));
+	background: linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent);
+	pointer-events: none;
+}
+
+.mv-player-bar__inner {
+	max-width: 900px;
+	margin: 0 auto;
+	pointer-events: auto;
+	background: rgba(255, 255, 255, 0.1);
+	backdrop-filter: blur(20px);
+	border-radius: 20px;
+	padding: 16px 24px;
+}
+
+.mv-player-bar__info {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	margin-bottom: 12px;
+}
+
+.mv-player-bar__cover {
+	width: 48px;
+	height: 48px;
+	border-radius: 10px;
+	object-fit: cover;
+	flex-shrink: 0;
+}
+
+.mv-player-bar__cover--placeholder {
+	background: rgba(255, 255, 255, 0.2);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: rgba(255, 255, 255, 0.5);
+}
+
+.mv-player-bar__text {
+	flex: 1;
+	min-width: 0;
+}
+
+.mv-player-bar__title-text {
+	color: white;
+	font-size: 15px;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.mv-player-bar__artist {
+	color: rgba(255, 255, 255, 0.7);
+	font-size: 13px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	margin-top: 2px;
+}
+
+.mv-player-bar__actions {
+	display: flex;
+	gap: 8px;
+}
+
+.mv-player-bar__btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 40px;
+	height: 40px;
+	border: none;
+	border-radius: 50%;
+	background: transparent;
+	color: rgba(255, 255, 255, 0.9);
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.mv-player-bar__btn:hover {
+	background: rgba(255, 255, 255, 0.2);
+}
+
+.mv-player-bar__btn--play {
+	width: 52px;
+	height: 52px;
+	background: rgba(255, 255, 255, 0.25);
+}
+
+.mv-player-bar__btn--play:hover {
+	background: rgba(255, 255, 255, 0.35);
+	transform: scale(1.05);
+}
+
+.mv-progress {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	margin-bottom: 12px;
+}
+
+.mv-progress__time {
+	color: rgba(255, 255, 255, 0.7);
+	font-size: 12px;
+	font-variant-numeric: tabular-nums;
+	min-width: 40px;
+	text-align: center;
+}
+
+.mv-progress__bar {
+	flex: 1;
+	height: 6px;
+	background: rgba(255, 255, 255, 0.2);
+	border-radius: 3px;
+	cursor: pointer;
+	position: relative;
+	overflow: hidden;
+}
+
+.mv-progress__fill {
+	position: absolute;
+	left: 0;
+	top: 0;
+	height: 100%;
+	background: linear-gradient(90deg, var(--primary), #6ee7b7);
+	border-radius: 3px;
+	pointer-events: none;
+	transition: width 0.1s linear;
+}
+
+.mv-extras {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.mv-volume {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.mv-volume__slider {
+	width: 80px;
+	height: 4px;
+	-webkit-appearance: none;
+	appearance: none;
+	background: rgba(255, 255, 255, 0.2);
+	border-radius: 2px;
+	outline: none;
+	cursor: pointer;
+}
+
+.mv-volume__slider::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 12px;
+	height: 12px;
+	border-radius: 50%;
+	background: white;
+	cursor: pointer;
 }
 
 .music-visualizer__lyrics {
@@ -1056,4 +1302,38 @@ html:has(.music-visualizer-page) .footer {
 		width: min(92vw, 860px);
 		grid-template-columns: minmax(190px, 260px) minmax(180px, 1fr) auto;
 	}
+}
+
+/* ── 音乐页面导航栏透明 ── */
+html:has(.music-visualizer-page) #navbar,
+html:has(.music-visualizer-page) #navbar > div,
+html:has(.music-visualizer-page) #navbar > div > div,
+html:has(.music-visualizer-page) #navbar.scrolled > div {
+	background: transparent !important;
+	background-color: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+}
+html:has(.music-visualizer-page) .dropdown-content,
+html:has(.music-visualizer-page) .float-panel {
+	background: rgba(0, 0, 0, 0.6) !important;
+	backdrop-filter: blur(16px) !important;
+	border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+/* 音乐页面隐藏主题切换按钮 */
+html:has(.music-visualizer-page) #sun-moon-theme-btn,
+html.is-navigating-to-music #sun-moon-theme-btn {
+	display: none !important;
+}
+/* 音乐页面导航栏强制白色文字（背景是深色 3D 场景） */
+html:has(.music-visualizer-page) #navbar .navbar-logo-content,
+html:has(.music-visualizer-page) #navbar .navbar-link-item,
+html:has(.music-visualizer-page) #navbar .btn-plain,
+html:has(.music-visualizer-page) #navbar .admin-entry-btn,
+html:has(.music-visualizer-page) #navbar .nav-hamburger-btn {
+	color: oklch(0.95 0 0 / 0.85) !important;
+}
+html:has(.music-visualizer-page) #navbar .btn-plain:hover,
+html:has(.music-visualizer-page) #navbar .navbar-link-item:hover {
+	color: var(--primary) !important;
 }

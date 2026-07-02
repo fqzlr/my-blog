@@ -10,7 +10,6 @@ interface Props {
 	isLast?: boolean;
 	class?: string;
 	onclick?: string;
-	noSwup?: boolean;
 }
 
 const {
@@ -20,7 +19,6 @@ const {
 	isLast = false,
 	class: className,
 	onclick,
-	noSwup = false,
 } = Astro.props;
 
 const baseClasses =
@@ -38,7 +36,6 @@ const Tag = href ? "a" : "button";
 	target={target}
 	class={allClasses}
 	onclick={onclick}
-	{...(noSwup ? { 'data-no-swup': true } : {})}
 >
 	<slot />
 </Tag>

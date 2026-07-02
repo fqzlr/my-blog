@@ -1,7 +1,6 @@
 ---
-import { getCollection, render } from "astro:content";
+import { getCollection } from "astro:content";
 import { Icon } from "astro-icon/components";
-import ChangelogEditor from "@/components/edit/ChangelogEditor.svelte";
 import { siteConfig } from "@/config";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
@@ -15,16 +14,6 @@ const entries = await getCollection("changelog");
 
 const sorted = entries.sort(
 	(a, b) => b.data.date.getTime() - a.data.date.getTime(),
-);
-
-const entriesWithContent = await Promise.all(
-	sorted.map(async (entry) => {
-		const { Content } = await render(entry);
-		return {
-			...entry,
-			Content,
-		};
-	}),
 );
 
 const typeConfig = {
@@ -69,18 +58,13 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
         </div>
       </div>
 
-      <!-- 编辑工具栏 -->
-      <div data-no-swup>
-        <ChangelogEditor client:only />
-      </div>
-
       <!-- 分类筛选胶囊 -->
       <div class="cl-filter-bar" id="cl-filter-bar">
         <div class="tools-tab-pill" data-cl-tab-nav>
           <div class="tools-tab-indicator" data-cl-tab-indicator></div>
           <button data-cl-tab="all" class="tools-tab-btn tools-tab-btn-active">
             全部
-            <span class="tools-tab-badge">{entriesWithContent.length}</span>
+            <span class="tools-tab-badge">{sorted.length}</span>
           </button>
           {Object.entries(typeConfig).map(([key, cfg]) => (
             <button data-cl-tab={key} class="tools-tab-btn tools-tab-btn-inactive">
@@ -93,28 +77,20 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
 
       <!-- 时间线 -->
       <div class="cl-timeline" id="cl-timeline">
-        {entriesWithContent.length > 0 ? (
-          entriesWithContent.map((entry) => {
+        {sorted.length > 0 ? (
+          sorted.map((entry) => {
             const t = typeConfig[entry.data.type];
             const dateStr = entry.data.date.toISOString().slice(0, 10);
             return (
-              <article
-                class={`cl-entry ${t.cls}`}
-                data-type={entry.data.type}
-                data-slug={entry.id}
-                data-filename={entry.id}
-              >
+              <article class={`cl-entry ${t.cls}`} data-type={entry.data.type}>
                 <div class="cl-entry-dot"></div>
                 <div class="cl-entry-body">
                   <div class="cl-entry-meta">
-                    <time datetime={entry.data.date.toISOString()}>{dateStr}{entry.data.time ? " · " + entry.data.time : ""}</time>
+                    <time datetime={dateStr}>{dateStr}{entry.data.time ? " · " + entry.data.time : ""}</time>
                     <span class="cl-entry-version">{entry.data.version}</span>
                   </div>
                   <div class="cl-entry-card">
                     <p class="cl-entry-text">{entry.data.description}</p>
-                    <div class="cl-entry-content">
-                      <entry.Content />
-                    </div>
                   </div>
                 </div>
               </article>
@@ -139,6 +115,7 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
         var indicator = document.querySelector('[data-cl-tab-indicator]');
         if (!tabNav || !tabButtons.length || !indicator) return;
 
+        // Remove old listeners by cloning
         var newNav = tabNav.cloneNode(true);
         if (tabNav.parentNode) tabNav.parentNode.replaceChild(newNav, tabNav);
         tabNav = newNav;
@@ -172,6 +149,7 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
 
           requestAnimationFrame(function() { updateIndicator(targetButton); });
 
+          // Filter entries
           var entries = document.querySelectorAll('.cl-entry');
           entries.forEach(function(entry) {
             if (targetTab === 'all' || entry.getAttribute('data-type') === targetTab) {
@@ -189,6 +167,7 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
           });
         });
 
+        // Initialize indicator on "all"
         var activeBtn = tabNav.querySelector('.tools-tab-btn-active');
         if (activeBtn) {
           requestAnimationFrame(function() { updateIndicator(activeBtn); });
@@ -200,6 +179,7 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
         });
       }
 
+      // Run on initial load + Swup/Astro navigations
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initChangelogTabs);
       } else {
@@ -213,6 +193,7 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
 </MainGridLayout>
 
 <style>
+  /* 筛选栏 — 复用 tools-tab 胶囊风格 */
   .cl-filter-bar {
     margin-bottom: 1.5rem;
   }
@@ -305,6 +286,7 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
     color: #000;
   }
 
+  /* 时间线 */
   .cl-timeline {
     position: relative;
     padding-left: 2rem;
@@ -324,6 +306,7 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
     opacity: 0.15;
   }
 
+  /* 条目 */
   .cl-entry {
     position: relative;
     margin-bottom: 1.25rem;
@@ -346,6 +329,7 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
     display: none;
   }
 
+  /* 时间轴圆点 */
   .cl-entry-dot {
     width: 14px;
     height: 14px;
@@ -367,6 +351,7 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
     border-color: #fff;
   }
 
+  /* 条目内容 */
   .cl-entry-body {
     flex: 1;
     min-width: 0;
@@ -395,6 +380,7 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
     background: oklch(0.20 0 0);
   }
 
+  /* 卡片 */
   .cl-entry-card {
     background: var(--card-bg);
     border: 2px solid #000;
@@ -418,74 +404,8 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
   .cl-entry-text {
     font-size: 0.875rem;
     color: var(--deep-text);
-    margin: 0 0 0.75rem 0;
+    margin: 0;
     line-height: 1.6;
-    font-weight: 500;
-  }
-
-  .cl-entry-content {
-    font-size: 0.875rem;
-    color: var(--deep-text);
-    line-height: 1.7;
-  }
-
-  .cl-entry-content :global(h2) {
-    font-size: 1rem;
-    font-weight: 600;
-    margin: 1rem 0 0.5rem 0;
-    padding-bottom: 0.25rem;
-    border-bottom: 1px solid var(--line-divider);
-  }
-
-  .cl-entry-content :global(h3) {
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin: 0.75rem 0 0.4rem 0;
-  }
-
-  .cl-entry-content :global(p) {
-    margin: 0.5rem 0;
-  }
-
-  .cl-entry-content :global(ul),
-  .cl-entry-content :global(ol) {
-    margin: 0.5rem 0;
-    padding-left: 1.25rem;
-  }
-
-  .cl-entry-content :global(li) {
-    margin: 0.25rem 0;
-  }
-
-  .cl-entry-content :global(code) {
-    font-size: 0.8em;
-    padding: 0.15em 0.4em;
-    border-radius: 4px;
-    background: var(--btn-plain-bg-hover);
-    font-family: var(--font-mono, monospace);
-  }
-
-  .cl-entry-content :global(pre) {
-    margin: 0.75rem 0;
-    padding: 0.75rem;
-    border-radius: 8px;
-    background: var(--btn-plain-bg-hover);
-    overflow-x: auto;
-  }
-
-  .cl-entry-content :global(pre code) {
-    padding: 0;
-    background: transparent;
-  }
-
-  .cl-entry-content :global(strong) {
-    font-weight: 600;
-  }
-
-  .cl-entry-content :global(a) {
-    color: var(--primary);
-    text-decoration: underline;
-    text-underline-offset: 2px;
   }
 
   @keyframes clFadeUp {
@@ -507,3 +427,4 @@ const displaySubtitle = i18n(I18nKey.changelogSubtitle);
     }
   }
 </style>
+

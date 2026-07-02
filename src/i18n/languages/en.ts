@@ -3,10 +3,12 @@ import type { Translation } from "../translation";
 
 export const en: Translation = {
 	[Key.home]: "Home",
+	[Key.categories]: "Categories",
+	[Key.categoryList]: "Category List",
+	[Key.categoryPosts]: "Posts in this category",
+	[Key.allCategories]: "All Categories",
 	[Key.about]: "About",
 	[Key.archive]: "Archive",
-	[Key.postHeatmap]: "Post Heatmap",
-	[Key.githubHeatmap]: "GitHub Contributions",
 	[Key.search]: "Search",
 	[Key.searchNoResults]: "No results found.",
 	[Key.searchTypeSomething]: "Type something to search...",
@@ -22,7 +24,6 @@ export const en: Translation = {
 	[Key.recentPosts]: "Recent Posts",
 	[Key.postList]: "Post List",
 	[Key.tableOfContents]: "Table of Contents",
-	[Key.tocEmpty]: "No table of contents on this page",
 	[Key.music]: "Music",
 	[Key.musicNoPlaying]: "No playing",
 	[Key.musicLyrics]: "Lyrics",
@@ -42,7 +43,6 @@ export const en: Translation = {
 	[Key.musicCover]: "Cover",
 	[Key.musicNoCover]: "No cover available",
 	[Key.musicAudioPlayer]: "Audio Player",
-	[Key.musicFloatingLyrics]: "Floating Lyrics",
 
 	// Announcement
 	[Key.announcement]: "Announcement",
@@ -57,7 +57,6 @@ export const en: Translation = {
 	[Key.friends]: "Friends",
 	[Key.friendsDescription]:
 		"Here are my friends, welcome to visit and communicate with each other",
-	[Key.friendsApply]: "Apply for Friend Link",
 	[Key.guestbook]: "Guestbook",
 	[Key.guestbookDescription]:
 		"Welcome to leave your mark here, share your thoughts and suggestions",
@@ -79,18 +78,27 @@ export const en: Translation = {
 	[Key.systemMode]: "System",
 
 	[Key.more]: "More",
-	[Key.collapse]: "Collapse",
 
 	[Key.author]: "Author",
 	[Key.publishedAt]: "Published at",
 	[Key.updatedAt]: "Updated at",
 	[Key.readTime]: "Read time",
 	[Key.license]: "License",
-	[Key.bangumi]: "Bangumi",
+	[Key.bangumi]: "Records",
+	[Key.moments]: "Moments",
 
+	[Key.recentMoments]: "Recent Moments",
+	[Key.portalRecentPosts]: "Recent Posts",
+	[Key.portalRecentMoments]: "Recent Updates",
+	[Key.portalViewAll]: "View All",
+	[Key.portalViewMore]: "View More",
+	[Key.portalRunningDays]: "Running for",
+	[Key.portalDays]: "days",
+	[Key.recentLife]: "Recent Records",
+	[Key.recentItems]: "Recent Updates",
 	// Bangumi Filter and Status Text
-	[Key.bangumiTitle]: "My Bangumi",
-	[Key.bangumiSubtitle]: "Record my ACG journey",
+	[Key.bangumiTitle]: "My Life Records",
+	[Key.bangumiSubtitle]: "Record my life journey",
 	[Key.bangumiFilterAll]: "All",
 	[Key.bangumiFilterWatched]: "Watched",
 	[Key.bangumiFilterWatching]: "Watching",
@@ -147,6 +155,34 @@ export const en: Translation = {
 	[Key.bangumiLastUpdated]: "Data updated at",
 	[Key.bangumiUpdatedAt]: "Build time",
 	[Key.bangumiDataStatic]: "Static data",
+
+	// Bookshelf Page
+	[Key.books]: "Bookshelf",
+	[Key.booksTitle]: "My Bookshelf",
+	[Key.booksSubtitle]:
+		"Tracking my reading journey, sharing the beauty of books.",
+	[Key.bookshelfReading]: "Reading",
+	[Key.bookshelfRead]: "Read",
+	[Key.bookshelfWantRead]: "Want to Read",
+	[Key.booksNoData]: "No books on the shelf yet",
+
+	// Movies & Games Page
+	[Key.moviesGames]: "Movies & Games",
+	[Key.moviesGamesTitle]: "Movies & Games",
+	[Key.moviesGamesSubtitle]: "Movies, shows, and games I've enjoyed.",
+	[Key.moviesGamesTabAll]: "All",
+	[Key.moviesGamesTabMovie]: "Movies",
+	[Key.moviesGamesTabTV]: "TV Shows",
+	[Key.moviesGamesTabAnime]: "Anime",
+	[Key.moviesGamesTabDocumentary]: "Documentaries",
+	[Key.moviesGamesTabGame]: "Games",
+	[Key.moviesGamesNoData]: "No content yet",
+
+	// Music Page
+	[Key.musicPage]: "Music",
+	[Key.musicPageTitle]: "My Music",
+	[Key.musicPageSubtitle]: "Music I love, stories in melodies.",
+	[Key.musicPageNoData]: "No music entries yet",
 
 	// Pagination
 	[Key.paginationFirst]: "First",
@@ -206,15 +242,6 @@ export const en: Translation = {
 	// Pinned
 	[Key.pinned]: "Pinned",
 
-	// Related Posts
-	[Key.relatedPosts]: "Related Posts",
-	[Key.randomPosts]: "Random Posts",
-	[Key.smartRecommend]: "Smart",
-	[Key.randomRecommend]: "Random",
-
-	// Encrypted
-	[Key.postEncrypted]: "This post is encrypted",
-
 	// Wallpaper Mode
 	[Key.wallpaperMode]: "Wallpaper Mode",
 	[Key.wallpaperBannerMode]: "Banner Wallpaper",
@@ -224,12 +251,7 @@ export const en: Translation = {
 	// Banner Settings
 	[Key.bannerSettings]: "Banner Settings",
 	[Key.bannerTitle]: "Home Banner Title",
-	[Key.bannerCarousel]: "Banner Carousel",
 	[Key.wavesAnimation]: "Waves Animation",
-	[Key.overlaySettings]: "Transparency Settings",
-	[Key.overlayOpacity]: "Wallpaper Opacity",
-	[Key.overlayBlur]: "Background Blur",
-	[Key.overlayCardOpacity]: "Card Opacity",
 
 	// Post List Layout
 	[Key.postListLayout]: "Post List Layout",
@@ -265,22 +287,15 @@ export const en: Translation = {
 	[Key.siteStatsTagCount]: "Tags",
 	[Key.siteStatsTotalWords]: "Total Words",
 	[Key.siteStatsRunningDays]: "Running Days",
-	[Key.siteStatsLastUpdate]: "Last Active",
+	[Key.siteStatsLastUpdate]: "Last Activity",
 	[Key.siteStatsDaysAgo]: "{days} days ago",
 	[Key.siteStatsDays]: "{days} days",
-	[Key.siteStatsVisitors]: "Visitors",
-	[Key.siteStatsPageViews]: "Views",
-	[Key.siteStatsLoading]: "--",
-	[Key.siteStatsVisitorPrefix]: "You are the",
-	[Key.siteStatsVisitorSuffix]: "th visitor",
-	[Key.siteStatsPageViewPrefix]: "Total views:",
+	[Key.siteStatsVisitorPrefix]: "You are the ",
+	[Key.siteStatsVisitorSuffix]: "th visitor. Nice to meet you.",
+	[Key.siteStatsPageViewPrefix]: "Total views: ",
 	[Key.siteStatsPageViewSuffix]: "",
-	[Key.siteStatsHoverHint]: "Hover to see more",
-	[Key.siteStatsRevealLine1]:
-		"{posts} posts · {categories} categories · {tags} tags",
-	[Key.siteStatsRevealLine2]: "{words} words total",
-	[Key.footerRunningDays]: "Running for {days} days",
-	[Key.footerLastUpdate]: "Last updated {days} days ago",
+	[Key.siteStatsLoading]: "--",
+	[Key.siteHeatmap]: "Activity Heatmap",
 	[Key.today]: "Today",
 
 	// Calendar Component
@@ -317,132 +332,16 @@ export const en: Translation = {
 	[Key.codeCollapsibleExpanded]: "Code block expanded",
 	[Key.codeCollapsibleCollapsed]: "Code block collapsed",
 
-	// Gallery Page
-	[Key.gallery]: "Gallery",
-	[Key.galleryDescription]: "Capturing beautiful moments in life",
-	[Key.galleryPhotos]: "photos",
-	[Key.galleryAlbums]: "albums",
-	[Key.galleryNoAlbums]: "No albums yet",
-	[Key.galleryBackToAlbums]: "Back to albums",
-	[Key.galleryLocalAlbum]: "Local Album",
-	[Key.galleryNetworkAlbum]: "Network Album",
-	[Key.galleryCategory]: "Category",
-	[Key.galleryQuantity]: "Quantity",
-	[Key.galleryRandomFetch]: "Random Fetch",
-	[Key.galleryFetching]: "Fetching...",
-	[Key.galleryFetchError]: "Fetch failed, please try again",
-	[Key.galleryNoImages]: "No images yet, click the button above to fetch",
+	// Related Posts
+	[Key.relatedPosts]: "Related Posts",
 
-	// Collections API page
-	[Key.collections]: "Tools",
-	[Key.collectionsDescription]: "Collect and manage useful APIs and tools",
-	[Key.collectionsEmpty]: "No collected APIs yet",
-	[Key.collectionsCopy]: "Copy link",
-	[Key.collectionsCopied]: "Copied",
-
-	// Stats page
-	[Key.stats]: "Stats",
-	[Key.statsDescription]: "Site statistics and analytics",
-	[Key.statsDeveloping]: "Under Development",
-	[Key.statsDevelopingDesc]:
-		"This page is currently being developed, stay tuned",
-
-	// Password Protection
-	[Key.passwordProtected]: "Password Protected",
-	[Key.passwordProtectedDesc]:
-		"This article is password protected. Please enter the password to view the content.",
-	[Key.passwordHint]: "Hint",
-	[Key.passwordPlaceholder]: "Enter password",
-	[Key.passwordSubmit]: "Unlock",
-	[Key.passwordError]: "Incorrect password, please try again.",
-	[Key.passwordProtectedRss]:
-		"This article is encrypted. Please visit the website to view it.",
-
-	// Calendar page
-	[Key.calendar]: "Calendar",
-	[Key.Fhome]: "Fhome",
-	[Key.contactMe]: "Contact Me",
-	[Key.qqGroup]: "QQ Group",
-	[Key.navPosts]: "Posts",
-		[Key.bookshelf]: "Bookshelf",
-	[Key.moviesGames]: "Movies & Games",
-	[Key.musicPage]: "Music",
-	[Key.changelog]: "Changelog",
-	[Key.moments]: "Moments",
-	[Key.routines]: "Routines",
-	[Key.places]: "Places",
-	[Key.notebooks]: "Notebooks",
-	[Key.adminPanel]: "Admin Panel",
-
-	[Key.books]: "Books",
-	[Key.admin]: "Admin",
-
-	
-	[Key.changelogTitle]: "Changelog",
-	[Key.changelogSubtitle]: "Record every improvement",
-	[Key.changelogAll]: "All",
-	[Key.changelogFeature]: "Feature",
-	[Key.changelogImprovement]: "Improvement",
-	[Key.changelogFix]: "Fix",
-	[Key.changelogRemoval]: "Removal",
-	[Key.changelogNoData]: "No changelog yet",
-	[Key.categoryList]: "Categories",
-	[Key.categoryPosts]: "Category Posts",
-	[Key.allCategories]: "All Categories",
-	[Key.recentMoments]: "Recent Moments",
-	[Key.portalRecentPosts]: "Recent Posts",
-	[Key.portalRecentMoments]: "Recent Moments",
-	[Key.portalViewAll]: "View All",
-	[Key.portalViewMore]: "View More",
-	[Key.portalRunningDays]: "Running",
-	[Key.portalDays]: "days",
-	[Key.recentLife]: "Recent Life",
-	[Key.recentItems]: "Recent Items",
-	[Key.booksTitle]: "Bookshelf",
-	[Key.booksSubtitle]: "Record every book I've read",
-	[Key.bookshelfReading]: "Reading",
-	[Key.bookshelfRead]: "Read",
-	[Key.bookshelfWantRead]: "Want to Read",
-	[Key.booksNoData]: "No books yet",
-	[Key.moviesGamesTitle]: "Movies & Games",
-	[Key.moviesGamesSubtitle]: "Record every work I've watched",
-	[Key.moviesGamesTabAll]: "All",
-	[Key.moviesGamesTabMovie]: "Movie",
-	[Key.moviesGamesTabTV]: "TV",
-	[Key.moviesGamesTabAnime]: "Anime",
-	[Key.moviesGamesTabDocumentary]: "Documentary",
-	[Key.moviesGamesTabGame]: "Game",
-	[Key.moviesGamesNoData]: "No data yet",
-	[Key.musicPageTitle]: "Music",
-	[Key.musicPageSubtitle]: "Enjoy the beauty of music",
-	[Key.musicPageNoData]: "No music yet",
-	[Key.siteHeatmap]: "Site Heatmap",
-	[Key.welcomeCardLocation]: "Location",
-	[Key.welcomeCardGreeting]: "Hello",
-	[Key.welcomeCardRecentUpdates]: "Recent Updates",
-	[Key.welcomeCardFlipHint]: "Click to flip",
-	[Key.welcomeCardDragHint]: "Drag to move",
+	// Welcome Card
+	[Key.welcomeCardLocation]: "somewhere",
+	[Key.welcomeCardGreeting]: "!",
+	[Key.welcomeCardRecentUpdates]: "Recent updates:",
+	[Key.welcomeCardFlipHint]: "Tap to flip",
+	[Key.welcomeCardDragHint]: "Drag to dismiss",
 	[Key.welcomeCardClose]: "Close",
 	[Key.welcomeCardLearnMore]: "Learn More",
-	[Key.welcomeCardRecentLabel]: "Latest",
-
-	[Key.navMy]: "My",
-	[Key.calendarDescription]:
-		"Holidays, birthdays, schedules and post updates at a glance",
-	[Key.calendarToday]: "Today",
-	[Key.calendarTomorrow]: "Tomorrow",
-	[Key.calendarDaysLater]: "In {n} days",
-	[Key.calendarBirthday]: "Birthday",
-	[Key.calendarHoliday]: "Holiday",
-	[Key.calendarSchedule]: "Schedule",
-	[Key.calendarPost]: "Post",
-	[Key.calendarLunar]: "Lunar",
-	[Key.calendarUpcoming]: "Upcoming",
-	[Key.calendarTodayEvents]: "Today",
-	[Key.calendarNoEvents]: "Nothing scheduled for this day",
-	[Key.calendarMore]: "{n} more",
-	[Key.calendarBackToToday]: "Today",
-	[Key.calendarNearestHoliday]: "Upcoming Holidays",
-	[Key.calendarNearestBirthday]: "Upcoming Birthdays",
-	[Key.calendarNearestSchedule]: "Upcoming Schedules",
+	[Key.welcomeCardRecentLabel]: "Recent Updates",
 };

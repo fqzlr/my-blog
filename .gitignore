@@ -16,8 +16,7 @@ pnpm-debug.log*
 # environment variables
 .env
 .env.production
-.wrangler/
-.vectorize-manifest.json
+
 # macOS-specific files
 .DS_Store
 
@@ -39,4 +38,6 @@ cache/
 package/
 .obsidian/
 
-CLAUDE.md
+# AI 摘要补全脚本（包含 API 密钥，不上传 GitHub）
+scripts/fill-descriptions/index.ts
+

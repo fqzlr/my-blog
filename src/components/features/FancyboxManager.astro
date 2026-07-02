@@ -1,6 +1,6 @@
 ---
 import "@fancyapps/ui/dist/fancybox/fancybox.css";
-import "@/styles/fancybox-custom.css";
+import "@/styles/vendor/fancybox.css";
 // Fancybox 管理器组件
 ---
 
@@ -9,7 +9,7 @@ import "@/styles/fancybox-custom.css";
 
   async function setup() {
     const selectors = [
-      ".custom-md img, #post-cover img, .moment-images img",
+      ".custom-md img, #post-cover img, .moment-images img, .entry-card-images img",
       ".moment-images a[data-fancybox]",
       "[data-fancybox]:not(.moment-images a)"
     ];
@@ -70,7 +70,7 @@ import "@/styles/fancybox-custom.css";
     };
 
     // 绑定图片
-    Fancybox.bind(".custom-md img, #post-cover img, .moment-images img", {
+    Fancybox.bind(".custom-md img, #post-cover img, .moment-images img, .entry-card-images img", {
       ...commonOptions,
       groupAll: true,
       Carousel: {
@@ -96,33 +96,10 @@ import "@/styles/fancybox-custom.css";
     }
   }
 
-  // 监听 data-fancybox 元素动态出现（如 client:visible 懒水合的 Svelte 组件）
-  let observer: MutationObserver | null = null;
-  function observeFancyboxElements() {
-    if (observer) observer.disconnect();
-    observer = new MutationObserver(() => {
-      if (document.querySelector("[data-fancybox]")) {
-        setup();
-        observer?.disconnect();
-        observer = null;
-      }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-  }
-
   // 初始化
   setup();
-  observeFancyboxElements();
 
   // Swup 生命周期整合
+  document.addEventListener("swup:content:replace", setup);
   document.addEventListener("swup:visit:start", cleanupFancybox);
-  document.addEventListener("swup:content:replace", () => {
-    setup();
-    observeFancyboxElements();
-  });
-
-  // 加密文章解密后重新绑定灯箱
-  document.addEventListener("password:decrypted", () => {
-    setTimeout(setup, 200);
-  });
 </script>

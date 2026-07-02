@@ -65,21 +65,9 @@ const fontFamilyStyle = generateFontFamilyStyle();
 
     if (isExternalUrl) {
       // 外部字体链接 (如 Google Fonts, CDN等)
-      const urlObj = new URL(font.src, 'https://placeholder.com');
-      const origin = urlObj.origin;
-      return (
-        <>
-          <link rel="preconnect" href={origin} crossorigin />
-          <link rel="stylesheet" href={font.src} />
-        </>
-      );
-    } else if (font.src.endsWith('.css')) {
-      // 本地字体 CSS 文件
-      return (
-        <link rel="stylesheet" href={font.src} />
-      );
+      return <link rel="stylesheet" href={font.src} />;
     } else {
-      // 本地单个字体文件
+      // 本地字体文件
       return (
         <style
           set:html={`
@@ -103,7 +91,7 @@ const fontFamilyStyle = generateFontFamilyStyle();
   fontConfig.enable &&
     fontConfig.preload &&
     selectedFonts
-      .filter((font) => !font.src.startsWith("http") && !font.src.endsWith(".css"))
+      .filter((font) => !font.src.startsWith("http"))
       .map((font) => (
         <link
           rel="preload"
@@ -156,6 +144,8 @@ const fontFamilyStyle = generateFontFamilyStyle();
   if (document.fonts && typeof document.fonts.ready !== "undefined") {
     document.fonts.ready
       .then(() => {
+        console.log("All fonts have been loaded");
+
         // 触发自定义事件，通知字体加载完成
         document.dispatchEvent(new CustomEvent("fontsLoaded"));
       })
@@ -164,4 +154,20 @@ const fontFamilyStyle = generateFontFamilyStyle();
       });
   }
 
+  // 字体加载性能监控
+  if (typeof PerformanceObserver !== "undefined") {
+    const observer = new PerformanceObserver((list) => {
+      list.getEntries().forEach((entry) => {
+        if (entry.entryType === "resource") {
+          // console.log(`Font resource loaded: ${entry.name} (${entry.duration.toFixed(2)}ms)`);
+        }
+      });
+    });
+
+    try {
+      observer.observe({ entryTypes: ["resource"] });
+    } catch (e) {
+      // 浏览器不支持时静默失败
+    }
+  }
 </script>

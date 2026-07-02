@@ -1,30 +1,90 @@
 ---
-import { announcementConfig } from "@/config";
+import { getCollection } from "astro:content";
+import { announcementConfig, profileConfig } from "@/config";
+import { externalBangumiConfig } from "@/config/externalBangumiConfig";
+import { getPostUrlBySlug } from "@/utils/url-utils";
 
-const items = [...announcementConfig.items].sort((a, b) => b.sort - a.sort);
+const bangumiGistId = externalBangumiConfig.enable ? externalBangumiConfig.gistId : "";
 
-// 构建单条展示文本：仅标签 + 内容
-const tickerTexts = items.map((item) => `[${item.tag}] ${item.content}`);
+// 收集统计
+const summaryParts: string[] = [];
 
-// 多条时合并为一条长文本，用 × 分隔
-const tickerContent = tickerTexts.join(" × ");
+// 欢迎语（位置由客户端 JS 填入）
+summaryParts.push("[欢迎] 欢迎来自远方的朋友！");
+
+// 公告
+if (announcementConfig.content) {
+	summaryParts.push(`[公告] ${announcementConfig.content}`);
+}
+
+// 最近三天更新统计
+const threeDaysAgo = new Date();
+threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+
+const updateParts: string[] = [];
+
+try {
+	const posts = await getCollection("posts", ({ data }) =>
+		import.meta.env.PROD ? data.draft !== true : true,
+	);
+	const count = posts.filter(
+		(p) => new Date(p.data.published) >= threeDaysAgo,
+	).length;
+	if (count > 0) updateParts.push(`${count} 篇文章`);
+} catch {}
+
+try {
+	const moments = await getCollection("moments");
+	const count = moments.filter(
+		(m) => new Date(m.data.published) >= threeDaysAgo,
+	).length;
+	if (count > 0) updateParts.push(`${count} 条动态`);
+} catch {}
+
+try {
+	const bangumi = await getCollection("bangumi");
+	const count = bangumi.filter(
+		(b) => b.data.published && new Date(b.data.published) >= threeDaysAgo,
+	).length;
+	if (count > 0) updateParts.push(`${count} 部影视`);
+} catch {}
+
+try {
+	const notebooks = await getCollection("notebooks");
+	const count = notebooks.filter(
+		(n) =>
+			!n.id.includes("_index") &&
+			n.data.date &&
+			new Date(n.data.date) >= threeDaysAgo,
+	).length;
+	if (count > 0) updateParts.push(`${count} 篇笔记`);
+} catch {}
+
+try {
+	const changelog = await getCollection("changelog");
+	const count = changelog.filter(
+		(c) => new Date(c.data.date) >= threeDaysAgo,
+	).length;
+	if (count > 0) updateParts.push(`${count} 条日志`);
+} catch {}
+
+if (updateParts.length > 0) {
+	summaryParts.push(`[更新] 最近三天更新了 ${updateParts.join("、")}`);
+} else {
+	summaryParts.push("[更新] 最近三天暂无更新");
+}
+
+const tickerContent = summaryParts.join(" \u00d7 ");
 ---
 
 {
-	items.length > 0 && (
-		<section class="home-ticker" aria-label="公告跑马灯" id="home-ticker">
+	tickerContent && (
+		<section class="home-ticker" aria-label="公告跑马灯" id="home-ticker" data-bangumi-gist={bangumiGistId}>
 			<div class="home-ticker__inner">
 				<div class="home-ticker__track" id="home-ticker-track">
-					{Array.from({ length: 8 }).map((_, i) => (
-						<>
-							<span class="home-ticker__text">{tickerContent}</span>
-							{i < 7 && (
-								<span class="home-ticker__sep" aria-hidden="true">
-									×
-								</span>
-							)}
-						</>
-					))}
+				{Array.from({ length: 4 }).map(() => (
+					<span class="home-ticker__text">{tickerContent}</span>
+				))}
 				</div>
 			</div>
 		</section>
@@ -36,19 +96,77 @@ const tickerContent = tickerTexts.join(" × ");
 		const track = document.getElementById("home-ticker-track") as HTMLElement | null;
 		if (!track) return;
 
-		// 固定滚动速率：100 像素/秒
 		const SPEED = 100;
-
-		// 测量轨道总宽度，计算移动 50% 所需时间
 		const trackWidth = track.scrollWidth;
 		const distance = trackWidth / 2;
 		const duration = distance / SPEED;
-
-		// 设置动画时长，保证无论内容多长，肉眼速度恒定
 		track.style.animationDuration = `${Math.max(duration, 4)}s`;
 	}
 
-	// 首次加载 + Swup 每次导航后
+	function updateTickerLocation() {
+		if (!navigator.onLine) return;
+		fetch("https://api.bigdatacloud.net/data/reverse-geocode-client?localityLanguage=zh")
+			.then((r) => r.json())
+			.then((data) => {
+				const parts = [data.principalSubdivision, data.city].filter(Boolean);
+				const loc = parts.slice(0, 2).join(" ");
+				if (!loc) return;
+				document.querySelectorAll(".home-ticker__text").forEach((el) => {
+					el.textContent = (el.textContent || "").replace(/欢迎来自远方的朋友/g, `欢迎来自 ${loc} 的朋友`);
+				});
+			})
+			.catch(() => {});
+	}
+
+	// 从 Gist 加载影视数据并更新跑马灯
+	function updateTickerBangumi() {
+		var gistId = document.getElementById("home-ticker")?.getAttribute("data-bangumi-gist");
+		if (!gistId) return;
+
+		fetch("https://api.github.com/gists/" + gistId, {
+			headers: { "Accept": "application/vnd.github+json" }
+		})
+			.then(function(r) { if (!r.ok) return null; return r.json(); })
+			.then(function(gist) {
+				var file = gist.files["bangumi.json"];
+				if (!file) return;
+				var items = [];
+				try { items = JSON.parse(file.content || "[]"); } catch(e) { return; }
+				if (!Array.isArray(items) || !items.length) return;
+
+				var threeDaysAgo = new Date();
+				threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+				var count = items.filter(function(item) {
+					return item.updated_at && new Date(item.updated_at) >= threeDaysAgo;
+				}).length;
+
+				if (count <= 0) return;
+
+				// 更新跑马灯文字，在 [更新] 部分追加影视数据
+				document.querySelectorAll(".home-ticker__text").forEach(function(el) {
+					var text = el.textContent || "";
+					if (text.indexOf("部影视") !== -1) return; // 已有影视数据
+					if (text.indexOf("[更新]") !== -1) {
+						// 在 "最近三天更新了" 后面追加
+						text = text.replace(
+							/(\[更新\] 最近三天更新了 )/,
+							"$1" + count + " 部影视、"
+						);
+						// 清理末尾多余的顿号
+						text = text.replace(/、\s*×/g, " ×");
+						el.textContent = text;
+					}
+				});
+			})
+			.catch(function() {});
+	}
+
 	initHomeTicker();
-	document.addEventListener("astro:page-load", initHomeTicker);
+	updateTickerLocation();
+	updateTickerBangumi();
+	document.addEventListener("astro:page-load", () => {
+		initHomeTicker();
+		updateTickerLocation();
+		updateTickerBangumi();
+	});
 </script>

@@ -118,9 +118,11 @@ async function generatePoster() {
 			width: 100 * scale,
 			color: { dark: "#000000", light: "#ffffff" },
 		});
+		const defaultCoverUrl = "https://re.tsh520.cn/img/zdy/50.webp";
+		const coverUrl = coverImage || defaultCoverUrl;
 		const [qrImg, coverImg, avatarImg] = await Promise.all([
 			loadImage(qrCodeUrl),
-			coverImage ? loadImage(coverImage) : Promise.resolve(null),
+			loadImage(coverUrl),
 			avatar ? loadImage(avatar) : Promise.resolve(null),
 		]);
 
@@ -138,7 +140,7 @@ async function generatePoster() {
 		let currentY = 0;
 
 		// Cover
-		const coverHeight = (coverImage ? 200 : 120) * scale;
+		const coverHeight = 200 * scale;
 		currentY += coverHeight;
 		currentY += padding; // Gap after cover
 
@@ -171,7 +173,25 @@ async function generatePoster() {
 		// Footer (Author + QR)
 		// Footer top border + padding
 		currentY += 24 * scale;
-		const footerHeight = 64 * scale; // Avatar/QR height
+
+		// Calculate author text area width for wrapping
+		const avatarWidth = avatar ? 64 * scale + 16 * scale : 0;
+		const qrSize = 64 * scale;
+		const qrX = width - padding - qrSize;
+		const authorTextAreaWidth =
+			width - padding * 2 - avatarWidth - qrSize - 16 * scale;
+
+		// Measure author text height
+		ctx.font = `700 ${20 * scale}px 'Roboto', sans-serif`;
+		const authorLines = author
+			? getLines(ctx, author, authorTextAreaWidth)
+			: [];
+		const authorLineHeight = 24 * scale;
+		const authorHeight = authorLines.length * authorLineHeight + 24 * scale; // +24 for "作者" label
+
+		// Footer includes QR code (64*scale) + scan text below (20*scale) + spacing
+		const qrWithTextHeight = qrSize + 32 * scale;
+		const footerHeight = Math.max(qrWithTextHeight, authorHeight);
 		currentY += footerHeight;
 		currentY += padding; // Bottom padding
 
@@ -386,19 +406,24 @@ async function generatePoster() {
 		}
 
 		const authorTextX = padding + (avatar ? 64 * scale + 16 * scale : 0);
-		const textCenterY = footerY + 32 * scale;
+
+		// authorLines, authorLineHeight already calculated in layout phase
+		const authorStartY = footerY + 12 * scale;
 
 		ctx.fillStyle = "#9ca3af";
 		ctx.font = `${12 * scale}px 'Roboto', sans-serif`;
-		ctx.fillText(i18n(I18nKey.author), authorTextX, textCenterY - 20 * scale);
+		ctx.fillText(i18n(I18nKey.author), authorTextX, authorStartY);
 
 		ctx.fillStyle = "#1f2937";
 		ctx.font = `700 ${20 * scale}px 'Roboto', sans-serif`;
-		ctx.fillText(author, authorTextX, textCenterY + 4 * scale);
+		let authorDrawY = authorStartY + 20 * scale;
+		authorLines.forEach((line) => {
+			ctx.fillText(line, authorTextX, authorDrawY);
+			authorDrawY += authorLineHeight;
+		});
 
 		// Right: QR Code
-		const qrSize = 64 * scale;
-		const qrX = width - padding - qrSize;
+		// qrSize and qrX already defined above
 
 		// QR Background/Shadow effect (simplified as border)
 		ctx.fillStyle = "#ffffff";
@@ -423,17 +448,22 @@ async function generatePoster() {
 			);
 		}
 
-		// Site Info (Left of QR)
-		const siteInfoX = qrX - 16 * scale;
-		ctx.textAlign = "right";
-
+		// Scan to read text below QR
+		ctx.textAlign = "center";
 		ctx.fillStyle = "#9ca3af";
 		ctx.font = `${12 * scale}px 'Roboto', sans-serif`;
-		ctx.fillText(i18n(I18nKey.scanToRead), siteInfoX, textCenterY - 20 * scale);
+		ctx.fillText(
+			"扫码阅读文章👆",
+			qrX + qrSize / 2,
+			footerY + qrSize + 20 * scale,
+		);
 
-		ctx.fillStyle = "#1f2937";
-		ctx.font = `700 ${20 * scale}px 'Roboto', sans-serif`;
-		ctx.fillText(siteTitle, siteInfoX, textCenterY + 4 * scale);
+		// Site branding below QR text
+		if (siteTitle) {
+			ctx.font = "700 " + 10 * scale + "px Roboto, sans-serif";
+			ctx.fillStyle = "#9ca3af";
+			ctx.fillText(siteTitle, width / 2, footerY + qrSize + 42 * scale);
+		}
 
 		// Finalize
 		posterImage = canvas.toDataURL("image/png");

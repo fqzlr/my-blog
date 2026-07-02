@@ -9,7 +9,7 @@ export function removeFileExtension(id: string): string {
 	return id.replace(/\.(md|mdx|markdown)$/i, "");
 }
 
-export function pathsEqual(path1: string, path2: string): boolean {
+export function pathsEqual(path1: string, path2: string) {
 	const normalizedPath1 = path1.replace(/^\/|\/$/g, "").toLowerCase();
 	const normalizedPath2 = path2.replace(/^\/|\/$/g, "").toLowerCase();
 	return normalizedPath1 === normalizedPath2;
@@ -37,8 +37,22 @@ export function getCategoryUrl(category: string | null): string {
 		category.trim() === "" ||
 		category.trim().toLowerCase() === i18n(I18nKey.uncategorized).toLowerCase()
 	)
-		return url("/archive/?uncategorized=true");
-	return url(`/archive/?category=${encodeURIComponent(category.trim())}`);
+		return url("/categories/uncategorized/");
+	return url(`/categories/${encodeURIComponent(category.trim())}/`);
+}
+
+export function getCategoryPageUrl(): string {
+	return url("/categories/");
+}
+
+export function getDir(path: string): string {
+	// 移除文件扩展名
+	const pathWithoutExt = removeFileExtension(path);
+	const lastSlashIndex = pathWithoutExt.lastIndexOf("/");
+	if (lastSlashIndex < 0) {
+		return "/";
+	}
+	return pathWithoutExt.substring(0, lastSlashIndex + 1);
 }
 
 export function getFileDirFromPath(filePath: string): string {
@@ -49,6 +63,6 @@ export function getSearchUrl(query: string): string {
 	return url(`/search/?q=${encodeURIComponent(query.trim())}`);
 }
 
-export function url(path: string): string {
+export function url(path: string) {
 	return joinUrl("", import.meta.env.BASE_URL, path);
 }

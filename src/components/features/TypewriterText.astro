@@ -25,12 +25,10 @@ const textData = Array.isArray(text) ? JSON.stringify(text) : text;
   data-pause-time={pauseTime}></span>
 
 <script>
- class TypewriterEffect {
-	private static segmenter: Intl.Segmenter | null = null;
-
-	private element: HTMLElement;
-	private texts: string[];
-	private currentTextIndex: number = 0;
+  class TypewriterEffect {
+    private element: HTMLElement;
+    private texts: string[];
+    private currentTextIndex: number = 0;
     private speed: number;
     private deleteSpeed: number;
     private pauseTime: number;
@@ -93,10 +91,9 @@ const textData = Array.isArray(text) ? JSON.stringify(text) : text;
         // 删除字符
         if (this.currentIndex > 0) {
           this.currentIndex--;
-          this.element.innerHTML = segments
+          this.element.textContent = segments
             .slice(0, this.currentIndex)
-            .join("")
-            .replace(/\n/g, "<br>");
+            .join("");
 
           this.timeoutId = window.setTimeout(
             () => this.type(),
@@ -112,10 +109,9 @@ const textData = Array.isArray(text) ? JSON.stringify(text) : text;
       } else {
         if (this.currentIndex < segments.length) {
           this.currentIndex++;
-          this.element.innerHTML = segments
+          this.element.textContent = segments
             .slice(0, this.currentIndex)
-            .join("")
-            .replace(/\n/g, "<br>");
+            .join("");
 
           this.timeoutId = window.setTimeout(() => this.type(), this.speed);
         } else {
@@ -138,12 +134,10 @@ const textData = Array.isArray(text) ? JSON.stringify(text) : text;
       }
     }
 
-	private segmentText(text: string): string[] {
-		if (!TypewriterEffect.segmenter) {
-			TypewriterEffect.segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
-		}
-		return Array.from(TypewriterEffect.segmenter.segment(text), s => s.segment);
-	}
+    private segmentText(text: string): string[] {
+      const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+      return Array.from(segmenter.segment(text), s => s.segment);
+    }
 
   }
 
@@ -166,10 +160,43 @@ const textData = Array.isArray(text) ? JSON.stringify(text) : text;
     setTimeout(initTypewriterElements, 220);
   }
 
-  // Use astro:page-load which fires on both initial load and navigation
-  document.addEventListener("astro:page-load", runInitWithDelay);
-  // 直接调用一次，避免模块脚本 deferred 执行错过初始事件
-  runInitWithDelay();
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", runInitWithDelay);
+  } else {
+    runInitWithDelay();
+  }
+
+  // 支持页面切换时重新初始化（兼容不同 swup 事件名）
+  document.addEventListener("swup:contentReplaced", runInitWithDelay);
+  document.addEventListener("swup:content:replace", runInitWithDelay);
+  document.addEventListener("swup:page:view", runInitWithDelay);
+
+  // swup hooks（若可用）
+  if (typeof window !== "undefined" && window.swup?.hooks) {
+    window.swup.hooks.on("content:replace", runInitWithDelay);
+    window.swup.hooks.on("page:view", runInitWithDelay);
+  }
 </script>
 
-<!-- 样式已迁移至 src/styles/components/typewriter.css -->
+<style>
+  .typewriter {
+    position: relative;
+  }
+
+  .typewriter::after {
+    content: "|";
+    animation: blink 1s infinite;
+    margin-left: 2px;
+  }
+
+  @keyframes blink {
+    0%,
+    50% {
+      opacity: 1;
+    }
+    51%,
+    100% {
+      opacity: 0;
+    }
+  }
+</style>
