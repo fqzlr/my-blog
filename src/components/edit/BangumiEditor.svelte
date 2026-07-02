@@ -466,6 +466,37 @@ function deleteItem(index: number) {
 	showToast("已删除，记得点击保存", "info");
 }
 
+// 移动卡片（在 filteredItems 的可见顺序中上移/下移）
+function moveUp(index: number) {
+	const filtered = filteredItems;
+	if (index <= 0) return;
+	const item = filtered[index];
+	const prevItem = filtered[index - 1];
+	const globalIdx = items.indexOf(item);
+	const prevGlobalIdx = items.indexOf(prevItem);
+	if (globalIdx < 0 || prevGlobalIdx < 0) return;
+	const arr = [...items];
+	[arr[prevGlobalIdx], arr[globalIdx]] = [arr[globalIdx], arr[prevGlobalIdx]];
+	items = arr;
+	if (editingIndex === globalIdx) editingIndex = prevGlobalIdx;
+	else if (editingIndex === prevGlobalIdx) editingIndex = globalIdx;
+}
+
+function moveDown(index: number) {
+	const filtered = filteredItems;
+	if (index >= filtered.length - 1) return;
+	const item = filtered[index];
+	const nextItem = filtered[index + 1];
+	const globalIdx = items.indexOf(item);
+	const nextGlobalIdx = items.indexOf(nextItem);
+	if (globalIdx < 0 || nextGlobalIdx < 0) return;
+	const arr = [...items];
+	[arr[globalIdx], arr[nextGlobalIdx]] = [arr[nextGlobalIdx], arr[globalIdx]];
+	items = arr;
+	if (editingIndex === globalIdx) editingIndex = nextGlobalIdx;
+	else if (editingIndex === nextGlobalIdx) editingIndex = globalIdx;
+}
+
 function handleAdd() {
 	const newItem: BangumiItem = {
 		id: genId("bgm"),
@@ -634,6 +665,16 @@ function switchStatusTab(tabId: string) {
 					<!-- 非编辑态：展示卡片 -->
 					{#if editingIndex !== originalIndex}
 						<div class="card-action-row">
+							{#if fi > 0}
+								<button class="action-btn action-move" onclick={() => moveUp(fi)} title="上移">
+									<iconify-icon icon="material-symbols:keyboard-arrow-up-rounded"></iconify-icon>
+								</button>
+							{/if}
+							{#if fi < filteredItems.length - 1}
+								<button class="action-btn action-move" onclick={() => moveDown(fi)} title="下移">
+									<iconify-icon icon="material-symbols:keyboard-arrow-down-rounded"></iconify-icon>
+								</button>
+							{/if}
 							<button class="action-btn action-edit" onclick={() => startEdit(originalIndex)} title="编辑">
 								<iconify-icon icon="material-symbols:edit-outline-rounded"></iconify-icon>
 							</button>
@@ -963,6 +1004,13 @@ function switchStatusTab(tabId: string) {
 		backdrop-filter: blur(8px);
 		transition: all 0.15s;
 		color: white;
+	}
+	.action-move {
+		background: rgba(100, 116, 139, 1);
+	}
+	.action-move:hover {
+		background: rgba(71, 85, 105, 1);
+		transform: scale(1.1);
 	}
 	.action-btn iconify-icon {
 		display: flex;
