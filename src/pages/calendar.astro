@@ -2,7 +2,7 @@
 import CalendarGrid from "@components/pages/calendar/CalendarGrid.svelte";
 import EventDetailPanel from "@components/pages/calendar/EventDetailPanel.svelte";
 import EventOverview from "@components/pages/calendar/EventOverview.svelte";
-import FileCodeEditor from "@/components/edit/FileCodeEditor.svelte";
+import CalendarEditor from "@/components/edit/CalendarEditor.svelte";
 import PageTitle from "@/components/common/PageTitle.astro";
 import { calendarConfig, siteConfig } from "@/config";
 import I18nKey from "@/i18n/i18nKey";
@@ -67,10 +67,9 @@ const detailProps = { holidays, posts, birthdays, schedules, years, showPosts };
 			</header>
 
 			<div data-no-swup>
-				<FileCodeEditor
+				<CalendarEditor
 					client:only
-					filePath="src/config/calendarConfig.ts"
-					pageName="日历页面"
+					initialConfig={calendarConfig}
 				/>
 			</div>
 
