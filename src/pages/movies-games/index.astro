@@ -4,13 +4,13 @@ import Comment from "@components/comment/index.astro";
 import { Icon } from "astro-icon/components";
 import ClientPagination from "@/components/common/ClientPagination.astro";
 import MovieGameCard from "@/components/pages/movies-games/MovieGameCard.astro";
+import BangumiEditor from "@/components/edit/BangumiEditor.svelte";
 import { siteConfig } from "@/config";
 import { externalBangumiConfig } from "@/config/externalBangumiConfig";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
 import { formatDateI18nWithTime } from "@/utils/date-utils";
-import { removeFileExtension } from "@/utils/url-utils";
 
 if (!siteConfig.pages.moviesGames) {
 	return Astro.redirect("/404/");
@@ -70,7 +70,7 @@ const mgItems: MgItem[] = customBangumi
 		const imageSrc =
 			typeof data.image === "string" ? data.image : data.image.src;
 
-		const finalLink = "/bangumi/" + removeFileExtension(id) + "/";
+		const finalLink = undefined; // bangumi detail page removed
 
 		const subjectTypeMap: Record<string, number> = {
 			anime: 2,
@@ -213,31 +213,64 @@ for (const tc of tabConfig) {
 }
 
 const activeTab = sections[0]?.tabKey || "all";
+
+// 转换为 BangumiEditor 可用的初始数据
+const subjectTypeToCategory: Record<number, string> = {
+	2: "anime",
+	4: "game",
+	6: "real",
+};
+const bangumiInitialItems = mgItems.map((item) => ({
+	id: String(item.subject_id || item.link),
+	title: item.subject.name,
+	name_cn: item.subject.name_cn || item.subject.name,
+	category: subjectTypeToCategory[item.subject_type] || "anime",
+	status: item.type,
+	score: item.rate || 0,
+	image: item.subject.images?.medium || "",
+	tags: item.tags || [],
+	comment: item.comment || "",
+	updated_at: item.updated_at,
+}));
 ---
 
 <MainGridLayout title={i18n(I18nKey.moviesGamesTitle)} description={i18n(I18nKey.moviesGamesSubtitle)}>
 	<div class="mg-page-wrapper flex w-full overflow-hidden relative min-h-32">
 		<div data-pagefind-body class="card-base z-10 px-6 pt-8 pb-8 relative w-full">
 			<!-- Page header -->
-			<header class="mg-header relative w-full mb-8">
-				<div class="flex items-center gap-3 mb-4">
-					<div class="mg-icon flex items-center justify-center w-12 h-12 rounded-2xl bg-[var(--primary)]/10 dark:bg-[var(--primary)]/15 border border-[var(--primary)]/20 shadow-sm">
-						<Icon name="material-symbols:movie-outline-rounded" class="text-[1.4rem] text-[var(--primary)]" />
+			<header class="mg-header relative w-full mb-8 flex justify-between items-start gap-4 flex-wrap">
+				<div class="flex-1 min-w-0">
+					<div class="flex items-center gap-3 mb-4">
+						<div class="mg-icon flex items-center justify-center w-12 h-12 rounded-2xl bg-[var(--primary)]/10 dark:bg-[var(--primary)]/15 border border-[var(--primary)]/20 shadow-sm">
+							<Icon name="material-symbols:movie-outline-rounded" class="text-[1.4rem] text-[var(--primary)]" />
+						</div>
+						<div>
+							<h1 data-pagefind-meta="title" data-pagefind-weight="10" class="">
+								{i18n(I18nKey.moviesGamesTitle)}
+							</h1>
+						</div>
 					</div>
-					<div>
-						<h1 data-pagefind-meta="title" data-pagefind-weight="10" class="">
-							{i18n(I18nKey.moviesGamesTitle)}
-						</h1>
-					</div>
+					<p class="text-sm text-[var(--content-meta)] leading-relaxed pl-[3.5rem]">
+						{i18n(I18nKey.moviesGamesSubtitle)}
+					</p>
+					<p class="text-xs text-[var(--content-meta)] opacity-60 mt-1.5 pl-[3.5rem]">
+						{i18n(I18nKey.bangumiLastUpdated)} {buildTime}
+					</p>
 				</div>
-				<p class="text-sm text-[var(--content-meta)] leading-relaxed pl-[3.5rem]">
-					{i18n(I18nKey.moviesGamesSubtitle)}
-				</p>
-				<p class="text-xs text-[var(--content-meta)] opacity-60 mt-1.5 pl-[3.5rem]">
-					{i18n(I18nKey.bangumiLastUpdated)} {buildTime}
-				</p>
+				<div class="page-header-toolbar-slot flex-shrink-0"></div>
 			</header>
 
+			<div data-no-swup>
+				<BangumiEditor
+					client:only
+					defaultCategory="all"
+					skipDomCollect={true}
+					customPageName="影视游戏"
+					initialItems={bangumiInitialItems}
+				/>
+			</div>
+
+			<div class="bangumi-section">
 			{mgItems.length > 0 ? (
 				<>
 					<!-- Tab Navigation -->
@@ -327,6 +360,7 @@ const activeTab = sections[0]?.tabKey || "all";
 					</h3>
 				</div>
 			)}
+			</div>
 		</div>
 	</div>
 <Comment customPath="/movies-games/" />
@@ -793,6 +827,15 @@ const activeTab = sections[0]?.tabKey || "all";
 	}
 	.scrollbar-hide::-webkit-scrollbar {
 		display: none;
+	}
+
+	@media (max-width: 768px) {
+		:has(> .page-header-toolbar-slot) {
+			flex-direction: column;
+		}
+		.page-header-toolbar-slot {
+			width: 100%;
+		}
 	}
 
 	@media (max-width: 640px) {

@@ -1,6 +1,7 @@
 ---
 import { getCollection, render } from "astro:content";
 import { Icon } from "astro-icon/components";
+import RoutinesEditor from "@/components/edit/RoutinesEditor.svelte";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
 
 const routinesEntries = await getCollection("routines");
@@ -48,6 +49,11 @@ const totalEntries = entriesWithContent.length;
           <h1 data-pagefind-meta="title" data-pagefind-weight="10" class="text-3xl font-bold text-neutral-900 dark:text-neutral-100">日常规划</h1>
           <p class="text-sm text-neutral-500 dark:text-neutral-400">记录和规划生活中的各项事务</p>
         </div>
+        <div class="page-header-toolbar-slot flex-shrink-0 ml-auto"></div>
+      </div>
+
+      <div data-no-swup>
+        <RoutinesEditor client:only />
       </div>
 
       <!-- 统计卡片 -->

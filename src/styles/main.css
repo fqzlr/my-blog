@@ -44,6 +44,16 @@
 @import './components/home-data-layer.css';
 @import './components/home-portfolio-shutter.css';
 @import './components/page-loader.css';
+@import './components/page-title.css';
+@import './components/about-canvas.css';
+@import './components/post-page.css';
+@import './components/post-card.css';
+@import './components/friend-card.css';
+@import './components/widget-layout.css';
+@import './components/cover-image.css';
+@import './components/animated-tabs.css';
+@import './components/bubble-menu.css';
+@import './components/home-section.css';
 
 /* --- 功能样式 --- */
 @import './features/content.css';
@@ -58,6 +68,13 @@
 @import './features/moments.css';
 @import './features/movies-games.css';
 @import './pages/music-visualizer.css';
+@import './pages/sponsor.css';
+@import './pages/gallery.css';
+@import './pages/friends.css';
+@import './pages/categories.css';
+@import './pages/calendar.css';
+@import './pages/article-list.css';
+@import './pages/404.css';
 
 /* --- 布局样式 --- */
 @import './layout/layout-styles.css';
@@ -69,6 +86,12 @@
 @import './transitions/swup.css';
 
 /* --- 第三方覆盖 --- */
+@import './widgets/calendar.css';
+@import './widgets/sidebar-toc.css';
+@import './widgets/archive-heatmap.css';
+@import './widgets/advertisement.css';
+@import './widgets/terrarium-model.css';
+@import './widgets/announcement.css';
 @import './vendor/expressive-code.css';
 @import './vendor/fancybox.css';
 @import './vendor/waline.css';

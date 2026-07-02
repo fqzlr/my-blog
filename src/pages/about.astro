@@ -1,25 +1,74 @@
 ---
-
-import { getEntry, render } from "astro:content";
-import Markdown from "@components/common/Markdown.astro";
+import { getEntry } from "astro:content";
+import AboutCanvas from "@components/about/AboutCanvas.svelte";
+import MarkdownPageEditor from "@/components/edit/MarkdownPageEditor.svelte";
 import I18nKey from "@/i18n/i18nKey";
 import { i18n } from "@/i18n/translation";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
 
 const aboutPost = await getEntry("spec", "about");
-
 if (!aboutPost) {
 	throw new Error("About page content not found");
 }
 
-const { Content } = await render(aboutPost);
+const aboutText = aboutPost.body ?? "";
 ---
+
 <MainGridLayout title={i18n(I18nKey.about)} description={i18n(I18nKey.about)}>
-    <div class="flex w-full rounded-(--radius-large) overflow-hidden relative min-h-32">
-        <div class="card-base z-10 px-9 py-6 relative w-full ">
-            <Markdown class="mt-2">
-                <Content />
-            </Markdown>
+    <div class="about-editor-wrapper w-full">
+        <div data-no-swup>
+            <MarkdownPageEditor
+                client:only
+                filePath="src/content/spec/about.md"
+                pageName="关于页面"
+                initialContent={aboutText}
+            />
         </div>
     </div>
+    <div class="about-canvas-container about-display-only" data-about-display>
+        <AboutCanvas text={aboutText} client:only="svelte" />
+    </div>
 </MainGridLayout>
+
+<script is:inline>
+    (function() {
+        function checkEditMode() {
+            const editorWrappers = document.querySelectorAll('.md-editor-container');
+            const displayEl = document.querySelector('[data-about-display]');
+            if (!displayEl) return;
+            if (editorWrappers.length > 0) {
+                displayEl.style.display = 'none';
+            } else {
+                displayEl.style.display = '';
+            }
+        }
+        function init() {
+            checkEditMode();
+            const observer = new MutationObserver(checkEditMode);
+            const editorWrapper = document.querySelector('.about-editor-wrapper');
+            if (editorWrapper) {
+                observer.observe(editorWrapper, { childList: true, subtree: true });
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+        document.addEventListener('astro:page-load', init);
+    })();
+</script>
+
+<style>
+    .about-canvas-container {
+        position: relative;
+        width: 100%;
+        min-height: 400px;
+    }
+    .about-display-only {
+        margin-top: 0;
+    }
+    :global(.about-editor-wrapper .md-content-display) {
+        display: none;
+    }
+</style>
