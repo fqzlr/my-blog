@@ -13,13 +13,28 @@ export const externalMomentsConfig = {
 	fileName: "moments.json",
 
 	// 默认作者信息
-	defaultAuthor: "团子",
-	defaultAvatar: "https://re.tsh520.cn/zl/tx.webp",
+	defaultAuthor: "fqzlr",
+	defaultAvatar: "https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640",
 
-	// 后台登录密码的 SHA-256 哈希（明文密码不再存入代码）
-	// 生成方式：echo -n "你的密码" | sha256sum
+	// ========================================================================
+	// 后台管理登录密码配置
+	// ========================================================================
+	// 当前临时密码：admin123
+	//
+	// 修改密码方法：
+	// 1. 在 PowerShell 中执行以下命令生成新密码的 SHA-256 哈希：
+	//    $bytes = [System.Text.Encoding]::UTF8.GetBytes("你的新密码")
+	//    [BitConverter]::ToString([System.Security.Cryptography.SHA256]::Create().ComputeHash($bytes)).Replace("-", "").ToLower()
+	//
+	// 2. 或者在浏览器控制台执行：
+	//    await crypto.subtle.digest('SHA-256', new TextEncoder().encode('你的新密码')).then(b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''))
+	//
+	// 3. 将生成的64位十六进制字符串替换下方 adminPasswordHash 的值
+	//
+	// 注意：密码仅存储为 SHA-256 哈希，无法从哈希反推出明文密码
+	// ========================================================================
 	adminPasswordHash:
-		"284d9a101beeb8fbf979d029b25fa49f859739904bfc3a918ecba1c00001b0af",
+		"837b518a396d573ec995f128e2191865ea48c9250585db62718b94463163196c",
 
 	// GitHub Token（优先从环境变量 GITHUB_TOKEN 读取）
 	// EdgeOne 部署时在环境变量中设置 GITHUB_TOKEN=你的token

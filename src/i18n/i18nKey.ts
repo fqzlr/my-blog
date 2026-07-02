@@ -1,19 +1,5 @@
 enum I18nKey {
 	home = "home",
-	changelog = "changelog",
-	changelogTitle = "changelogTitle",
-	changelogSubtitle = "changelogSubtitle",
-	changelogAll = "changelogAll",
-	changelogFeature = "changelogFeature",
-	changelogImprovement = "changelogImprovement",
-	changelogFix = "changelogFix",
-	changelogRemoval = "changelogRemoval",
-	changelogNoData = "changelogNoData",
-
-	categories = "categories",
-	categoryList = "categoryList",
-	categoryPosts = "categoryPosts",
-	allCategories = "allCategories",
 	about = "about",
 	archive = "archive",
 	search = "search",
@@ -26,9 +12,11 @@ enum I18nKey {
 	other = "other",
 
 	tags = "tags",
+	categories = "categories",
 	recentPosts = "recentPosts",
 	postList = "postList",
 	tableOfContents = "tableOfContents",
+	tocEmpty = "tocEmpty",
 	music = "music",
 
 	// 公告栏
@@ -71,6 +59,7 @@ enum I18nKey {
 	musicCover = "musicCover",
 	musicNoCover = "musicNoCover",
 	musicAudioPlayer = "musicAudioPlayer",
+	musicFloatingLyrics = "musicFloatingLyrics",
 
 	themeColor = "themeColor",
 
@@ -79,6 +68,7 @@ enum I18nKey {
 	systemMode = "systemMode",
 
 	more = "more",
+	collapse = "collapse",
 	all = "all",
 
 	author = "author",
@@ -88,20 +78,11 @@ enum I18nKey {
 	license = "license",
 	friends = "friends",
 	friendsDescription = "friendsDescription",
+	friendsApply = "friendsApply",
 	guestbook = "guestbook",
 	guestbookDescription = "guestbookDescription",
 	bangumi = "bangumi",
-	moments = "moments",
 
-	recentMoments = "recentMoments",
-	portalRecentPosts = "portalRecentPosts",
-	portalRecentMoments = "portalRecentMoments",
-	portalViewAll = "portalViewAll",
-	portalViewMore = "portalViewMore",
-	portalRunningDays = "portalRunningDays",
-	portalDays = "portalDays",
-	recentLife = "recentLife",
-	recentItems = "recentItems",
 	// 番组计划筛选和状态文本
 	bangumiTitle = "bangumiTitle",
 	bangumiSubtitle = "bangumiSubtitle",
@@ -160,33 +141,6 @@ enum I18nKey {
 	bangumiUpdatedAt = "bangumiUpdatedAt",
 	bangumiDataStatic = "bangumiDataStatic",
 
-	// 书架页面
-	books = "books",
-	booksTitle = "booksTitle",
-	booksSubtitle = "booksSubtitle",
-	bookshelfReading = "bookshelfReading",
-	bookshelfRead = "bookshelfRead",
-	bookshelfWantRead = "bookshelfWantRead",
-	booksNoData = "booksNoData",
-
-	// 影视与游戏页面
-	moviesGames = "moviesGames",
-	moviesGamesTitle = "moviesGamesTitle",
-	moviesGamesSubtitle = "moviesGamesSubtitle",
-	moviesGamesTabAll = "moviesGamesTabAll",
-	moviesGamesTabMovie = "moviesGamesTabMovie",
-	moviesGamesTabTV = "moviesGamesTabTV",
-	moviesGamesTabAnime = "moviesGamesTabAnime",
-	moviesGamesTabDocumentary = "moviesGamesTabDocumentary",
-	moviesGamesTabGame = "moviesGamesTabGame",
-	moviesGamesNoData = "moviesGamesNoData",
-
-	// 音乐页面
-	musicPage = "musicPage",
-	musicPageTitle = "musicPageTitle",
-	musicPageSubtitle = "musicPageSubtitle",
-	musicPageNoData = "musicPageNoData",
-
 	// 分页
 	paginationFirst = "paginationFirst",
 	paginationPrev = "paginationPrev",
@@ -240,6 +194,15 @@ enum I18nKey {
 	// 置顶
 	pinned = "pinned",
 
+	// 相关文章推荐
+	relatedPosts = "relatedPosts",
+	randomPosts = "randomPosts",
+	smartRecommend = "smartRecommend",
+	randomRecommend = "randomRecommend",
+
+	// 加密
+	postEncrypted = "postEncrypted",
+
 	// 壁纸模式
 	wallpaperMode = "wallpaperMode",
 	wallpaperBannerMode = "wallpaperBannerMode",
@@ -249,7 +212,12 @@ enum I18nKey {
 	// 横幅设置
 	bannerSettings = "bannerSettings",
 	bannerTitle = "bannerTitle",
+	bannerCarousel = "bannerCarousel",
 	wavesAnimation = "wavesAnimation",
+	overlaySettings = "overlaySettings",
+	overlayOpacity = "overlayOpacity",
+	overlayBlur = "overlayBlur",
+	overlayCardOpacity = "overlayCardOpacity",
 
 	// 文章布局
 	postListLayout = "postListLayout",
@@ -285,12 +253,18 @@ enum I18nKey {
 	siteStatsLastUpdate = "siteStatsLastUpdate",
 	siteStatsDaysAgo = "siteStatsDaysAgo",
 	siteStatsDays = "siteStatsDays",
+	siteStatsVisitors = "siteStatsVisitors",
+	siteStatsPageViews = "siteStatsPageViews",
+	siteStatsLoading = "siteStatsLoading",
 	siteStatsVisitorPrefix = "siteStatsVisitorPrefix",
 	siteStatsVisitorSuffix = "siteStatsVisitorSuffix",
 	siteStatsPageViewPrefix = "siteStatsPageViewPrefix",
 	siteStatsPageViewSuffix = "siteStatsPageViewSuffix",
-	siteStatsLoading = "siteStatsLoading",
-	siteHeatmap = "siteHeatmap",
+	siteStatsHoverHint = "siteStatsHoverHint",
+	siteStatsRevealLine1 = "siteStatsRevealLine1",
+	siteStatsRevealLine2 = "siteStatsRevealLine2",
+	footerRunningDays = "footerRunningDays",
+	footerLastUpdate = "footerLastUpdate",
 	today = "today",
 
 	// 日历组件
@@ -327,10 +301,113 @@ enum I18nKey {
 	codeCollapsibleExpanded = "codeCollapsibleExpanded",
 	codeCollapsibleCollapsed = "codeCollapsibleCollapsed",
 
-	// 相关阅读
-	relatedPosts = "relatedPosts",
+	// 相册页面
+	gallery = "gallery",
+	galleryDescription = "galleryDescription",
+	galleryPhotos = "galleryPhotos",
+	galleryAlbums = "galleryAlbums",
+	galleryNoAlbums = "galleryNoAlbums",
+	galleryBackToAlbums = "galleryBackToAlbums",
+	galleryLocalAlbum = "galleryLocalAlbum",
+	galleryNetworkAlbum = "galleryNetworkAlbum",
+	galleryCategory = "galleryCategory",
+	galleryQuantity = "galleryQuantity",
+	galleryRandomFetch = "galleryRandomFetch",
+	galleryFetching = "galleryFetching",
+	galleryFetchError = "galleryFetchError",
+	galleryNoImages = "galleryNoImages",
 
-	// 欢迎卡片
+	// 收藏API页面
+	collections = "collections",
+	collectionsDescription = "collectionsDescription",
+	collectionsEmpty = "collectionsEmpty",
+	collectionsCopy = "collectionsCopy",
+	collectionsCopied = "collectionsCopied",
+
+	// 统计页面
+	stats = "stats",
+	statsDescription = "statsDescription",
+	statsDeveloping = "statsDeveloping",
+	statsDevelopingDesc = "statsDevelopingDesc",
+
+	// 密码保护
+	passwordProtected = "passwordProtected",
+	passwordProtectedDesc = "passwordProtectedDesc",
+	passwordHint = "passwordHint",
+	passwordPlaceholder = "passwordPlaceholder",
+	passwordSubmit = "passwordSubmit",
+	passwordError = "passwordError",
+	passwordProtectedRss = "passwordProtectedRss",
+
+	// 热力图
+	postHeatmap = "postHeatmap",
+	githubHeatmap = "githubHeatmap",
+
+	// 日历页面
+	calendar = "calendar",
+	calendarDescription = "calendarDescription",
+	calendarToday = "calendarToday",
+	calendarTomorrow = "calendarTomorrow",
+	calendarDaysLater = "calendarDaysLater",
+	calendarBirthday = "calendarBirthday",
+	calendarHoliday = "calendarHoliday",
+	calendarSchedule = "calendarSchedule",
+	calendarPost = "calendarPost",
+	calendarLunar = "calendarLunar",
+	calendarUpcoming = "calendarUpcoming",
+	calendarTodayEvents = "calendarTodayEvents",
+	calendarNoEvents = "calendarNoEvents",
+	calendarMore = "calendarMore",
+	calendarBackToToday = "calendarBackToToday",
+	calendarNearestHoliday = "calendarNearestHoliday",
+	calendarNearestBirthday = "calendarNearestBirthday",
+	calendarNearestSchedule = "calendarNearestSchedule",
+
+	Fhome = "Fhome",
+	Fnote = "Fnote",
+	contactMe = "contactMe",
+	qqGroup = "qqGroup",
+	navPosts = "navPosts",
+	navMy = "navMy",
+	changelogTitle = "changelogTitle",
+	changelogSubtitle = "changelogSubtitle",
+	changelogAll = "changelogAll",
+	changelogFeature = "changelogFeature",
+	changelogImprovement = "changelogImprovement",
+	changelogFix = "changelogFix",
+	changelogRemoval = "changelogRemoval",
+	changelogNoData = "changelogNoData",
+	categoryList = "categoryList",
+	categoryPosts = "categoryPosts",
+	allCategories = "allCategories",
+	recentMoments = "recentMoments",
+	portalRecentPosts = "portalRecentPosts",
+	portalRecentMoments = "portalRecentMoments",
+	portalViewAll = "portalViewAll",
+	portalViewMore = "portalViewMore",
+	portalRunningDays = "portalRunningDays",
+	portalDays = "portalDays",
+	recentLife = "recentLife",
+	recentItems = "recentItems",
+	booksTitle = "booksTitle",
+	booksSubtitle = "booksSubtitle",
+	bookshelfReading = "bookshelfReading",
+	bookshelfRead = "bookshelfRead",
+	bookshelfWantRead = "bookshelfWantRead",
+	booksNoData = "booksNoData",
+	moviesGamesTitle = "moviesGamesTitle",
+	moviesGamesSubtitle = "moviesGamesSubtitle",
+	moviesGamesTabAll = "moviesGamesTabAll",
+	moviesGamesTabMovie = "moviesGamesTabMovie",
+	moviesGamesTabTV = "moviesGamesTabTV",
+	moviesGamesTabAnime = "moviesGamesTabAnime",
+	moviesGamesTabDocumentary = "moviesGamesTabDocumentary",
+	moviesGamesTabGame = "moviesGamesTabGame",
+	moviesGamesNoData = "moviesGamesNoData",
+	musicPageTitle = "musicPageTitle",
+	musicPageSubtitle = "musicPageSubtitle",
+	musicPageNoData = "musicPageNoData",
+	siteHeatmap = "siteHeatmap",
 	welcomeCardLocation = "welcomeCardLocation",
 	welcomeCardGreeting = "welcomeCardGreeting",
 	welcomeCardRecentUpdates = "welcomeCardRecentUpdates",
@@ -339,6 +416,20 @@ enum I18nKey {
 	welcomeCardClose = "welcomeCardClose",
 	welcomeCardLearnMore = "welcomeCardLearnMore",
 	welcomeCardRecentLabel = "welcomeCardRecentLabel",
+
+
+	books = "books",
+	moviesGames = "moviesGames",
+	musicPage = "musicPage",
+	changelog = "changelog",
+	moments = "moments",
+	admin = "admin",
+	routines = "routines",
+	places = "places",
+	notebooks = "notebooks",
+
+	bookshelf = "bookshelf",
+	adminPanel = "adminPanel",
 }
 
 export default I18nKey;

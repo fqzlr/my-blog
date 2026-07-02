@@ -2,11 +2,11 @@ import type { CommentConfig } from "../types/config";
 
 export const commentConfig: CommentConfig = {
 	// 评论系统类型: none, twikoo, waline, giscus, disqus, artalk，默认为none，即不启用评论系统
-	type: "waline",
+	type: "twikoo",
 
-	//twikoo评论系统配置
+	//twikoo评论系统配置，版本1.7.4
 	twikoo: {
-		envId: "https://twikoo.vercel.app",
+		envId: "https://pl.fqzlr.com",
 		// 设置 Twikoo 评论系统语言
 		lang: "zh-CN",
 		// 是否启用文章访问量统计功能
@@ -16,14 +16,20 @@ export const commentConfig: CommentConfig = {
 	//waline评论系统配置
 	waline: {
 		// waline 后端服务地址
-		serverURL: "https://co.tsh520.cn",
+		serverURL: "https://comment.mmzhiku.xyz/",
 		// 设置 Waline 评论系统语言
 		lang: "zh-CN",
+		// 设置 Waline 评论系统表情地址
+		emoji: [
+			"https://unpkg.com/@waline/emojis@1.4.0/weibo",
+			"https://unpkg.com/@waline/emojis@1.4.0/bilibili",
+			"https://unpkg.com/@waline/emojis@1.4.0/bmoji",
+		],
 		// 评论登录模式。可选值如下：
 		//   'enable'   —— 默认，允许访客匿名评论和用第三方 OAuth 登录评论，兼容性最佳。
 		//   'force'    —— 强制必须登录后才能评论，适合严格社区，关闭匿名评论。
 		//   'disable'  —— 禁止所有登录和 OAuth，仅允许匿名评论（填写昵称/邮箱），适用于极简留言。
-		login: "disable",
+		login: "enable",
 		// 是否启用文章访问量统计功能
 		visitorCount: true,
 	},
@@ -41,21 +47,21 @@ export const commentConfig: CommentConfig = {
 	//giscus评论系统配置
 	giscus: {
 		// 设置 Giscus 评论系统仓库
-		repo: "CuteLeaf/Firefly",
+		repo: "fqzlr/my-blog",
 		// 设置 Giscus 评论系统仓库ID
-		repoId: "R_kgD2gfdFGd",
+		repoId: "R_kgDOSXWjBQ",
 		// 设置 Giscus 评论系统分类
 		category: "General",
 		// 获取 Giscus 评论系统分类ID
-		categoryId: "DIC_kwDOKy9HOc4CegmW",
+		categoryId: "DIC_kwDOSXWjBc4C8jP5",
 		// 获取 Giscus 评论系统映射方式
-		mapping: "title",
+		mapping: "pathname",
 		// 获取 Giscus 评论系统严格模式
 		strict: "0",
 		// 获取 Giscus 评论系统反应功能
 		reactionsEnabled: "1",
 		// 获取 Giscus 评论系统元数据功能
-		emitMetadata: "1",
+		emitMetadata: "0",
 		// 获取 Giscus 评论系统输入位置
 		inputPosition: "top",
 		// 获取 Giscus 评论系统语言

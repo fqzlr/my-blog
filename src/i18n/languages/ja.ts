@@ -3,12 +3,10 @@ import type { Translation } from "../translation";
 
 export const ja: Translation = {
 	[Key.home]: "ホーム",
-	[Key.categories]: "カテゴリ",
-	[Key.categoryList]: "カテゴリリスト",
-	[Key.categoryPosts]: "このカテゴリの記事",
-	[Key.allCategories]: "すべてのカテゴリ",
 	[Key.about]: "について",
 	[Key.archive]: "アーカイブ",
+	[Key.postHeatmap]: "記事分布",
+	[Key.githubHeatmap]: "GitHub コントリビューション",
 	[Key.search]: "検索",
 	[Key.searchNoResults]: "結果が見つかりません。",
 	[Key.searchTypeSomething]: "検索キーワードを入力してください。",
@@ -24,6 +22,7 @@ export const ja: Translation = {
 	[Key.recentPosts]: "最近の投稿",
 	[Key.postList]: "投稿リスト",
 	[Key.tableOfContents]: "目次",
+	[Key.tocEmpty]: "このページには目次がありません",
 	[Key.music]: "音楽",
 	[Key.musicNoPlaying]: "再生中なし",
 	[Key.musicLyrics]: "歌詞",
@@ -43,6 +42,7 @@ export const ja: Translation = {
 	[Key.musicCover]: "カバー",
 	[Key.musicNoCover]: "カバーなし",
 	[Key.musicAudioPlayer]: "オーディオプレーヤー",
+	[Key.musicFloatingLyrics]: "フローティング歌詞",
 
 	// お知らせ
 	[Key.announcement]: "お知らせ",
@@ -57,6 +57,7 @@ export const ja: Translation = {
 	[Key.friends]: "友達",
 	[Key.friendsDescription]:
 		"ここは私の友達です、お互いに訪問して交流することを歓迎します",
+	[Key.friendsApply]: "友達リンクを申請",
 	[Key.guestbook]: "ゲストブック",
 	[Key.guestbookDescription]:
 		"ここに足跡を残して、あなたの考えや提案を共有してください",
@@ -78,6 +79,7 @@ export const ja: Translation = {
 	[Key.systemMode]: "システム",
 
 	[Key.more]: "もっと",
+	[Key.collapse]: "折りたたむ",
 
 	[Key.author]: "著者",
 	[Key.publishedAt]: "公開日",
@@ -85,14 +87,6 @@ export const ja: Translation = {
 	[Key.readTime]: "読了時間",
 	[Key.license]: "ライセンス",
 	[Key.bangumi]: "バングミ",
-
-	[Key.recentMoments]: "最近の更新",
-	[Key.portalRecentPosts]: "最近の記事",
-	[Key.portalRecentMoments]: "最近の更新",
-	[Key.portalViewAll]: "すべて見る",
-	[Key.portalViewMore]: "もっと見る",
-	[Key.portalRunningDays]: "運営",
-	[Key.portalDays]: "日目",
 
 	// バングミフィルターと状態文本
 	[Key.bangumiTitle]: "私のバングミ",
@@ -154,33 +148,6 @@ export const ja: Translation = {
 	[Key.bangumiUpdatedAt]: "ビルド時間",
 	[Key.bangumiDataStatic]: "静的データ",
 
-	// 本棚ページ
-	[Key.books]: "本棚",
-	[Key.booksTitle]: "私の本棚",
-	[Key.booksSubtitle]: "読書の記録、本の素晴らしさを共有。",
-	[Key.bookshelfReading]: "読書中",
-	[Key.bookshelfRead]: "読了",
-	[Key.bookshelfWantRead]: "読みたい",
-	[Key.booksNoData]: "本棚に本がありません",
-
-	// 映画・ゲームページ
-	[Key.moviesGames]: "映画・ゲーム",
-	[Key.moviesGamesTitle]: "映画・ゲーム",
-	[Key.moviesGamesSubtitle]: "観た映画やプレイしたゲームの記録。",
-	[Key.moviesGamesTabAll]: "全て",
-	[Key.moviesGamesTabMovie]: "映画",
-	[Key.moviesGamesTabTV]: "ドラマ",
-	[Key.moviesGamesTabAnime]: "アニメ",
-	[Key.moviesGamesTabDocumentary]: "ドキュメンタリー",
-	[Key.moviesGamesTabGame]: "ゲーム",
-	[Key.moviesGamesNoData]: "コンテンツがありません",
-
-	// 音楽ページ
-	[Key.musicPage]: "音楽",
-	[Key.musicPageTitle]: "私の音楽",
-	[Key.musicPageSubtitle]: "好きな音楽、メロディーの中の物語。",
-	[Key.musicPageNoData]: "音楽エントリがありません",
-
 	// ページネーション
 	[Key.paginationFirst]: "最初",
 	[Key.paginationPrev]: "前へ",
@@ -238,6 +205,15 @@ export const ja: Translation = {
 	// ピン留め
 	[Key.pinned]: "ピン留め",
 
+	// 関連記事
+	[Key.relatedPosts]: "関連記事",
+	[Key.randomPosts]: "ランダム記事",
+	[Key.smartRecommend]: "スマート",
+	[Key.randomRecommend]: "ランダム",
+
+	// 暗号化
+	[Key.postEncrypted]: "この記事は暗号化されています",
+
 	// 壁紙モード
 	[Key.wallpaperMode]: "壁紙モード",
 	[Key.wallpaperBannerMode]: "バナー壁紙",
@@ -247,7 +223,12 @@ export const ja: Translation = {
 	// バナー設定
 	[Key.bannerSettings]: "バナー設定",
 	[Key.bannerTitle]: "ホームバナータイトル",
+	[Key.bannerCarousel]: "バナーカルーセル",
 	[Key.wavesAnimation]: "波アニメーション",
+	[Key.overlaySettings]: "透明設定",
+	[Key.overlayOpacity]: "壁紙の透明度",
+	[Key.overlayBlur]: "背景ぼかし",
+	[Key.overlayCardOpacity]: "カード透明度",
 
 	// 投稿リストレイアウト
 	[Key.postListLayout]: "投稿リストレイアウト",
@@ -284,14 +265,21 @@ export const ja: Translation = {
 	[Key.siteStatsTotalWords]: "総文字数",
 	[Key.siteStatsRunningDays]: "運用日数",
 	[Key.siteStatsLastUpdate]: "最終活動",
-	[Key.siteStatsDaysAgo]: "{days} 日前",
-	[Key.siteStatsDays]: "{days} 日",
-	[Key.siteStatsVisitorPrefix]: "あなたは ",
-	[Key.siteStatsVisitorSuffix]: " 人目の訪問者です。はじめまして。",
-	[Key.siteStatsPageViewPrefix]: "総アクセス数: ",
-	[Key.siteStatsPageViewSuffix]: "",
+	[Key.siteStatsDaysAgo]: "{days}日前",
+	[Key.siteStatsDays]: "{days}日",
+	[Key.siteStatsVisitors]: "訪問者",
+	[Key.siteStatsPageViews]: "閲覧数",
 	[Key.siteStatsLoading]: "--",
-	[Key.siteHeatmap]: "アクティビティヒートマップ",
+	[Key.siteStatsVisitorPrefix]: "あなたは",
+	[Key.siteStatsVisitorSuffix]: "人目の訪問者です",
+	[Key.siteStatsPageViewPrefix]: "総アクセス数:",
+	[Key.siteStatsPageViewSuffix]: "",
+	[Key.siteStatsHoverHint]: "ホバーして詳細を見る",
+	[Key.siteStatsRevealLine1]:
+		"記事 {posts} · カテゴリー {categories} · タグ {tags}",
+	[Key.siteStatsRevealLine2]: "累計 {words} 文字",
+	[Key.footerRunningDays]: "運用 {days} 日",
+	[Key.footerLastUpdate]: "最終更新は {days} 日前",
 	[Key.today]: "今日",
 
 	// カレンダーコンポーネント
@@ -323,21 +311,75 @@ export const ja: Translation = {
 	[Key.scanToRead]: "QRコードで読む",
 
 	// コードブロック折りたたみ設定
-	[Key.codeCollapsibleShowMore]: "もっと表示",
-	[Key.codeCollapsibleShowLess]: "少なく表示",
+	[Key.codeCollapsibleShowMore]: "展開する",
+	[Key.codeCollapsibleShowLess]: "折りたたむ",
 	[Key.codeCollapsibleExpanded]: "コードブロックが展開されました",
 	[Key.codeCollapsibleCollapsed]: "コードブロックが折りたたまれました",
 
-	// 関連投稿
-	[Key.relatedPosts]: "関連投稿",
+	// ギャラリーページ
+	[Key.gallery]: "ギャラリー",
+	[Key.galleryDescription]: "人生の美しい瞬間を記録する",
+	[Key.galleryPhotos]: "枚の写真",
+	[Key.galleryAlbums]: "冊のアルバム",
+	[Key.galleryNoAlbums]: "アルバムがありません",
+	[Key.galleryBackToAlbums]: "アルバム一覧に戻る",
+	[Key.galleryLocalAlbum]: "ローカルアルバム",
+	[Key.galleryNetworkAlbum]: "ネットワークアルバム",
+	[Key.galleryCategory]: "カテゴリ",
+	[Key.galleryQuantity]: "数量",
+	[Key.galleryRandomFetch]: "ランダム取得",
+	[Key.galleryFetching]: "取得中...",
+	[Key.galleryFetchError]: "取得に失敗しました、もう一度お試しください",
+	[Key.galleryNoImages]:
+		"画像がありません、上のボタンをクリックして取得してください",
 
-	// ウェルカムカード
-	[Key.welcomeCardLocation]: "遠方",
-	[Key.welcomeCardGreeting]: "の友人へ！",
-	[Key.welcomeCardRecentUpdates]: "最近の更新：",
-	[Key.welcomeCardFlipHint]: "タップして裏返す",
-	[Key.welcomeCardDragHint]: "ドラッグして閉じる",
-	[Key.welcomeCardClose]: "閉じる",
-	[Key.welcomeCardLearnMore]: "詳しく見る",
-	[Key.welcomeCardRecentLabel]: "最近の更新",
+	// 收藏APIページ
+	[Key.collections]: "コレクション",
+	[Key.collectionsDescription]: "よく使うAPIの収集と管理",
+	[Key.collectionsEmpty]: "収集したAPIはまだありません",
+	[Key.collectionsCopy]: "リンクをコピー",
+	[Key.collectionsCopied]: "コピーしました",
+
+	// 統計ページ
+	[Key.stats]: "統計",
+	[Key.statsDescription]: "サイトの統計と分析",
+	[Key.statsDeveloping]: "開発中",
+	[Key.statsDevelopingDesc]: "このページは現在開発中です。お楽しみに",
+
+	// パスワード保護
+	[Key.passwordProtected]: "パスワード保護",
+	[Key.passwordProtectedDesc]:
+		"この記事はパスワードで保護されています。内容を表示するにはパスワードを入力してください。",
+	[Key.passwordHint]: "ヒント",
+	[Key.passwordPlaceholder]: "パスワードを入力",
+	[Key.passwordSubmit]: "ロック解除",
+	[Key.passwordError]: "パスワードが間違っています。もう一度お試しください。",
+	[Key.passwordProtectedRss]:
+		"この記事は暗号化されています。ウェブサイトにアクセスしてご覧ください。",
+
+	// カレンダーページ
+	[Key.calendar]: "カレンダー",
+	[Key.Fhome]: "番茄主页",
+	[Key.Fnote]: "番茄笔记",
+	[Key.contactMe]: "お問い合わせ",
+	[Key.qqGroup]: "QQグループ",
+	[Key.navPosts]: "記事",
+	[Key.navMy]: "マイ",
+	[Key.calendarDescription]: "祝日・誕生日・予定・記事更新の総合カレンダー",
+	[Key.calendarToday]: "今日",
+	[Key.calendarTomorrow]: "明日",
+	[Key.calendarDaysLater]: "{n} 日後",
+	[Key.calendarBirthday]: "誕生日",
+	[Key.calendarHoliday]: "祝日",
+	[Key.calendarSchedule]: "予定",
+	[Key.calendarPost]: "記事",
+	[Key.calendarLunar]: "旧暦",
+	[Key.calendarUpcoming]: "近日の予定",
+	[Key.calendarTodayEvents]: "本日のイベント",
+	[Key.calendarNoEvents]: "この日には予定がありません",
+	[Key.calendarMore]: "他 {n} 件",
+	[Key.calendarBackToToday]: "今日に戻る",
+	[Key.calendarNearestHoliday]: "直近の祝日",
+	[Key.calendarNearestBirthday]: "直近の誕生日",
+	[Key.calendarNearestSchedule]: "直近のスケジュール",
 };

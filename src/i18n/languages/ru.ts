@@ -3,12 +3,10 @@ import type { Translation } from "../translation";
 
 export const ru: Translation = {
 	[Key.home]: "Главная",
-	[Key.categories]: "Категории",
-	[Key.categoryList]: "Список категорий",
-	[Key.categoryPosts]: "Статьи в этой категории",
-	[Key.allCategories]: "Все категории",
 	[Key.about]: "О нас",
 	[Key.archive]: "Архив",
+	[Key.postHeatmap]: "Тепловая карта",
+	[Key.githubHeatmap]: "Вклад в GitHub",
 	[Key.search]: "Поиск",
 	[Key.searchNoResults]: "Результаты не найдены.",
 	[Key.searchTypeSomething]: "Введите ключевое слово для поиска...",
@@ -24,6 +22,7 @@ export const ru: Translation = {
 	[Key.recentPosts]: "Последние посты",
 	[Key.postList]: "Список постов",
 	[Key.tableOfContents]: "Содержание",
+	[Key.tocEmpty]: "На этой странице нет оглавления",
 	[Key.music]: "Музыка",
 	[Key.musicNoPlaying]: "Ничего не воспроизводится",
 	[Key.musicLyrics]: "Текст песни",
@@ -43,6 +42,7 @@ export const ru: Translation = {
 	[Key.musicCover]: "Обложка",
 	[Key.musicNoCover]: "Нет обложки",
 	[Key.musicAudioPlayer]: "Аудиоплеер",
+	[Key.musicFloatingLyrics]: "Плавающий текст",
 
 	// Объявление
 	[Key.announcement]: "Объявление",
@@ -57,6 +57,7 @@ export const ru: Translation = {
 	[Key.friends]: "Ссылки",
 	[Key.friendsDescription]:
 		"Вот мои друзья, добро пожаловать посетить и общаться друг с другом",
+	[Key.friendsApply]: "Подать заявку на ссылку",
 	[Key.guestbook]: "Гостевая книга",
 	[Key.guestbookDescription]:
 		"Добро пожаловать, оставьте свой след здесь, поделитесь своими мыслями и предложениями",
@@ -78,6 +79,7 @@ export const ru: Translation = {
 	[Key.systemMode]: "Система",
 
 	[Key.more]: "Ещё",
+	[Key.collapse]: "Свернуть",
 
 	[Key.author]: "Автор",
 	[Key.publishedAt]: "Опубликовано",
@@ -85,14 +87,6 @@ export const ru: Translation = {
 	[Key.readTime]: "Время чтения",
 	[Key.license]: "Лицензия",
 	[Key.bangumi]: "Бангуми",
-
-	[Key.recentMoments]: "Недавние обновления",
-	[Key.portalRecentPosts]: "Недавние записи",
-	[Key.portalRecentMoments]: "Недавние обновления",
-	[Key.portalViewAll]: "Смотреть все",
-	[Key.portalViewMore]: "Ещё",
-	[Key.portalRunningDays]: "Работает",
-	[Key.portalDays]: "дней",
 
 	// Фильтр и статус Бангуми текст
 	[Key.bangumiTitle]: "Мой план группы",
@@ -154,33 +148,6 @@ export const ru: Translation = {
 	[Key.bangumiUpdatedAt]: "Время сборки",
 	[Key.bangumiDataStatic]: "Статические данные",
 
-	// Книжная полка
-	[Key.books]: "Книжная полка",
-	[Key.booksTitle]: "Моя книжная полка",
-	[Key.booksSubtitle]: "Запись чтения, делюсь красотой книг.",
-	[Key.bookshelfReading]: "Читаю",
-	[Key.bookshelfRead]: "Прочитано",
-	[Key.bookshelfWantRead]: "Хочу прочитать",
-	[Key.booksNoData]: "На полке пока нет книг",
-
-	// Фильмы и игры
-	[Key.moviesGames]: "Фильмы и игры",
-	[Key.moviesGamesTitle]: "Фильмы и игры",
-	[Key.moviesGamesSubtitle]: "Фильмы, сериалы и игры, которые мне понравились.",
-	[Key.moviesGamesTabAll]: "Все",
-	[Key.moviesGamesTabMovie]: "Фильмы",
-	[Key.moviesGamesTabTV]: "Сериалы",
-	[Key.moviesGamesTabAnime]: "Аниме",
-	[Key.moviesGamesTabDocumentary]: "Документальные",
-	[Key.moviesGamesTabGame]: "Игры",
-	[Key.moviesGamesNoData]: "Пока нет контента",
-
-	// Музыка
-	[Key.musicPage]: "Музыка",
-	[Key.musicPageTitle]: "Моя музыка",
-	[Key.musicPageSubtitle]: "Музыка, которую я люблю, истории в мелодиях.",
-	[Key.musicPageNoData]: "Пока нет музыкальных записей",
-
 	// Пагинация
 	[Key.paginationFirst]: "Первая",
 	[Key.paginationPrev]: "Предыдущая",
@@ -240,6 +207,15 @@ export const ru: Translation = {
 	// Закреплено
 	[Key.pinned]: "Закреплено",
 
+	// Похожие статьи
+	[Key.relatedPosts]: "Похожие статьи",
+	[Key.randomPosts]: "Случайные статьи",
+	[Key.smartRecommend]: "Умный",
+	[Key.randomRecommend]: "Случайный",
+
+	// Зашифровано
+	[Key.postEncrypted]: "Эта статья зашифрована",
+
 	// Режим обоев
 	[Key.wallpaperMode]: "Режим обоев",
 	[Key.wallpaperBannerMode]: "Баннер обои",
@@ -249,7 +225,12 @@ export const ru: Translation = {
 	// Настройки баннера
 	[Key.bannerSettings]: "Настройки баннера",
 	[Key.bannerTitle]: "Заголовок главного баннера",
+	[Key.bannerCarousel]: "Карусель баннера",
 	[Key.wavesAnimation]: "Анимация волн",
+	[Key.overlaySettings]: "Настройки прозрачности",
+	[Key.overlayOpacity]: "Прозрачность обоев",
+	[Key.overlayBlur]: "Размытие фона",
+	[Key.overlayCardOpacity]: "Прозрачность карточек",
 
 	// Макет списка сообщений
 	[Key.postListLayout]: "Макет списка сообщений",
@@ -288,12 +269,19 @@ export const ru: Translation = {
 	[Key.siteStatsLastUpdate]: "Последняя активность",
 	[Key.siteStatsDaysAgo]: "{days} дней назад",
 	[Key.siteStatsDays]: "{days} дней",
-	[Key.siteStatsVisitorPrefix]: "Вы ",
-	[Key.siteStatsVisitorSuffix]: "-й посетитель. Рады встрече.",
-	[Key.siteStatsPageViewPrefix]: "Всего просмотров: ",
-	[Key.siteStatsPageViewSuffix]: "",
+	[Key.siteStatsVisitors]: "Посетители",
+	[Key.siteStatsPageViews]: "Просмотры",
 	[Key.siteStatsLoading]: "--",
-	[Key.siteHeatmap]: "Тепловая карта активности",
+	[Key.siteStatsVisitorPrefix]: "Вы",
+	[Key.siteStatsVisitorSuffix]: "-й посетитель",
+	[Key.siteStatsPageViewPrefix]: "Всего просмотров:",
+	[Key.siteStatsPageViewSuffix]: "",
+	[Key.siteStatsHoverHint]: "Наведите для подробностей",
+	[Key.siteStatsRevealLine1]:
+		"{posts} статей · {categories} категорий · {tags} тегов",
+	[Key.siteStatsRevealLine2]: "Всего {words} слов",
+	[Key.footerRunningDays]: "Работает {days} дней",
+	[Key.footerLastUpdate]: "Последнее обновление {days} дней назад",
 	[Key.today]: "Сегодня",
 
 	// Компонент календаря
@@ -325,21 +313,76 @@ export const ru: Translation = {
 	[Key.scanToRead]: "Сканируйте, чтобы прочитать",
 
 	// Конфигурация блоков коллапсируемого кода
-	[Key.codeCollapsibleShowMore]: "Показать больше",
-	[Key.codeCollapsibleShowLess]: "Показать меньше",
+	[Key.codeCollapsibleShowMore]: "Развернуть",
+	[Key.codeCollapsibleShowLess]: "Свернуть",
 	[Key.codeCollapsibleExpanded]: "Блок кода развернут",
 	[Key.codeCollapsibleCollapsed]: "Блок кода свернут",
 
-	// Похожие посты
-	[Key.relatedPosts]: "Похожие посты",
+	// Страница галереи
+	[Key.gallery]: "Галерея",
+	[Key.galleryDescription]: "Запечатлеть прекрасные моменты жизни",
+	[Key.galleryPhotos]: "фото",
+	[Key.galleryAlbums]: "альбомов",
+	[Key.galleryNoAlbums]: "Пока нет альбомов",
+	[Key.galleryBackToAlbums]: "Вернуться к альбомам",
+	[Key.galleryLocalAlbum]: "Локальный альбом",
+	[Key.galleryNetworkAlbum]: "Сетевой альбом",
+	[Key.galleryCategory]: "Категория",
+	[Key.galleryQuantity]: "Количество",
+	[Key.galleryRandomFetch]: "Случайный запрос",
+	[Key.galleryFetching]: "Загрузка...",
+	[Key.galleryFetchError]: "Ошибка загрузки, попробуйте снова",
+	[Key.galleryNoImages]: "Нет изображений, нажмите кнопку выше для загрузки",
 
-	// Карточка приветствия
-	[Key.welcomeCardLocation]: "далека",
-	[Key.welcomeCardGreeting]: "!",
-	[Key.welcomeCardRecentUpdates]: "Последние обновления:",
-	[Key.welcomeCardFlipHint]: "Нажмите, чтобы перевернуть",
-	[Key.welcomeCardDragHint]: "Перетащите, чтобы закрыть",
-	[Key.welcomeCardClose]: "Закрыть",
-	[Key.welcomeCardLearnMore]: "Подробнее",
-	[Key.welcomeCardRecentLabel]: "Последние обновления",
+	// Страница коллекций API
+	[Key.collections]: "Коллекции",
+	[Key.collectionsDescription]: "Сбор и управление часто используемыми API",
+	[Key.collectionsEmpty]: "Нет сохранённых API",
+	[Key.collectionsCopy]: "Копировать ссылку",
+	[Key.collectionsCopied]: "Скопировано",
+
+	// Страница статистики
+	[Key.stats]: "Статистика",
+	[Key.statsDescription]: "Статистика и аналитика сайта",
+	[Key.statsDeveloping]: "В разработке",
+	[Key.statsDevelopingDesc]:
+		"Эта страница находится в разработке, следите за обновлениями",
+
+	// Защита паролем
+	[Key.passwordProtected]: "Защищено паролем",
+	[Key.passwordProtectedDesc]:
+		"Эта статья защищена паролем. Пожалуйста, введите пароль для просмотра содержимого.",
+	[Key.passwordHint]: "Подсказка",
+	[Key.passwordPlaceholder]: "Введите пароль",
+	[Key.passwordSubmit]: "Разблокировать",
+	[Key.passwordError]: "Неверный пароль, попробуйте снова.",
+	[Key.passwordProtectedRss]:
+		"Эта статья зашифрована. Пожалуйста, посетите сайт для просмотра.",
+
+	// Календарь
+	[Key.calendar]: "Календарь",
+	[Key.Fhome]: "Фэйби Цзюби",
+	[Key.Fnote]: "番茄笔记",
+	[Key.contactMe]: "Связаться",
+	[Key.qqGroup]: "QQ Группа",
+	[Key.navPosts]: "Статьи",
+	[Key.navMy]: "Моё",
+	[Key.calendarDescription]:
+		"Праздники, дни рождения, события и публикации в одном месте",
+	[Key.calendarToday]: "Сегодня",
+	[Key.calendarTomorrow]: "Завтра",
+	[Key.calendarDaysLater]: "Через {n} дн.",
+	[Key.calendarBirthday]: "День рождения",
+	[Key.calendarHoliday]: "Праздник",
+	[Key.calendarSchedule]: "События",
+	[Key.calendarPost]: "Пост",
+	[Key.calendarLunar]: "Лунный",
+	[Key.calendarUpcoming]: "Скоро",
+	[Key.calendarTodayEvents]: "Сегодня",
+	[Key.calendarNoEvents]: "На этот день нет событий",
+	[Key.calendarMore]: "ещё {n}",
+	[Key.calendarBackToToday]: "К сегодня",
+	[Key.calendarNearestHoliday]: "Ближайшие праздники",
+	[Key.calendarNearestBirthday]: "Ближайшие дни рождения",
+	[Key.calendarNearestSchedule]: "Ближайшие события",
 };

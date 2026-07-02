@@ -5,7 +5,7 @@ export const fontConfig = {
 	// 是否预加载字体文件
 	preload: true,
 	// 当前选择的字体，支持多个字体组合
-	selected: ["aazongyiyuan"],
+	selected: ["aazongyiyuan"] as string[],
 
 	// 字体列表
 	// 推荐使用可靠的 CDN 服务商提供的字体链接，它天然做了按需分片加载，且性能较好
@@ -22,6 +22,15 @@ export const fontConfig = {
 				"system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif",
 		},
 
+		// Google Fonts - Inter
+		inter: {
+			id: "inter",
+			name: "Inter",
+			src: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap",
+			family: "Inter",
+			display: "swap" as const,
+		},
+
 		// Aa综艺圆
 		aazongyiyuan: {
 			id: "aazongyiyuan",
@@ -32,24 +41,6 @@ export const fontConfig = {
 			display: "swap" as const,
 		},
 
-		// Google Fonts - Zen Maru Gothic
-		"zen-maru-gothic": {
-			id: "zen-maru-gothic",
-			name: "Zen Maru Gothic",
-			src: "https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@300;400;500;700;900&display=swap",
-			family: "Zen Maru Gothic",
-			display: "swap" as const,
-		},
-
-		// Google Fonts - Inter
-		inter: {
-			id: "inter",
-			name: "Inter",
-			src: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap",
-			family: "Inter",
-			display: "swap" as const,
-		},
-
 		// 小米字体 - MiSans Normal
 		"misans-normal": {
 			id: "misans-normal",
@@ -57,25 +48,6 @@ export const fontConfig = {
 			src: "https://unpkg.com/misans@4.1.0/lib/Normal/MiSans-Normal.min.css",
 			family: "MiSans",
 			weight: 400,
-			display: "swap" as const,
-		},
-
-		// ===== 添加 Chiron GoRound TC VF 字体 =====
-		"chiron-goround": {
-			id: "chiron-goround",
-			name: "Chiron GoRound TC VF",
-			// ZeoSeven CDN 链接
-			src: "https://fontsapi.zeoseven.com/545/main/result.css",
-			family: "Chiron GoRound TC VF",
-			display: "swap" as const,
-		},
-
-		// ===== 添加 STDongGuanTi 字体 =====
-		stdongguanti: {
-			id: "stdongguanti",
-			name: "STDongGuanTi",
-			src: "https://fontsapi.zeoseven.com/488/main/result.css",
-			family: "STDongGuanTi",
 			display: "swap" as const,
 		},
 
@@ -108,5 +80,5 @@ export const fontConfig = {
 		"Segoe UI",
 		"Roboto",
 		"sans-serif",
-	],
+	] as string[],
 };
