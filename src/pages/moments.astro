@@ -95,7 +95,7 @@ const editorInitialItems = moments.map((m) => {
 
   <!-- 说说编辑器（Svelte 组件，保留编辑功能） -->
   <div data-no-swup>
-    <MomentsEditor client:only initialItems={editorInitialItems} />
+    <MomentsEditor client:only initialItems={editorInitialItems} configPath="src/config/momentsConfig.ts" configExportName="momentsConfig" />
   </div>
 
   <!-- 置顶说说（始终渲染容器，JS 可动态追加外部置顶） -->
