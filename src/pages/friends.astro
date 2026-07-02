@@ -60,11 +60,10 @@ const description =
           }
         </div>
         <div class="page-header-toolbar-slot flex-shrink-0 flex items-center gap-2 flex-wrap">
-            {
-              friendsPageConfig.applyLink && (
+            {friendsPageConfig.applyLink && (
                 <button
                   data-open-friend-rules
-                  class="edit-toolbar-btn px-3 py-1.5 rounded-lg border border-neutral-900 dark:border-neutral-100 text-neutral-900 dark:text-neutral-100 hover:bg-neutral-900 hover:text-neutral-100 dark:hover:bg-neutral-100 dark:hover:text-neutral-900 transition-colors duration-200 text-xs font-medium flex items-center gap-1.5 cursor-pointer"
+                  class="edit-main-btn-style px-3 py-1.5 rounded-lg border border-neutral-900 dark:border-neutral-100 text-neutral-900 dark:text-neutral-100 hover:bg-neutral-900 hover:text-neutral-100 dark:hover:bg-neutral-100 dark:hover:text-neutral-900 transition-colors duration-200 font-medium flex items-center gap-1.5 cursor-pointer"
                 >
                   <Icon name="material-symbols:help-outline-rounded" class="text-base" />
                   如何申请友链
@@ -108,29 +107,43 @@ const description =
 </MainGridLayout>
 
 <style>
-  /* 确保工具栏按钮高度一致 */
-  .edit-toolbar-btn,
-  .page-header-toolbar-slot button {
-    height: 32px !important;
+  /* 完全复制 EditToolbar 中 .edit-main-btn 的样式 */
+  .edit-main-btn-style {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 0.9);
+    background: transparent;
+    color: rgba(0, 0, 0, 0.9);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    white-space: nowrap;
+    line-height: 1;
+    height: 32px;
     box-sizing: border-box;
-    line-height: 1 !important;
-    vertical-align: middle;
-    font-size: 13px !important;       /* 统一字体大小 */
-    padding: 6px 12px !important;     /* 统一内边距 */
   }
 
-  /* 特别针对 EditToolbar 中的按钮，确保样式一致 */
-  .page-header-toolbar-slot .edit-main-btn,
-  .page-header-toolbar-slot .edit-btn {
-    padding: 6px 12px !important;
-    font-size: 13px !important;
+  .edit-main-btn-style:hover {
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+  }
+
+  :global(.dark) .edit-main-btn-style {
+    border-color: rgba(255, 255, 255, 0.9);
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  :global(.dark) .edit-main-btn-style:hover {
+    background: rgba(255, 255, 255, 0.9);
+    color: rgba(0, 0, 0, 0.9);
   }
 
   /* 确保图标垂直居中 */
-  .edit-toolbar-btn iconify-icon,
-  .edit-toolbar-btn Icon,
-  .page-header-toolbar-slot button iconify-icon,
-  .page-header-toolbar-slot button Icon {
+  .edit-main-btn-style Icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
