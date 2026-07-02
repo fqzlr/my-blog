@@ -110,14 +110,6 @@ const description =
     </div>
   )}
 
-  <!-- 审核按钮（左下角） -->
-  <div class="review-button-container">
-    <a href="/friends/review" class="review-btn">
-      <Icon name="material-symbols:checklist-rounded" class="text-base" />
-      审核友链申请
-    </a>
-  </div>
-
   <!-- 友链申请指南弹窗 -->
   <FriendRulesModal applyLink={friendsPageConfig.applyLink} />
 
@@ -185,44 +177,5 @@ const description =
     .page-header-toolbar-slot {
       width: 100%;
     }
-  }
-
-  /* 左下角审核按钮 */
-  .review-button-container {
-    position: fixed;
-    bottom: 2rem;
-    left: 2rem;
-    z-index: 50;
-  }
-
-  .review-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.25rem;
-    background: oklch(0.95 0.02 240);
-    color: oklch(0.3 0.05 240);
-    border-radius: var(--radius-large);
-    font-weight: 500;
-    text-decoration: none;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    transition: all 0.2s ease;
-  }
-
-  .review-btn:hover {
-    background: oklch(0.9 0.03 240);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transform: translateY(-2px);
-  }
-
-  :root:global(.dark .review-btn) {
-    background: oklch(0.25 0.02 240);
-    color: oklch(0.9 0.03 240);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  }
-
-  :root:global(.dark .review-btn:hover) {
-    background: oklch(0.3 0.03 240);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   }
 </style>

@@ -218,18 +218,25 @@ async function handleSubmit() {
 
 		<!-- 底部按钮 -->
 		<div class="fa-footer">
-			<button type="button" class="fa-btn fa-btn-cancel" onclick={closeModal} disabled={submitting}>
-				取消
-			</button>
-			<button type="submit" class="fa-btn fa-btn-submit" disabled={submitting} onclick={handleSubmit}>
-				{#if submitting}
-					<iconify-icon icon="material-symbols:progress-activity-rounded" class="animate-spin"></iconify-icon>
-					提交中...
-				{:else}
-					<iconify-icon icon="material-symbols:send-rounded"></iconify-icon>
-					提交申请
-				{/if}
-			</button>
+			<!-- 左下角审核按钮（仅管理员可见） -->
+			<a href="/friends/review" class="fa-btn fa-btn-review">
+				<iconify-icon icon="material-symbols:checklist-rounded"></iconify-icon>
+				审核申请
+			</a>
+			<div class="fa-footer-right">
+				<button type="button" class="fa-btn fa-btn-cancel" onclick={closeModal} disabled={submitting}>
+					取消
+				</button>
+				<button type="submit" class="fa-btn fa-btn-submit" disabled={submitting} onclick={handleSubmit}>
+					{#if submitting}
+						<iconify-icon icon="material-symbols:progress-activity-rounded" class="animate-spin"></iconify-icon>
+						提交中...
+					{:else}
+						<iconify-icon icon="material-symbols:send-rounded"></iconify-icon>
+						提交申请
+					{/if}
+				</button>
+			</div>
 		</div>
 	</div>
 </dialog>
@@ -432,8 +439,14 @@ async function handleSubmit() {
 		gap: 0.75rem;
 		padding: 1.25rem 1.5rem;
 		border-top: 1px solid var(--line-divider);
-		justify-content: flex-end;
+		justify-content: space-between;
+		align-items: center;
 		flex-shrink: 0;
+	}
+
+	.fa-footer-right {
+		display: flex;
+		gap: 0.75rem;
 	}
 
 	.fa-btn {
@@ -479,6 +492,20 @@ async function handleSubmit() {
 		background: oklch(0.85 0 0);
 		color: oklch(0.15 0 0);
 	}
+	.fa-btn-review {
+		background: oklch(0.95 0.02 240);
+		color: oklch(0.3 0.05 240);
+	}
+	.fa-btn-review:hover:not(:disabled) {
+		background: oklch(0.9 0.03 240);
+	}
+	:root.dark .fa-btn-review {
+		background: oklch(0.25 0.02 240);
+		color: oklch(0.9 0.03 240);
+	}
+	:root.dark .fa-btn-review:hover:not(:disabled) {
+		background: oklch(0.3 0.03 240);
+	}
 
 	@keyframes faFadeIn {
 		from { opacity: 0; }
@@ -494,7 +521,15 @@ async function handleSubmit() {
 			max-width: calc(100% - 1.5rem);
 			max-height: 90vh;
 		}
-		.fa-footer { flex-direction: column; }
+		.fa-footer {
+			flex-direction: column;
+			gap: 0.75rem;
+		}
+		.fa-footer-right {
+			width: 100%;
+			display: flex;
+			gap: 0.75rem;
+		}
 		.fa-btn { justify-content: center; }
 	}
 </style>
