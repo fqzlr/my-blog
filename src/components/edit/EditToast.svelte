@@ -1,76 +1,77 @@
 <script lang="ts">
-	import { onMount, onDestroy } from "svelte";
+import { onMount, onDestroy } from "svelte";
 
-	interface ToastItem {
-		id: number;
+interface ToastItem {
+	id: number;
+	message: string;
+	type: "success" | "error" | "info" | "warning";
+	visible: boolean;
+}
+
+let toasts: ToastItem[] = [];
+let nextId = 0;
+
+function handleToast(e: Event) {
+	const detail = (e as CustomEvent).detail as {
 		message: string;
 		type: "success" | "error" | "info" | "warning";
-		visible: boolean;
-	}
-
-	let toasts: ToastItem[] = [];
-	let nextId = 0;
-
-	function handleToast(e: Event) {
-		const detail = (e as CustomEvent).detail as {
-			message: string;
-			type: "success" | "error" | "info" | "warning";
-		};
-		const id = nextId++;
-		toasts = [...toasts, { id, ...detail, visible: true }];
+	};
+	const id = nextId++;
+	toasts = [...toasts, { id, ...detail, visible: true }];
+	setTimeout(() => {
+		toasts = toasts.map((t) => (t.id === id ? { ...t, visible: false } : t));
 		setTimeout(() => {
-			toasts = toasts.map((t) => (t.id === id ? { ...t, visible: false } : t));
-			setTimeout(() => {
-				toasts = toasts.filter((t) => t.id !== id);
-			}, 300);
-		}, 3000);
-	}
+			toasts = toasts.filter((t) => t.id !== id);
+		}, 300);
+	}, 3000);
+}
 
-	onMount(() => {
-		if (typeof window !== "undefined") {
-			window.addEventListener("edit-mode:toast", handleToast);
-			// 动态加载 Iconify 浏览器脚本（仅加载一次）
-			if (!(window as any)._iconifyLoaded) {
-				(window as any)._iconifyLoaded = true;
-				const script = document.createElement("script");
-				script.src = "https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js";
-				script.async = true;
-				document.head.appendChild(script);
-			}
-		}
-	});
-
-	onDestroy(() => {
-		if (typeof window !== "undefined") {
-			window.removeEventListener("edit-mode:toast", handleToast);
-		}
-	});
-
-	function getIcon(type: string) {
-		switch (type) {
-			case "success":
-				return "material-symbols:check-circle-rounded";
-			case "error":
-				return "material-symbols:error-circle-rounded";
-			case "warning":
-				return "material-symbols:warning-rounded";
-			default:
-				return "material-symbols:info-rounded";
+onMount(() => {
+	if (typeof window !== "undefined") {
+		window.addEventListener("edit-mode:toast", handleToast);
+		// 动态加载 Iconify 浏览器脚本（仅加载一次）
+		if (!(window as any)._iconifyLoaded) {
+			(window as any)._iconifyLoaded = true;
+			const script = document.createElement("script");
+			script.src =
+				"https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js";
+			script.async = true;
+			document.head.appendChild(script);
 		}
 	}
+});
 
-	function getColorClass(type: string) {
-		switch (type) {
-			case "success":
-				return "bg-emerald-500";
-			case "error":
-				return "bg-red-500";
-			case "warning":
-				return "bg-amber-500";
-			default:
-				return "bg-blue-500";
-		}
+onDestroy(() => {
+	if (typeof window !== "undefined") {
+		window.removeEventListener("edit-mode:toast", handleToast);
 	}
+});
+
+function getIcon(type: string) {
+	switch (type) {
+		case "success":
+			return "material-symbols:check-circle-rounded";
+		case "error":
+			return "material-symbols:error-circle-rounded";
+		case "warning":
+			return "material-symbols:warning-rounded";
+		default:
+			return "material-symbols:info-rounded";
+	}
+}
+
+function getColorClass(type: string) {
+	switch (type) {
+		case "success":
+			return "bg-emerald-500";
+		case "error":
+			return "bg-red-500";
+		case "warning":
+			return "bg-amber-500";
+		default:
+			return "bg-blue-500";
+	}
+}
 </script>
 
 <div class="toast-container">

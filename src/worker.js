@@ -14,7 +14,10 @@ export default {
 			return handleAIChat(request, env);
 		}
 
-		if (url.pathname === "/api/github" || url.pathname.startsWith("/api/github/")) {
+		if (
+			url.pathname === "/api/github" ||
+			url.pathname.startsWith("/api/github/")
+		) {
 			return handleGithubProxy(request, env);
 		}
 

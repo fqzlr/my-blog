@@ -1,434 +1,498 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import EditToolbar from "./EditToolbar.svelte";
-  import EditToast from "./EditToast.svelte";
-  import { marked } from "marked";
-  import {
-    hasValidToken,
-    showToast,
-    ensureIconify,
-    getRepoFile,
-    updateRepoFile,
-    createRepoFile,
-    deleteRepoFile,
-    genId,
-    deepClone,
-    registerSubmitHandler,
-  } from "@/utils/editMode";
-  import { setupRepoDrafts } from "@/utils/draftHelpers";
-  import { repoConfig } from "@/config/editConfig";
+import { onMount } from "svelte";
+import EditToolbar from "./EditToolbar.svelte";
+import EditToast from "./EditToast.svelte";
+import { marked } from "marked";
+import {
+	hasValidToken,
+	showToast,
+	ensureIconify,
+	getRepoFile,
+	updateRepoFile,
+	createRepoFile,
+	deleteRepoFile,
+	genId,
+	deepClone,
+	registerSubmitHandler,
+} from "@/utils/editMode";
+import { setupRepoDrafts } from "@/utils/draftHelpers";
+import { repoConfig } from "@/config/editConfig";
 
-  interface ChangelogEntry {
-    id: string;
-    slug: string;
-    version: string;
-    date: string;
-    type: string;
-    description: string;
-    body: string;
-    sha?: string;
-    _draft?: boolean;
-    _deleted?: boolean;
-    _newMd?: string;
-  }
+interface ChangelogEntry {
+	id: string;
+	slug: string;
+	version: string;
+	date: string;
+	type: string;
+	description: string;
+	body: string;
+	sha?: string;
+	_draft?: boolean;
+	_deleted?: boolean;
+	_newMd?: string;
+}
 
-  const typeOptions = [
-    { value: "feature", label: "新功能", icon: "material-symbols:rocket-launch", color: "#3b82f6" },
-    { value: "improvement", label: "改进", icon: "material-symbols:build", color: "#f59e0b" },
-    { value: "fix", label: "修复", icon: "material-symbols:bug-report", color: "#22c55e" },
-    { value: "removal", label: "移除", icon: "material-symbols:delete", color: "#ef4444" },
-  ];
+const typeOptions = [
+	{
+		value: "feature",
+		label: "新功能",
+		icon: "material-symbols:rocket-launch",
+		color: "#3b82f6",
+	},
+	{
+		value: "improvement",
+		label: "改进",
+		icon: "material-symbols:build",
+		color: "#f59e0b",
+	},
+	{
+		value: "fix",
+		label: "修复",
+		icon: "material-symbols:bug-report",
+		color: "#22c55e",
+	},
+	{
+		value: "removal",
+		label: "移除",
+		icon: "material-symbols:delete",
+		color: "#ef4444",
+	},
+];
 
-  let editMode = $state(false);
-  let saving = $state(false);
-  let entries = $state<ChangelogEntry[]>([]);
-  let originalEntries = $state<ChangelogEntry[]>([]);
-  let originalEntriesJson = $state("");
-  let editingIndex = $state(-1);
-  let editPreview = $state("");
+let editMode = $state(false);
+let saving = $state(false);
+let entries = $state<ChangelogEntry[]>([]);
+let originalEntries = $state<ChangelogEntry[]>([]);
+let originalEntriesJson = $state("");
+let editingIndex = $state(-1);
+let editPreview = $state("");
 
-  const pageKey = "changelog";
-  const pageName = "更新日志";
+const pageKey = "changelog";
+const pageName = "更新日志";
 
-  function serializeEntries(): string {
-    return JSON.stringify(entries.map(e => ({
-      id: e.id, slug: e.slug, version: e.version, date: e.date,
-      type: e.type, description: e.description, body: e.body,
-      _draft: e._draft, _deleted: e._deleted,
-    })));
-  }
+function serializeEntries(): string {
+	return JSON.stringify(
+		entries.map((e) => ({
+			id: e.id,
+			slug: e.slug,
+			version: e.version,
+			date: e.date,
+			type: e.type,
+			description: e.description,
+			body: e.body,
+			_draft: e._draft,
+			_deleted: e._deleted,
+		})),
+	);
+}
 
-  function deserializeEntries(json: string) {
-    try {
-      const parsed = JSON.parse(json);
-      if (Array.isArray(parsed)) {
-        entries = parsed.map((e: any) => ({
-          id: e.id || genId("cl"),
-          slug: e.slug || "",
-          version: e.version || "",
-          date: e.date || new Date().toISOString().slice(0, 10),
-          type: e.type || "improvement",
-          description: e.description || "",
-          body: e.body || "",
-          sha: e.sha,
-          _draft: !!e._draft,
-          _deleted: !!e._deleted,
-        }));
-      }
-    } catch {}
-  }
+function deserializeEntries(json: string) {
+	try {
+		const parsed = JSON.parse(json);
+		if (Array.isArray(parsed)) {
+			entries = parsed.map((e: any) => ({
+				id: e.id || genId("cl"),
+				slug: e.slug || "",
+				version: e.version || "",
+				date: e.date || new Date().toISOString().slice(0, 10),
+				type: e.type || "improvement",
+				description: e.description || "",
+				body: e.body || "",
+				sha: e.sha,
+				_draft: !!e._draft,
+				_deleted: !!e._deleted,
+			}));
+		}
+	} catch {}
+}
 
-  const drafts = setupRepoDrafts({
-    pageKey,
-    pageName,
-    getContent: () => serializeEntries(),
-    setContent: (v) => deserializeEntries(v),
-    getPath: () => "changelog-entries",
-    getSha: () => null,
-    setSha: () => {},
-    getOriginalContent: () => originalEntriesJson,
-    setOriginalContent: () => {},
-    getCommitMsg: () => "chore(changelog): 更新日志",
-    onSubmitted: () => {
-      setTimeout(() => window.location.reload(), 1200);
-    },
-  });
-  let hasChanges = $derived(drafts.hasLocalChanges());
+const drafts = setupRepoDrafts({
+	pageKey,
+	pageName,
+	getContent: () => serializeEntries(),
+	setContent: (v) => deserializeEntries(v),
+	getPath: () => "changelog-entries",
+	getSha: () => null,
+	setSha: () => {},
+	getOriginalContent: () => originalEntriesJson,
+	setOriginalContent: () => {},
+	getCommitMsg: () => "chore(changelog): 更新日志",
+	onSubmitted: () => {
+		setTimeout(() => window.location.reload(), 1200);
+	},
+});
+let hasChanges = $derived(drafts.hasLocalChanges());
 
-  function getTypeInfo(type: string) {
-    return typeOptions.find(t => t.value === type) || typeOptions[1];
-  }
+function getTypeInfo(type: string) {
+	return typeOptions.find((t) => t.value === type) || typeOptions[1];
+}
 
-  onMount(() => {
-    ensureIconify();
-    collectFromDOM();
-    originalEntriesJson = serializeEntries();
-    drafts.restoreFromDrafts();
-  });
+onMount(() => {
+	ensureIconify();
+	collectFromDOM();
+	originalEntriesJson = serializeEntries();
+	drafts.restoreFromDrafts();
+});
 
-  function htmlToMarkdown(html: string): string {
-    if (!html) return "";
-    return html
-      .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, "## $1\n")
-      .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, "### $1\n")
-      .replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, "#### $1\n")
-      .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, "$1\n")
-      .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, "**$1**")
-      .replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, "**$1**")
-      .replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, "*$1*")
-      .replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, "*$1*")
-      .replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, "`$1`")
-      .replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, "[$2]($1)")
-      .replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, "$1")
-      .replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, "$1")
-      .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "- $1\n")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<hr\s*\/?>/gi, "---\n")
-      .replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, "> $1\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/&nbsp;/g, " ")
-      .replace(/&lt;/g, "<")
-      .replace(/&gt;/g, ">")
-      .replace(/&amp;/g, "&")
-      .replace(/&quot;/g, '"')
-      .trim();
-  }
+function htmlToMarkdown(html: string): string {
+	if (!html) return "";
+	return html
+		.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, "## $1\n")
+		.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, "### $1\n")
+		.replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, "#### $1\n")
+		.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, "$1\n")
+		.replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, "**$1**")
+		.replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, "**$1**")
+		.replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, "*$1*")
+		.replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, "*$1*")
+		.replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, "`$1`")
+		.replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, "[$2]($1)")
+		.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, "$1")
+		.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, "$1")
+		.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "- $1\n")
+		.replace(/<br\s*\/?>/gi, "\n")
+		.replace(/<hr\s*\/?>/gi, "---\n")
+		.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, "> $1\n")
+		.replace(/<[^>]+>/g, "")
+		.replace(/&nbsp;/g, " ")
+		.replace(/&lt;/g, "<")
+		.replace(/&gt;/g, ">")
+		.replace(/&amp;/g, "&")
+		.replace(/&quot;/g, '"')
+		.trim();
+}
 
-  function collectFromDOM() {
-    const timeline = document.getElementById("cl-timeline");
-    if (!timeline) return;
-    const result: ChangelogEntry[] = [];
-    timeline.querySelectorAll<HTMLElement>(".cl-entry").forEach((el) => {
-      const slug = el.dataset.slug || "";
-      if (!slug) return;
-      const type = el.dataset.type || "improvement";
-      const version = el.querySelector(".cl-entry-version")?.textContent?.trim() || "";
-      const timeEl = el.querySelector("time");
-      const date = (timeEl?.getAttribute("datetime") || "").slice(0, 10);
-      const description = el.querySelector(".cl-entry-text")?.textContent?.trim() || "";
-      const contentEl = el.querySelector(".cl-entry-content");
-      const bodyHtml = contentEl?.innerHTML || "";
-      const body = htmlToMarkdown(bodyHtml);
-      result.push({
-        id: slug,
-        slug,
-        version,
-        date,
-        type,
-        description,
-        body,
-      });
-    });
-    entries = result;
-    originalEntries = deepClone(result);
-  }
+function collectFromDOM() {
+	const timeline = document.getElementById("cl-timeline");
+	if (!timeline) return;
+	const result: ChangelogEntry[] = [];
+	timeline.querySelectorAll<HTMLElement>(".cl-entry").forEach((el) => {
+		const slug = el.dataset.slug || "";
+		if (!slug) return;
+		const type = el.dataset.type || "improvement";
+		const version =
+			el.querySelector(".cl-entry-version")?.textContent?.trim() || "";
+		const timeEl = el.querySelector("time");
+		const date = (timeEl?.getAttribute("datetime") || "").slice(0, 10);
+		const description =
+			el.querySelector(".cl-entry-text")?.textContent?.trim() || "";
+		const contentEl = el.querySelector(".cl-entry-content");
+		const bodyHtml = contentEl?.innerHTML || "";
+		const body = htmlToMarkdown(bodyHtml);
+		result.push({
+			id: slug,
+			slug,
+			version,
+			date,
+			type,
+			description,
+			body,
+		});
+	});
+	entries = result;
+	originalEntries = deepClone(result);
+}
 
-  function hideSSRContent() {
-    const timeline = document.getElementById("cl-timeline");
-    const filterBar = document.getElementById("cl-filter-bar");
-    if (timeline) (timeline as HTMLElement).style.display = "none";
-    if (filterBar) (filterBar as HTMLElement).style.display = "none";
-  }
+function hideSSRContent() {
+	const timeline = document.getElementById("cl-timeline");
+	const filterBar = document.getElementById("cl-filter-bar");
+	if (timeline) (timeline as HTMLElement).style.display = "none";
+	if (filterBar) (filterBar as HTMLElement).style.display = "none";
+}
 
-  function showSSRContent() {
-    const timeline = document.getElementById("cl-timeline");
-    const filterBar = document.getElementById("cl-filter-bar");
-    if (timeline) (timeline as HTMLElement).style.display = "";
-    if (filterBar) (filterBar as HTMLElement).style.display = "";
-  }
+function showSSRContent() {
+	const timeline = document.getElementById("cl-timeline");
+	const filterBar = document.getElementById("cl-filter-bar");
+	if (timeline) (timeline as HTMLElement).style.display = "";
+	if (filterBar) (filterBar as HTMLElement).style.display = "";
+}
 
-  function handleModeChange(e: CustomEvent) {
-    editMode = e.detail.editing;
-    if (editMode) {
-      hideSSRContent();
-      editingIndex = -1;
-    } else {
-      showSSRContent();
-    }
-  }
+function handleModeChange(e: CustomEvent) {
+	editMode = e.detail.editing;
+	if (editMode) {
+		hideSSRContent();
+		editingIndex = -1;
+	} else {
+		showSSRContent();
+	}
+}
 
-  function handleCancel() {
-    entries = deepClone(originalEntries);
-    editingIndex = -1;
-    drafts.clearDrafts();
-    showSSRContent();
-  }
+function handleCancel() {
+	entries = deepClone(originalEntries);
+	editingIndex = -1;
+	drafts.clearDrafts();
+	showSSRContent();
+}
 
-  function startEdit(index: number) {
-    editingIndex = index;
-    updatePreview(index);
-  }
+function startEdit(index: number) {
+	editingIndex = index;
+	updatePreview(index);
+}
 
-  function updatePreview(index: number) {
-    const e = entries[index];
-    if (!e) { editPreview = ""; return; }
-    try {
-      editPreview = marked.parse(e.body || "", { gfm: true, breaks: true }) as string;
-    } catch {
-      editPreview = e.body || "";
-    }
-  }
+function updatePreview(index: number) {
+	const e = entries[index];
+	if (!e) {
+		editPreview = "";
+		return;
+	}
+	try {
+		editPreview = marked.parse(e.body || "", {
+			gfm: true,
+			breaks: true,
+		}) as string;
+	} catch {
+		editPreview = e.body || "";
+	}
+}
 
-  function updateField(index: number, field: keyof ChangelogEntry, value: string) {
-    entries[index] = { ...entries[index], [field]: value };
-    entries = [...entries];
-    if (field === "body") {
-      updatePreview(index);
-    }
-  }
+function updateField(
+	index: number,
+	field: keyof ChangelogEntry,
+	value: string,
+) {
+	entries[index] = { ...entries[index], [field]: value };
+	entries = [...entries];
+	if (field === "body") {
+		updatePreview(index);
+	}
+}
 
-  function finishEdit(index: number) {
-    const e = entries[index];
-    if (!e.version.trim()) {
-      showToast("版本号不能为空", "warning");
-      return;
-    }
-    if (!e.description.trim()) {
-      showToast("更新简述不能为空", "warning");
-      return;
-    }
-    editingIndex = -1;
+function finishEdit(index: number) {
+	const e = entries[index];
+	if (!e.version.trim()) {
+		showToast("版本号不能为空", "warning");
+		return;
+	}
+	if (!e.description.trim()) {
+		showToast("更新简述不能为空", "warning");
+		return;
+	}
+	editingIndex = -1;
 
-    showToast("已修改，记得点击保存", "info");
-  }
+	showToast("已修改，记得点击保存", "info");
+}
 
-  function cancelItemEdit(index: number) {
-    const e = entries[index];
-    if (e._draft && !e.version.trim()) {
-      entries = entries.filter((_, i) => i !== index);
-    } else {
-      const orig = originalEntries.find(o => o.slug === e.slug && !e._draft);
-      if (orig) {
-        entries[index] = deepClone(orig);
-        entries = [...entries];
-      }
-    }
-    editingIndex = -1;
-  }
+function cancelItemEdit(index: number) {
+	const e = entries[index];
+	if (e._draft && !e.version.trim()) {
+		entries = entries.filter((_, i) => i !== index);
+	} else {
+		const orig = originalEntries.find((o) => o.slug === e.slug && !e._draft);
+		if (orig) {
+			entries[index] = deepClone(orig);
+			entries = [...entries];
+		}
+	}
+	editingIndex = -1;
+}
 
-  function deleteItem(index: number) {
-    const e = entries[index];
-    if (!confirm(`确定要删除「${e.version || "该条目"}」吗？`)) return;
-    if (e._draft) {
-      entries = entries.filter((_, i) => i !== index);
-    } else {
-      entries[index] = { ...entries[index], _deleted: true };
-      entries = [...entries];
-    }
+function deleteItem(index: number) {
+	const e = entries[index];
+	if (!confirm(`确定要删除「${e.version || "该条目"}」吗？`)) return;
+	if (e._draft) {
+		entries = entries.filter((_, i) => i !== index);
+	} else {
+		entries[index] = { ...entries[index], _deleted: true };
+		entries = [...entries];
+	}
 
-    if (editingIndex === index) editingIndex = -1;
-    else if (editingIndex > index) editingIndex--;
-    showToast("已标记删除，记得点击保存", "info");
-  }
+	if (editingIndex === index) editingIndex = -1;
+	else if (editingIndex > index) editingIndex--;
+	showToast("已标记删除，记得点击保存", "info");
+}
 
-  function moveUp(index: number) {
-    if (index <= 0) return;
-    const arr = [...entries];
-    [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
-    entries = arr;
+function moveUp(index: number) {
+	if (index <= 0) return;
+	const arr = [...entries];
+	[arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+	entries = arr;
 
-    if (editingIndex === index) editingIndex = index - 1;
-    else if (editingIndex === index - 1) editingIndex = index;
-  }
+	if (editingIndex === index) editingIndex = index - 1;
+	else if (editingIndex === index - 1) editingIndex = index;
+}
 
-  function moveDown(index: number) {
-    if (index >= entries.length - 1) return;
-    const arr = [...entries];
-    [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
-    entries = arr;
+function moveDown(index: number) {
+	if (index >= entries.length - 1) return;
+	const arr = [...entries];
+	[arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+	entries = arr;
 
-    if (editingIndex === index) editingIndex = index + 1;
-    else if (editingIndex === index + 1) editingIndex = index;
-  }
+	if (editingIndex === index) editingIndex = index + 1;
+	else if (editingIndex === index + 1) editingIndex = index;
+}
 
-  function restoreItem(index: number) {
-    entries[index] = { ...entries[index], _deleted: false };
-    entries = [...entries];
+function restoreItem(index: number) {
+	entries[index] = { ...entries[index], _deleted: false };
+	entries = [...entries];
+}
 
-  }
+function handleAdd() {
+	const today = new Date().toISOString().slice(0, 10);
+	const newEntry: ChangelogEntry = {
+		id: genId("cl"),
+		slug: "",
+		version: "",
+		date: today,
+		type: "improvement",
+		description: "",
+		body: "",
+		_draft: true,
+	};
+	entries = [newEntry, ...entries];
+	editingIndex = 0;
 
-  function handleAdd() {
-    const today = new Date().toISOString().slice(0, 10);
-    const newEntry: ChangelogEntry = {
-      id: genId("cl"),
-      slug: "",
-      version: "",
-      date: today,
-      type: "improvement",
-      description: "",
-      body: "",
-      _draft: true,
-    };
-    entries = [newEntry, ...entries];
-    editingIndex = 0;
+	editPreview = "";
+}
 
-    editPreview = "";
-  }
+function slugify(text: string): string {
+	return (
+		text
+			.toLowerCase()
+			.trim()
+			.replace(/[\s]+/g, "-")
+			.replace(/[^\w\u4e00-\u9fa5-]/g, "")
+			.replace(/-+/g, "-")
+			.replace(/^-|-$/g, "") || "entry"
+	);
+}
 
-  function slugify(text: string): string {
-    return text
-      .toLowerCase()
-      .trim()
-      .replace(/[\s]+/g, "-")
-      .replace(/[^\w\u4e00-\u9fa5-]/g, "")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "") || "entry";
-  }
+function buildChangelogMd(e: ChangelogEntry): string {
+	const lines = ["---"];
+	lines.push(`version: "${e.version.replace(/"/g, '\\"')}"`);
+	lines.push(`date: ${e.date}`);
+	lines.push(`type: ${e.type}`);
+	if (e.description) {
+		lines.push(`description: "${e.description.replace(/"/g, '\\"')}"`);
+	}
+	lines.push("---");
+	lines.push("");
+	lines.push(e.body.trim());
+	lines.push("");
+	return lines.join("\n");
+}
 
-  function buildChangelogMd(e: ChangelogEntry): string {
-    const lines = ["---"];
-    lines.push(`version: "${e.version.replace(/"/g, '\\"')}"`);
-    lines.push(`date: ${e.date}`);
-    lines.push(`type: ${e.type}`);
-    if (e.description) {
-      lines.push(`description: "${e.description.replace(/"/g, '\\"')}"`);
-    }
-    lines.push("---");
-    lines.push("");
-    lines.push(e.body.trim());
-    lines.push("");
-    return lines.join("\n");
-  }
+async function submitEntries(
+	entriesToSubmit: ChangelogEntry[],
+): Promise<boolean> {
+	let allOk = true;
 
-  async function submitEntries(entriesToSubmit: ChangelogEntry[]): Promise<boolean> {
-    let allOk = true;
+	for (let i = 0; i < entriesToSubmit.length; i++) {
+		const entry = entriesToSubmit[i];
+		if (entry._deleted) {
+			if (entry.slug && !entry._draft) {
+				const filePath = `src/content/changelog/${entry.slug}.md`;
+				const file = await getRepoFile(filePath, repoConfig);
+				if (file && file.sha) {
+					const ok = await deleteRepoFile(
+						filePath,
+						file.sha,
+						`chore(changelog): remove ${entry.slug}`,
+						repoConfig,
+					);
+					if (!ok) allOk = false;
+				}
+			}
+			continue;
+		}
 
-    for (let i = 0; i < entriesToSubmit.length; i++) {
-      const entry = entriesToSubmit[i];
-      if (entry._deleted) {
-        if (entry.slug && !entry._draft) {
-          const filePath = `src/content/changelog/${entry.slug}.md`;
-          const file = await getRepoFile(filePath, repoConfig);
-          if (file && file.sha) {
-            const ok = await deleteRepoFile(filePath, file.sha, `chore(changelog): remove ${entry.slug}`, repoConfig);
-            if (!ok) allOk = false;
-          }
-        }
-        continue;
-      }
+		const md = buildChangelogMd(entry);
+		let slug = entry.slug;
 
-      const md = buildChangelogMd(entry);
-      let slug = entry.slug;
+		if (entry._draft || !slug) {
+			slug = `${entry.date}-${slugify(entry.version + " " + entry.description).slice(0, 30)}`;
+			const filePath = `src/content/changelog/${slug}.md`;
+			const ok = await createRepoFile(
+				filePath,
+				md,
+				`chore(changelog): add ${slug}`,
+				repoConfig,
+			);
+			if (!ok) allOk = false;
+		} else {
+			const filePath = `src/content/changelog/${slug}.md`;
+			let sha = entry.sha;
+			if (!sha) {
+				const file = await getRepoFile(filePath, repoConfig);
+				if (file) sha = file.sha;
+			}
+			if (sha) {
+				const ok = await updateRepoFile(
+					filePath,
+					md,
+					sha,
+					`chore(changelog): update ${slug}`,
+					repoConfig,
+				);
+				if (!ok) allOk = false;
+			} else {
+				const ok = await createRepoFile(
+					filePath,
+					md,
+					`chore(changelog): create ${slug}`,
+					repoConfig,
+				);
+				if (!ok) allOk = false;
+			}
+		}
+	}
 
-      if (entry._draft || !slug) {
-        slug = `${entry.date}-${slugify(entry.version + " " + entry.description).slice(0, 30)}`;
-        const filePath = `src/content/changelog/${slug}.md`;
-        const ok = await createRepoFile(filePath, md, `chore(changelog): add ${slug}`, repoConfig);
-        if (!ok) allOk = false;
-      } else {
-        const filePath = `src/content/changelog/${slug}.md`;
-        let sha = entry.sha;
-        if (!sha) {
-          const file = await getRepoFile(filePath, repoConfig);
-          if (file) sha = file.sha;
-        }
-        if (sha) {
-          const ok = await updateRepoFile(filePath, md, sha, `chore(changelog): update ${slug}`, repoConfig);
-          if (!ok) allOk = false;
-        } else {
-          const ok = await createRepoFile(filePath, md, `chore(changelog): create ${slug}`, repoConfig);
-          if (!ok) allOk = false;
-        }
-      }
-    }
+	return allOk;
+}
 
-    return allOk;
-  }
+function handleSaveDraft() {
+	drafts.saveToDrafts();
+}
 
-  function handleSaveDraft() {
-    drafts.saveToDrafts();
-  }
+async function handleSubmit() {
+	if (!hasValidToken()) {
+		showToast("GitHub 代理未配置，请联系管理员", "warning");
+		return;
+	}
+	saving = true;
+	try {
+		const ok = await submitEntries(entries);
+		if (ok) {
+			showToast("保存成功！页面将刷新以应用更改", "success");
+			drafts.clearDrafts();
+			originalEntries = deepClone(entries);
+			originalEntriesJson = serializeEntries();
+			setTimeout(() => window.location.reload(), 1200);
+		} else {
+			showToast("部分操作失败，请检查 GitHub App 权限配置", "error");
+		}
+	} catch (err) {
+		showToast("保存出错：" + (err as Error).message, "error");
+		console.error(err);
+	} finally {
+		saving = false;
+	}
+}
 
-  async function handleSubmit() {
-    if (!hasValidToken()) {
-      showToast("GitHub 代理未配置，请联系管理员", "warning");
-      return;
-    }
-    saving = true;
-    try {
-      const ok = await submitEntries(entries);
-      if (ok) {
-        showToast("保存成功！页面将刷新以应用更改", "success");
-        drafts.clearDrafts();
-        originalEntries = deepClone(entries);
-        originalEntriesJson = serializeEntries();
-        setTimeout(() => window.location.reload(), 1200);
-      } else {
-        showToast("部分操作失败，请检查 GitHub App 权限配置", "error");
-      }
-    } catch (err) {
-      showToast("保存出错：" + (err as Error).message, "error");
-      console.error(err);
-    } finally {
-      saving = false;
-    }
-  }
-
-  registerSubmitHandler(pageKey, async (draft) => {
-    if (draft.payload?.type === "repo" && draft.payload.content !== undefined) {
-      let parsedEntries: ChangelogEntry[] = [];
-      try {
-        const parsed = JSON.parse(String(draft.payload.content));
-        if (Array.isArray(parsed)) {
-          parsedEntries = parsed.map((e: any) => ({
-            id: e.id || genId("cl"),
-            slug: e.slug || "",
-            version: e.version || "",
-            date: e.date || new Date().toISOString().slice(0, 10),
-            type: e.type || "improvement",
-            description: e.description || "",
-            body: e.body || "",
-            _draft: !!e._draft,
-            _deleted: !!e._deleted,
-          }));
-        }
-      } catch {
-        return false;
-      }
-      return await submitEntries(parsedEntries);
-    }
-    return false;
-  });
+registerSubmitHandler(pageKey, async (draft) => {
+	if (draft.payload?.type === "repo" && draft.payload.content !== undefined) {
+		let parsedEntries: ChangelogEntry[] = [];
+		try {
+			const parsed = JSON.parse(String(draft.payload.content));
+			if (Array.isArray(parsed)) {
+				parsedEntries = parsed.map((e: any) => ({
+					id: e.id || genId("cl"),
+					slug: e.slug || "",
+					version: e.version || "",
+					date: e.date || new Date().toISOString().slice(0, 10),
+					type: e.type || "improvement",
+					description: e.description || "",
+					body: e.body || "",
+					_draft: !!e._draft,
+					_deleted: !!e._deleted,
+				}));
+			}
+		} catch {
+			return false;
+		}
+		return await submitEntries(parsedEntries);
+	}
+	return false;
+});
 </script>
 
 <EditToast />

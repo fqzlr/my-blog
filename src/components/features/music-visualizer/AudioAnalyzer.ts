@@ -1,16 +1,16 @@
 /**
  * @fileoverview 音频分析器模块
- * 
+ *
  * 使用 Web Audio API 对音频进行实时频谱分析，提取各频段能量数据，
  * 并通过节拍检测算法驱动3D地形可视化效果。
- * 
+ *
  * 核心功能：
  * 1. 连接HTMLAudioElement进行音频捕获
  * 2. FFT频谱分析，提取8个频段的能量值
  * 3. 节拍检测（beat detection）触发涟漪效果
  * 4. 流星事件检测（高频触发）
  * 5. 音频特征计算（亮度、温暖度、密度等）
- * 
+ *
  * @author Firefly Blog
  */
 
@@ -101,10 +101,10 @@ export interface AudioAnalyzerEvents {
 
 /**
  * 音频分析器类
- * 
+ *
  * 使用 Web Audio API 的 AnalyserNode 进行实时频谱分析，
  * 将音频信号分解为多个频段，并通过算法检测节拍等音乐事件。
- * 
+ *
  * @example
  * ```typescript
  * const analyzer = new AudioAnalyzer();
@@ -113,7 +113,7 @@ export interface AudioAnalyzerEvents {
  *   onBeat: (strength) => console.log('Beat!', strength),
  *   onRipple: (x, z, s) => console.log('Ripple at', x, z),
  * });
- * 
+ *
  * // 在动画循环中调用
  * function animate() {
  *   const audioData = analyzer.update(16);
@@ -188,10 +188,10 @@ export class AudioAnalyzer {
 
 	/**
 	 * 连接到HTML音频元素
-	 * 
+	 *
 	 * 创建AudioContext并建立音频节点连接：
 	 * AudioElement -> GainNode -> AnalyserNode -> Destination
-	 * 
+	 *
 	 * @param audioEl HTMLAudioElement 音频元素
 	 */
 	connect(audioEl: HTMLAudioElement) {
@@ -228,8 +228,8 @@ export class AudioAnalyzer {
 			// 建立音频节点连接图
 			this.source = this.audioCtx.createMediaElementSource(audioEl);
 			this.source.connect(this.gainNode);
-			this.gainNode.connect(this.audioCtx.destination);  // 输出到扬声器
-			this.gainNode.connect(this.analyser);               // 同时输出到分析器
+			this.gainNode.connect(this.audioCtx.destination); // 输出到扬声器
+			this.gainNode.connect(this.analyser); // 同时输出到分析器
 			this.connected = true;
 		} catch (e) {
 			console.warn("AudioAnalyzer: Failed to connect to audio element", e);
@@ -281,14 +281,14 @@ export class AudioAnalyzer {
 
 	/**
 	 * 更新音频分析数据（每帧调用）
-	 * 
+	 *
 	 * 执行以下操作：
 	 * 1. 获取当前频谱数据
 	 * 2. 计算各频段能量值
 	 * 3. 计算音频特征（亮度、温暖度等）
 	 * 4. 检测节拍和流星事件
 	 * 5. 对数据进行平滑处理
-	 * 
+	 *
 	 * @param _delta 帧间隔时间(ms)
 	 * @returns 平滑后的音频数据
 	 */
@@ -306,19 +306,19 @@ export class AudioAnalyzer {
 		let energySum = 0;
 		let centroidNum = 0;
 		let centroidDen = 0;
-		let subBassSum = 0;    // 0-1 bins (约 0-43Hz)
-		let bassSum = 0;       // 2-3 bins (约 43-86Hz)
-		let lowMidSum = 0;     // 4-7 bins (约 86-172Hz)
-		let midSum = 0;        // 8-18 bins (约 172-400Hz)
-		let highMidSum = 0;    // 19-46 bins (约 400-1000Hz)
-		let presenceSum = 0;   // 47-93 bins (约 1-2kHz)
+		let subBassSum = 0; // 0-1 bins (约 0-43Hz)
+		let bassSum = 0; // 2-3 bins (约 43-86Hz)
+		let lowMidSum = 0; // 4-7 bins (约 86-172Hz)
+		let midSum = 0; // 8-18 bins (约 172-400Hz)
+		let highMidSum = 0; // 19-46 bins (约 400-1000Hz)
+		let presenceSum = 0; // 47-93 bins (约 1-2kHz)
 		let brillianceSum = 0; // 94-186 bins (约 2-4kHz)
-		let airSum = 0;        // 187-372 bins (约 4-8kHz)
+		let airSum = 0; // 187-372 bins (约 4-8kHz)
 
 		// 频谱变化相关变量
 		let jumpVolatilitySum = 0;
-		let fluxPulse = 0;   // 低频通量 - 用于节拍检测
-		let fluxMeteor = 0;  // 高频通量 - 用于流星检测
+		let fluxPulse = 0; // 低频通量 - 用于节拍检测
+		let fluxMeteor = 0; // 高频通量 - 用于流星检测
 
 		const binCount = this.dataArray.length;
 
@@ -328,7 +328,7 @@ export class AudioAnalyzer {
 
 			// 遍历所有频率bin计算各频段能量
 			for (let i = 0; i < binCount; i++) {
-				const val = this.dataArray[i] / 255;  // 归一化到 0-1
+				const val = this.dataArray[i] / 255; // 归一化到 0-1
 				energySum += val;
 
 				// 计算频谱质心 (spectral centroid)
@@ -355,14 +355,21 @@ export class AudioAnalyzer {
 
 				// 按频率区间分配到各频段
 				// 采样率44100Hz时，每个bin约 44100/1024 ≈ 43Hz
-				if (i <= 1) subBassSum += val;         // 0-43Hz
-				else if (i <= 3) bassSum += val;        // 43-86Hz
-				else if (i <= 7) lowMidSum += val;      // 86-172Hz
-				else if (i <= 18) midSum += val;        // 172-400Hz
-				else if (i <= 46) highMidSum += val;    // 400-1000Hz
-				else if (i <= 93) presenceSum += val;   // 1-2kHz
-				else if (i <= 186) brillianceSum += val; // 2-4kHz
-				else if (i <= 372) airSum += val;       // 4-8kHz+
+				if (i <= 1)
+					subBassSum += val; // 0-43Hz
+				else if (i <= 3)
+					bassSum += val; // 43-86Hz
+				else if (i <= 7)
+					lowMidSum += val; // 86-172Hz
+				else if (i <= 18)
+					midSum += val; // 172-400Hz
+				else if (i <= 46)
+					highMidSum += val; // 400-1000Hz
+				else if (i <= 93)
+					presenceSum += val; // 1-2kHz
+				else if (i <= 186)
+					brillianceSum += val; // 2-4kHz
+				else if (i <= 372) airSum += val; // 4-8kHz+
 			}
 
 			// 检测节拍和流星事件
@@ -458,13 +465,13 @@ export class AudioAnalyzer {
 
 	/**
 	 * 节拍检测算法
-	 * 
+	 *
 	 * 使用频谱通量(spectral flux)结合自适应阈值进行节拍检测：
 	 * 1. 计算低频段的频谱通量（仅正向变化）
 	 * 2. 维护历史窗口计算平均通量和标准差
 	 * 3. 当当前通量超过 (平均值 + 1.5*标准差) 时判定为节拍
 	 * 4. 添加冷却时间防止过度触发
-	 * 
+	 *
 	 * @param fluxPulse 低频频谱通量（节拍）
 	 * @param fluxMeteor 高频频谱通量（流星）
 	 */
@@ -507,7 +514,7 @@ export class AudioAnalyzer {
 			const rz = Math.sin(angle) * dist;
 			this.events.onRipple?.(rx, rz, strength, false);
 			this.events.onBeat?.(strength);
-			this.beatCooldown = 20;  // 约20帧冷却（~330ms @60fps）
+			this.beatCooldown = 20; // 约20帧冷却（~330ms @60fps）
 		}
 
 		// 流星检测：高频能量爆发

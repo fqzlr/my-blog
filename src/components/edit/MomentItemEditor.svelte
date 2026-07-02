@@ -1,82 +1,84 @@
 <script lang="ts">
-	import { createEventDispatcher } from "svelte";
-	import { onMount, onDestroy } from "svelte";
+import { createEventDispatcher } from "svelte";
+import { onMount, onDestroy } from "svelte";
 
-	const dispatch = createEventDispatcher();
+const dispatch = createEventDispatcher();
 
-	export let moment: {
-		id: string;
-		content: string;
-		published: string;
-		images: string[];
-		tags: string[];
-		location?: string;
-		pinned?: boolean;
-	};
+export let moment: {
+	id: string;
+	content: string;
+	published: string;
+	images: string[];
+	tags: string[];
+	location?: string;
+	pinned?: boolean;
+};
 
-	let form = {
-		content: moment.content || "",
-		published: moment.published ? new Date(moment.published).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-		images: (moment.images || []).join("\n"),
-		tags: (moment.tags || []).join(", "),
-		location: moment.location || "",
-		pinned: moment.pinned || false,
-	};
+let form = {
+	content: moment.content || "",
+	published: moment.published
+		? new Date(moment.published).toISOString().slice(0, 16)
+		: new Date().toISOString().slice(0, 16),
+	images: (moment.images || []).join("\n"),
+	tags: (moment.tags || []).join(", "),
+	location: moment.location || "",
+	pinned: moment.pinned || false,
+};
 
-	function handleSave() {
-		if (!form.content.trim()) {
-			alert("请输入说说内容");
-			return;
-		}
-		const images = form.images
-			.split("\n")
-			.map((s) => s.trim())
-			.filter(Boolean);
-		const tags = form.tags
-			.split(",")
-			.map((s) => s.trim())
-			.filter(Boolean);
-		dispatch("save", {
-			id: moment.id,
-			content: form.content.trim(),
-			published: new Date(form.published).toISOString(),
-			images,
-			tags,
-			location: form.location.trim() || undefined,
-			pinned: form.pinned,
-		});
+function handleSave() {
+	if (!form.content.trim()) {
+		alert("请输入说说内容");
+		return;
 	}
-
-	function handleCancel() {
-		dispatch("cancel");
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === "Escape") handleCancel();
-	}
-
-	function addCurrentLocation() {
-		if (!navigator.geolocation) {
-			alert("浏览器不支持定位");
-			return;
-		}
-		navigator.geolocation.getCurrentPosition(
-			(pos) => {
-				const { latitude, longitude } = pos.coords;
-				form.location = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-			},
-			() => {
-				alert("定位失败，请手动输入");
-			},
-		);
-	}
-
-	onMount(() => {
-		window.addEventListener("keydown", handleKeydown);
+	const images = form.images
+		.split("\n")
+		.map((s) => s.trim())
+		.filter(Boolean);
+	const tags = form.tags
+		.split(",")
+		.map((s) => s.trim())
+		.filter(Boolean);
+	dispatch("save", {
+		id: moment.id,
+		content: form.content.trim(),
+		published: new Date(form.published).toISOString(),
+		images,
+		tags,
+		location: form.location.trim() || undefined,
+		pinned: form.pinned,
 	});
-	onDestroy(() => {
-		window.removeEventListener("keydown", handleKeydown);
-	});
+}
+
+function handleCancel() {
+	dispatch("cancel");
+}
+
+function handleKeydown(e: KeyboardEvent) {
+	if (e.key === "Escape") handleCancel();
+}
+
+function addCurrentLocation() {
+	if (!navigator.geolocation) {
+		alert("浏览器不支持定位");
+		return;
+	}
+	navigator.geolocation.getCurrentPosition(
+		(pos) => {
+			const { latitude, longitude } = pos.coords;
+			form.location = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+		},
+		() => {
+			alert("定位失败，请手动输入");
+		},
+	);
+}
+
+onMount(() => {
+	window.addEventListener("keydown", handleKeydown);
+});
+onDestroy(() => {
+	window.removeEventListener("keydown", handleKeydown);
+});
 </script>
 
 <div class="modal-overlay" onclick={handleCancel} role="dialog" aria-modal="true">

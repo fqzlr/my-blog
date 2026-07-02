@@ -1,132 +1,142 @@
 <script lang="ts">
-	import { onMount, tick } from "svelte";
-	import EditToolbar from "./EditToolbar.svelte";
-	import EditToast from "./EditToast.svelte";
-	import { marked } from "marked";
-	import {
-		hasValidToken,
-		showToast,
-		ensureIconify,
-		getRepoFile,
-	} from "@/utils/editMode";
-	import { setupRepoDrafts } from "@/utils/draftHelpers";
-	import { repoConfig } from "@/config/editConfig";
+import { onMount, tick } from "svelte";
+import EditToolbar from "./EditToolbar.svelte";
+import EditToast from "./EditToast.svelte";
+import { marked } from "marked";
+import {
+	hasValidToken,
+	showToast,
+	ensureIconify,
+	getRepoFile,
+} from "@/utils/editMode";
+import { setupRepoDrafts } from "@/utils/draftHelpers";
+import { repoConfig } from "@/config/editConfig";
 
-	let {
-		filePath,
-		pageName = "页面",
-		initialContent = "",
-		previewOnly = false,
-	}: {
-		filePath: string;
-		pageName?: string;
-		initialContent?: string;
-		previewOnly?: boolean;
-	} = $props();
+let {
+	filePath,
+	pageName = "页面",
+	initialContent = "",
+	previewOnly = false,
+}: {
+	filePath: string;
+	pageName?: string;
+	initialContent?: string;
+	previewOnly?: boolean;
+} = $props();
 
-	let editMode = $state(false);
-	let hasToken = $state(false);
-	let saving = $state(false);
-	let content = $state(initialContent);
-	let originalContent = $state(initialContent);
-	let existingSha = $state<string | null>(null);
-	let showPreview = $state(true);
+let editMode = $state(false);
+let hasToken = $state(false);
+let saving = $state(false);
+let content = $state(initialContent);
+let originalContent = $state(initialContent);
+let existingSha = $state<string | null>(null);
+let showPreview = $state(true);
 
-	const drafts = setupRepoDrafts({
-		pageKey: "markdownpage",
-		pageName: pageName,
-		getContent: () => content,
-		setContent: (v) => (content = v),
-		getPath: () => filePath,
-		getSha: () => existingSha,
-		setSha: (v) => (existingSha = v),
-		getOriginalContent: () => originalContent,
-		setOriginalContent: (v) => (originalContent = v),
-		getCommitMsg: (isEdit) => isEdit ? `chore(pages): update "${pageName}" content` : `chore(pages): create "${pageName}" content`,
+const drafts = setupRepoDrafts({
+	pageKey: "markdownpage",
+	pageName: pageName,
+	getContent: () => content,
+	setContent: (v) => (content = v),
+	getPath: () => filePath,
+	getSha: () => existingSha,
+	setSha: (v) => (existingSha = v),
+	getOriginalContent: () => originalContent,
+	setOriginalContent: (v) => (originalContent = v),
+	getCommitMsg: (isEdit) =>
+		isEdit
+			? `chore(pages): update "${pageName}" content`
+			: `chore(pages): create "${pageName}" content`,
+});
+let hasChanges = $derived(drafts.hasLocalChanges());
+
+let textareaEl: HTMLTextAreaElement | undefined;
+let contentDisplayEl: HTMLDivElement | undefined;
+
+onMount(() => {
+	ensureIconify();
+	hasToken = hasValidToken();
+	drafts.restoreFromDrafts();
+});
+
+function enterEditMode() {
+	originalContent = content;
+	editMode = true;
+	tick().then(() => {
+		textareaEl?.focus();
 	});
-	let hasChanges = $derived(drafts.hasLocalChanges());
+}
 
-	let textareaEl: HTMLTextAreaElement | undefined;
-	let contentDisplayEl: HTMLDivElement | undefined;
+function cancelEdit() {
+	content = originalContent;
+	editMode = false;
+	drafts.clearDrafts();
+	showToast("已取消编辑", "info");
+}
 
-	onMount(() => {
-		ensureIconify();
-		hasToken = hasValidToken();
-		drafts.restoreFromDrafts();
-	});
+function handleContentChange(e: Event) {
+	const target = e.target as HTMLTextAreaElement;
+	content = target.value;
+}
 
-	function enterEditMode() {
-		originalContent = content;
-		editMode = true;
+function handleKeyDown(e: KeyboardEvent) {
+	if (e.key === "Tab") {
+		e.preventDefault();
+		const textarea = e.currentTarget as HTMLTextAreaElement;
+		const start = textarea.selectionStart;
+		const end = textarea.selectionEnd;
+		content = content.substring(0, start) + "  " + content.substring(end);
 		tick().then(() => {
-			textareaEl?.focus();
+			textarea.focus();
+			textarea.setSelectionRange(start + 2, start + 2);
 		});
 	}
-
-	function cancelEdit() {
-		content = originalContent;
-		editMode = false;
-		drafts.clearDrafts();
-		showToast("已取消编辑", "info");
+	if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+		e.preventDefault();
+		handleSubmit();
 	}
+}
 
-	function handleContentChange(e: Event) {
-		const target = e.target as HTMLTextAreaElement;
-		content = target.value;
+function handleSaveDraft() {
+	drafts.saveToDrafts();
+}
+
+async function handleSubmit() {
+	saving = true;
+	try {
+		await drafts.submitDrafts();
+	} finally {
+		saving = false;
 	}
+}
 
-	function handleKeyDown(e: KeyboardEvent) {
-		if (e.key === "Tab") {
-			e.preventDefault();
-			const textarea = e.currentTarget as HTMLTextAreaElement;
-			const start = textarea.selectionStart;
-			const end = textarea.selectionEnd;
-			content = content.substring(0, start) + "  " + content.substring(end);
-			tick().then(() => {
-				textarea.focus();
-				textarea.setSelectionRange(start + 2, start + 2);
-			});
-		}
-		if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-			e.preventDefault();
-			handleSubmit();
-		}
-	}
+function handleTokenReady() {
+	hasToken = hasValidToken();
+}
 
-	function handleSaveDraft() {
-		drafts.saveToDrafts();
-	}
-
-	async function handleSubmit() {
-		saving = true;
-		try { await drafts.submitDrafts(); } finally { saving = false; }
-	}
-
-	function handleTokenReady() {
-		hasToken = hasValidToken();
-	}
-
-	function insertFormat(before: string, after: string = "") {
-		if (!textareaEl) return;
-		const start = textareaEl.selectionStart;
-		const end = textareaEl.selectionEnd;
-		const selected = content.substring(start, end);
-		const newText = before + selected + after;
-		content = content.substring(0, start) + newText + content.substring(end);
-		tick().then(() => {
-			textareaEl?.focus();
-			textareaEl?.setSelectionRange(start + before.length, start + before.length + selected.length);
-		});
-	}
-
-	const renderedHtml = $derived.by(() => {
-		if (!content) return "";
-		try {
-			return marked.parse(content, { gfm: true, breaks: true }) as string;
-		} catch {
-			return content;
-		}
+function insertFormat(before: string, after: string = "") {
+	if (!textareaEl) return;
+	const start = textareaEl.selectionStart;
+	const end = textareaEl.selectionEnd;
+	const selected = content.substring(start, end);
+	const newText = before + selected + after;
+	content = content.substring(0, start) + newText + content.substring(end);
+	tick().then(() => {
+		textareaEl?.focus();
+		textareaEl?.setSelectionRange(
+			start + before.length,
+			start + before.length + selected.length,
+		);
 	});
+}
+
+const renderedHtml = $derived.by(() => {
+	if (!content) return "";
+	try {
+		return marked.parse(content, { gfm: true, breaks: true }) as string;
+	} catch {
+		return content;
+	}
+});
 </script>
 
 <EditToast />

@@ -364,7 +364,7 @@ export const en: Translation = {
 	[Key.contactMe]: "Contact Me",
 	[Key.qqGroup]: "QQ Group",
 	[Key.navPosts]: "Posts",
-		[Key.bookshelf]: "Bookshelf",
+	[Key.bookshelf]: "Bookshelf",
 	[Key.moviesGames]: "Movies & Games",
 	[Key.musicPage]: "Music",
 	[Key.changelog]: "Changelog",
@@ -377,7 +377,6 @@ export const en: Translation = {
 	[Key.books]: "Books",
 	[Key.admin]: "Admin",
 
-	
 	[Key.changelogTitle]: "Changelog",
 	[Key.changelogSubtitle]: "Record every improvement",
 	[Key.changelogAll]: "All",

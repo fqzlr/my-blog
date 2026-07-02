@@ -1,314 +1,397 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import EditToolbar from "./EditToolbar.svelte";
-  import EditToast from "./EditToast.svelte";
-  import {
-    hasValidToken,
-    showToast,
-    ensureIconify,
-    getRepoFile,
-    updateRepoFile,
-    createRepoFile,
-    deleteRepoFile,
-    genId,
-    deepClone,
-    saveDraft,
-    getDraft,
-    deleteDraft,
-    registerSubmitHandler,
-  } from "@/utils/editMode";
-  import { repoConfig } from "@/config/editConfig";
+import { onMount } from "svelte";
+import EditToolbar from "./EditToolbar.svelte";
+import EditToast from "./EditToast.svelte";
+import {
+	hasValidToken,
+	showToast,
+	ensureIconify,
+	getRepoFile,
+	updateRepoFile,
+	createRepoFile,
+	deleteRepoFile,
+	genId,
+	deepClone,
+	saveDraft,
+	getDraft,
+	deleteDraft,
+	registerSubmitHandler,
+} from "@/utils/editMode";
+import { repoConfig } from "@/config/editConfig";
 
-  interface PlaceItem {
-    id: string;
-    slug: string;
-    province: string;
-    city: string;
-    district: string;
-    experience: string;
-    visitCount: number;
-    date: string;
-    body: string;
-    sha?: string;
-    _draft?: boolean;
-    _deleted?: boolean;
-  }
+interface PlaceItem {
+	id: string;
+	slug: string;
+	province: string;
+	city: string;
+	district: string;
+	experience: string;
+	visitCount: number;
+	date: string;
+	body: string;
+	sha?: string;
+	_draft?: boolean;
+	_deleted?: boolean;
+}
 
-  let editMode = $state(false);
-  let saving = $state(false);
-  let hasChanges = $state(false);
-  let places = $state<PlaceItem[]>([]);
-  let originalPlaces = $state<PlaceItem[]>([]);
-  let editingIndex = $state(-1);
+let editMode = $state(false);
+let saving = $state(false);
+let hasChanges = $state(false);
+let places = $state<PlaceItem[]>([]);
+let originalPlaces = $state<PlaceItem[]>([]);
+let editingIndex = $state(-1);
 
-  onMount(() => {
-    ensureIconify();
-    collectFromDOM();
-    const draft = getDraft<any>("places");
-    if (draft?.places) {
-      if (confirm("发现未提交的旅行足迹草稿，是否恢复？")) {
-        places = draft.places;
-        hasChanges = true;
-        showToast("草稿已恢复", "success");
-      } else { deleteDraft("places"); }
-    }
-    window.addEventListener("blog:batch-submit", handleBatchSubmit);
-    return () => window.removeEventListener("blog:batch-submit", handleBatchSubmit);
-  });
+onMount(() => {
+	ensureIconify();
+	collectFromDOM();
+	const draft = getDraft<any>("places");
+	if (draft?.places) {
+		if (confirm("发现未提交的旅行足迹草稿，是否恢复？")) {
+			places = draft.places;
+			hasChanges = true;
+			showToast("草稿已恢复", "success");
+		} else {
+			deleteDraft("places");
+		}
+	}
+	window.addEventListener("blog:batch-submit", handleBatchSubmit);
+	return () =>
+		window.removeEventListener("blog:batch-submit", handleBatchSubmit);
+});
 
-  function htmlToMarkdown(html: string): string {
-    if (!html) return "";
-    return html
-      .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, "## $1\n")
-      .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, "### $1\n")
-      .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, "$1\n")
-      .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, "**$1**")
-      .replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, "*$1*")
-      .replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, "`$1`")
-      .replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, "[$2]($1)")
-      .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "- $1\n")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/&nbsp;/g, " ")
-      .trim();
-  }
+function htmlToMarkdown(html: string): string {
+	if (!html) return "";
+	return html
+		.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, "## $1\n")
+		.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, "### $1\n")
+		.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, "$1\n")
+		.replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, "**$1**")
+		.replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, "*$1*")
+		.replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, "`$1`")
+		.replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, "[$2]($1)")
+		.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "- $1\n")
+		.replace(/<br\s*\/?>/gi, "\n")
+		.replace(/<[^>]+>/g, "")
+		.replace(/&nbsp;/g, " ")
+		.trim();
+}
 
-  function collectFromDOM() {
-    const result: PlaceItem[] = [];
-    document.querySelectorAll(".place-card").forEach((card, idx) => {
-      const nameEl = card.querySelector(".place-name");
-      const nameText = nameEl?.textContent?.trim() || "";
-      const parts = nameText.split("·").map(s => s.trim());
-      const province = parts[0] || "";
-      const city = parts[1] || "";
-      const expEl = card.querySelector(".place-exp");
-      const experience = expEl?.textContent?.trim() || "";
-      const metaDiv = card.querySelector(".text-right");
-      const countText = metaDiv?.querySelector(".font-semibold")?.textContent?.trim() || "1";
-      const visitCount = parseInt(countText.replace(/[^\d]/g, "")) || 1;
-      const dateText = metaDiv?.querySelector("div:last-child")?.textContent?.trim() || "";
-      const date = dateText || new Date().toISOString().slice(0, 10);
-      const slug = date + "-" + genId("pl").slice(-4);
-      result.push({
-        id: genId("pl"),
-        slug,
-        province,
-        city,
-        district: "",
-        experience,
-        visitCount,
-        date,
-        body: "",
-      });
-    });
-    places = result;
-    originalPlaces = deepClone(result);
-  }
+function collectFromDOM() {
+	const result: PlaceItem[] = [];
+	document.querySelectorAll(".place-card").forEach((card, idx) => {
+		const nameEl = card.querySelector(".place-name");
+		const nameText = nameEl?.textContent?.trim() || "";
+		const parts = nameText.split("·").map((s) => s.trim());
+		const province = parts[0] || "";
+		const city = parts[1] || "";
+		const expEl = card.querySelector(".place-exp");
+		const experience = expEl?.textContent?.trim() || "";
+		const metaDiv = card.querySelector(".text-right");
+		const countText =
+			metaDiv?.querySelector(".font-semibold")?.textContent?.trim() || "1";
+		const visitCount = parseInt(countText.replace(/[^\d]/g, "")) || 1;
+		const dateText =
+			metaDiv?.querySelector("div:last-child")?.textContent?.trim() || "";
+		const date = dateText || new Date().toISOString().slice(0, 10);
+		const slug = date + "-" + genId("pl").slice(-4);
+		result.push({
+			id: genId("pl"),
+			slug,
+			province,
+			city,
+			district: "",
+			experience,
+			visitCount,
+			date,
+			body: "",
+		});
+	});
+	places = result;
+	originalPlaces = deepClone(result);
+}
 
-  function hideSSRContent() {
-    const mapSection = document.getElementById("life-map")?.closest("div.mb-6");
-    const statsRow = document.querySelector(".stat-pill")?.parentElement;
-    const listSection = document.querySelector(".places-grid")?.parentElement;
-    const headings = document.querySelectorAll("h2.text-lg");
-    if (mapSection) (mapSection as HTMLElement).style.display = "none";
-    if (statsRow) (statsRow as HTMLElement).style.display = "none";
-    headings.forEach(h => { if (h.textContent?.includes("足迹地图") || h.textContent?.includes("地点列表")) (h as HTMLElement).style.display = "none"; });
-  }
+function hideSSRContent() {
+	const mapSection = document.getElementById("life-map")?.closest("div.mb-6");
+	const statsRow = document.querySelector(".stat-pill")?.parentElement;
+	const listSection = document.querySelector(".places-grid")?.parentElement;
+	const headings = document.querySelectorAll("h2.text-lg");
+	if (mapSection) (mapSection as HTMLElement).style.display = "none";
+	if (statsRow) (statsRow as HTMLElement).style.display = "none";
+	headings.forEach((h) => {
+		if (
+			h.textContent?.includes("足迹地图") ||
+			h.textContent?.includes("地点列表")
+		)
+			(h as HTMLElement).style.display = "none";
+	});
+}
 
-  function showSSRContent() {
-    const mapSection = document.getElementById("life-map")?.closest("div.mb-6");
-    const statsRow = document.querySelector(".stat-pill")?.parentElement;
-    const headings = document.querySelectorAll("h2.text-lg");
-    if (mapSection) (mapSection as HTMLElement).style.display = "";
-    if (statsRow) (statsRow as HTMLElement).style.display = "";
-    headings.forEach(h => { (h as HTMLElement).style.display = ""; });
-  }
+function showSSRContent() {
+	const mapSection = document.getElementById("life-map")?.closest("div.mb-6");
+	const statsRow = document.querySelector(".stat-pill")?.parentElement;
+	const headings = document.querySelectorAll("h2.text-lg");
+	if (mapSection) (mapSection as HTMLElement).style.display = "";
+	if (statsRow) (statsRow as HTMLElement).style.display = "";
+	headings.forEach((h) => {
+		(h as HTMLElement).style.display = "";
+	});
+}
 
-  function handleModeChange(e: CustomEvent) {
-    editMode = e.detail.editing;
-    if (editMode) {
-      hideSSRContent();
-      editingIndex = -1;
-    } else {
-      showSSRContent();
-    }
-  }
+function handleModeChange(e: CustomEvent) {
+	editMode = e.detail.editing;
+	if (editMode) {
+		hideSSRContent();
+		editingIndex = -1;
+	} else {
+		showSSRContent();
+	}
+}
 
-  function handleCancel() {
-    places = deepClone(originalPlaces);
-    hasChanges = false;
-    editingIndex = -1;
-    showSSRContent();
-  }
+function handleCancel() {
+	places = deepClone(originalPlaces);
+	hasChanges = false;
+	editingIndex = -1;
+	showSSRContent();
+}
 
-  function startEdit(index: number) { editingIndex = index; }
+function startEdit(index: number) {
+	editingIndex = index;
+}
 
-  function updateField(index: number, field: keyof PlaceItem, value: string | number) {
-    places[index] = { ...places[index], [field]: value };
-    places = [...places];
-    hasChanges = true;
-  }
+function updateField(
+	index: number,
+	field: keyof PlaceItem,
+	value: string | number,
+) {
+	places[index] = { ...places[index], [field]: value };
+	places = [...places];
+	hasChanges = true;
+}
 
-  function finishEdit(index: number) {
-    const p = places[index];
-    if (!p.province.trim()) { showToast("省份不能为空", "warning"); return; }
-    editingIndex = -1;
-    hasChanges = true;
-    showToast("已修改，记得点击保存", "info");
-  }
+function finishEdit(index: number) {
+	const p = places[index];
+	if (!p.province.trim()) {
+		showToast("省份不能为空", "warning");
+		return;
+	}
+	editingIndex = -1;
+	hasChanges = true;
+	showToast("已修改，记得点击保存", "info");
+}
 
-  function cancelItemEdit(index: number) {
-    const p = places[index];
-    if (p._draft && !p.province.trim()) {
-      places = places.filter((_, i) => i !== index);
-    } else if (originalPlaces) {
-      const orig = originalPlaces.find(o => o.slug === p.slug && !p._draft);
-      if (orig) { places[index] = deepClone(orig); places = [...places]; }
-    }
-    editingIndex = -1;
-  }
+function cancelItemEdit(index: number) {
+	const p = places[index];
+	if (p._draft && !p.province.trim()) {
+		places = places.filter((_, i) => i !== index);
+	} else if (originalPlaces) {
+		const orig = originalPlaces.find((o) => o.slug === p.slug && !p._draft);
+		if (orig) {
+			places[index] = deepClone(orig);
+			places = [...places];
+		}
+	}
+	editingIndex = -1;
+}
 
-  function deleteItem(index: number) {
-    const p = places[index];
-    if (!confirm(`确定要删除「${p.province}${p.city ? " · " + p.city : ""}」吗？`)) return;
-    if (p._draft) { places = places.filter((_, i) => i !== index); }
-    else { places[index] = { ...places[index], _deleted: true }; places = [...places]; }
-    hasChanges = true;
-    if (editingIndex === index) editingIndex = -1;
-    else if (editingIndex > index) editingIndex--;
-    showToast("已标记删除，记得点击保存", "info");
-  }
+function deleteItem(index: number) {
+	const p = places[index];
+	if (
+		!confirm(`确定要删除「${p.province}${p.city ? " · " + p.city : ""}」吗？`)
+	)
+		return;
+	if (p._draft) {
+		places = places.filter((_, i) => i !== index);
+	} else {
+		places[index] = { ...places[index], _deleted: true };
+		places = [...places];
+	}
+	hasChanges = true;
+	if (editingIndex === index) editingIndex = -1;
+	else if (editingIndex > index) editingIndex--;
+	showToast("已标记删除，记得点击保存", "info");
+}
 
-  function moveUp(index: number) {
-    if (index <= 0) return;
-    const arr = [...places];
-    [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
-    places = arr; hasChanges = true;
-  }
+function moveUp(index: number) {
+	if (index <= 0) return;
+	const arr = [...places];
+	[arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+	places = arr;
+	hasChanges = true;
+}
 
-  function moveDown(index: number) {
-    if (index >= places.length - 1) return;
-    const arr = [...places];
-    [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
-    places = arr; hasChanges = true;
-  }
+function moveDown(index: number) {
+	if (index >= places.length - 1) return;
+	const arr = [...places];
+	[arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+	places = arr;
+	hasChanges = true;
+}
 
-  function restoreItem(index: number) {
-    places[index] = { ...places[index], _deleted: false };
-    places = [...places]; hasChanges = true;
-  }
+function restoreItem(index: number) {
+	places[index] = { ...places[index], _deleted: false };
+	places = [...places];
+	hasChanges = true;
+}
 
-  function handleAdd() {
-    places = [{
-      id: genId("pl"),
-      slug: "",
-      province: "",
-      city: "",
-      district: "",
-      experience: "",
-      visitCount: 1,
-      date: new Date().toISOString().slice(0, 10),
-      body: "",
-      _draft: true,
-    }, ...places];
-    editingIndex = 0;
-    hasChanges = true;
-  }
+function handleAdd() {
+	places = [
+		{
+			id: genId("pl"),
+			slug: "",
+			province: "",
+			city: "",
+			district: "",
+			experience: "",
+			visitCount: 1,
+			date: new Date().toISOString().slice(0, 10),
+			body: "",
+			_draft: true,
+		},
+		...places,
+	];
+	editingIndex = 0;
+	hasChanges = true;
+}
 
-  function slugify(text: string): string {
-    return text.toLowerCase().trim().replace(/[\s]+/g, "-").replace(/[^\w\u4e00-\u9fa5-]/g, "").replace(/-+/g, "-").replace(/^-|-$/g, "") || "place";
-  }
+function slugify(text: string): string {
+	return (
+		text
+			.toLowerCase()
+			.trim()
+			.replace(/[\s]+/g, "-")
+			.replace(/[^\w\u4e00-\u9fa5-]/g, "")
+			.replace(/-+/g, "-")
+			.replace(/^-|-$/g, "") || "place"
+	);
+}
 
-  function buildPlaceMd(p: PlaceItem): string {
-    const lines = ["---"];
-    lines.push(`date: ${p.date}`);
-    lines.push(`province: "${p.province.replace(/"/g, '\\"')}"`);
-    if (p.city) lines.push(`city: "${p.city.replace(/"/g, '\\"')}"`);
-    if (p.district) lines.push(`district: "${p.district.replace(/"/g, '\\"')}"`);
-    if (p.experience) lines.push(`experience: "${p.experience.replace(/"/g, '\\"')}"`);
-    lines.push(`visitCount: ${p.visitCount}`);
-    lines.push("---");
-    if (p.body && p.body.trim()) {
-      lines.push("");
-      lines.push(p.body.trim());
-      lines.push("");
-    }
-    return lines.join("\n");
-  }
+function buildPlaceMd(p: PlaceItem): string {
+	const lines = ["---"];
+	lines.push(`date: ${p.date}`);
+	lines.push(`province: "${p.province.replace(/"/g, '\\"')}"`);
+	if (p.city) lines.push(`city: "${p.city.replace(/"/g, '\\"')}"`);
+	if (p.district) lines.push(`district: "${p.district.replace(/"/g, '\\"')}"`);
+	if (p.experience)
+		lines.push(`experience: "${p.experience.replace(/"/g, '\\"')}"`);
+	lines.push(`visitCount: ${p.visitCount}`);
+	lines.push("---");
+	if (p.body && p.body.trim()) {
+		lines.push("");
+		lines.push(p.body.trim());
+		lines.push("");
+	}
+	return lines.join("\n");
+}
 
-  function handleSaveDraft() {
-    saveDraft({
-      pageKey: "places",
-      pageName: "旅行足迹",
-      description: `共 ${places.length} 个地点`,
-      operation: "update",
-      payload: { places },
-    });
-    showToast("旅行足迹草稿已保存", "success");
-  }
-  async function handleBatchSubmit() {
-    const draft = getDraft<any>("places");
-    if (draft?.places) { places = draft.places; await handleSave(); if (!saving) deleteDraft("places"); }
-  }
+function handleSaveDraft() {
+	saveDraft({
+		pageKey: "places",
+		pageName: "旅行足迹",
+		description: `共 ${places.length} 个地点`,
+		operation: "update",
+		payload: { places },
+	});
+	showToast("旅行足迹草稿已保存", "success");
+}
+async function handleBatchSubmit() {
+	const draft = getDraft<any>("places");
+	if (draft?.places) {
+		places = draft.places;
+		await handleSave();
+		if (!saving) deleteDraft("places");
+	}
+}
 
-  async function handleSave(): Promise<boolean> {
-    if (!hasValidToken()) { showToast("GitHub 代理未配置，请联系管理员", "warning"); return false; }
-    saving = true;
-    try {
-      let allOk = true;
-      for (let i = 0; i < places.length; i++) {
-        const p = places[i];
-        if (p._deleted) {
-          if (p.slug && !p._draft) {
-            const filePath = `src/content/life/places/${p.slug}.md`;
-            const file = await getRepoFile(filePath, repoConfig);
-            if (file && file.sha) {
-              const ok = await deleteRepoFile(filePath, file.sha, `chore(places): remove ${p.slug}`, repoConfig);
-              if (!ok) allOk = false;
-            }
-          }
-          continue;
-        }
-        const md = buildPlaceMd(p);
-        let slug = p.slug;
-        if (p._draft || !slug) {
-          slug = `${p.date}-${slugify(p.province + p.city).slice(0, 20)}`;
-          const ok = await createRepoFile(`src/content/life/places/${slug}.md`, md, `chore(places): add ${slug}`, repoConfig);
-          if (!ok) allOk = false;
-        } else {
-          const filePath = `src/content/life/places/${slug}.md`;
-          let sha = p.sha;
-          if (!sha) { const f = await getRepoFile(filePath, repoConfig); if (f) sha = f.sha; }
-          if (sha) { const ok = await updateRepoFile(filePath, md, sha, `chore(places): update ${slug}`, repoConfig); if (!ok) allOk = false; }
-          else { const ok = await createRepoFile(filePath, md, `chore(places): create ${slug}`, repoConfig); if (!ok) allOk = false; }
-        }
-      }
-      if (allOk) {
-        showToast("保存成功！页面将刷新以应用更改", "success");
-        hasChanges = false;
-        setTimeout(() => window.location.reload(), 1200);
-      } else {
-        showToast("部分操作失败，请检查 GitHub App 权限配置", "error");
-      }
-      return allOk;
-    } catch (err) {
-      showToast("保存出错：" + (err as Error).message, "error");
-      return false;
-    } finally {
-      saving = false;
-    }
-  }
+async function handleSave(): Promise<boolean> {
+	if (!hasValidToken()) {
+		showToast("GitHub 代理未配置，请联系管理员", "warning");
+		return false;
+	}
+	saving = true;
+	try {
+		let allOk = true;
+		for (let i = 0; i < places.length; i++) {
+			const p = places[i];
+			if (p._deleted) {
+				if (p.slug && !p._draft) {
+					const filePath = `src/content/life/places/${p.slug}.md`;
+					const file = await getRepoFile(filePath, repoConfig);
+					if (file && file.sha) {
+						const ok = await deleteRepoFile(
+							filePath,
+							file.sha,
+							`chore(places): remove ${p.slug}`,
+							repoConfig,
+						);
+						if (!ok) allOk = false;
+					}
+				}
+				continue;
+			}
+			const md = buildPlaceMd(p);
+			let slug = p.slug;
+			if (p._draft || !slug) {
+				slug = `${p.date}-${slugify(p.province + p.city).slice(0, 20)}`;
+				const ok = await createRepoFile(
+					`src/content/life/places/${slug}.md`,
+					md,
+					`chore(places): add ${slug}`,
+					repoConfig,
+				);
+				if (!ok) allOk = false;
+			} else {
+				const filePath = `src/content/life/places/${slug}.md`;
+				let sha = p.sha;
+				if (!sha) {
+					const f = await getRepoFile(filePath, repoConfig);
+					if (f) sha = f.sha;
+				}
+				if (sha) {
+					const ok = await updateRepoFile(
+						filePath,
+						md,
+						sha,
+						`chore(places): update ${slug}`,
+						repoConfig,
+					);
+					if (!ok) allOk = false;
+				} else {
+					const ok = await createRepoFile(
+						filePath,
+						md,
+						`chore(places): create ${slug}`,
+						repoConfig,
+					);
+					if (!ok) allOk = false;
+				}
+			}
+		}
+		if (allOk) {
+			showToast("保存成功！页面将刷新以应用更改", "success");
+			hasChanges = false;
+			setTimeout(() => window.location.reload(), 1200);
+		} else {
+			showToast("部分操作失败，请检查 GitHub App 权限配置", "error");
+		}
+		return allOk;
+	} catch (err) {
+		showToast("保存出错：" + (err as Error).message, "error");
+		return false;
+	} finally {
+		saving = false;
+	}
+}
 
-  // 注册批量提交处理程序
-  registerSubmitHandler("places", async (draft) => {
-    if (draft.payload?.type === "gist") return false; // places 不使用 gist
-    if (draft.payload?.places) {
-      places = draft.payload.places;
-      const ok = await handleSave();
-      return ok;
-    }
-    return false;
-  });
+// 注册批量提交处理程序
+registerSubmitHandler("places", async (draft) => {
+	if (draft.payload?.type === "gist") return false; // places 不使用 gist
+	if (draft.payload?.places) {
+		places = draft.payload.places;
+		const ok = await handleSave();
+		return ok;
+	}
+	return false;
+});
 </script>
 
 <EditToast />

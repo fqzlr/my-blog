@@ -1,471 +1,489 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import EditToolbar from "./EditToolbar.svelte";
-  import EditToast from "./EditToast.svelte";
-  import {
-    showToast,
-    ensureIconify,
-    getRepoFile,
-    genId,
-    deepClone,
-  } from "@/utils/editMode";
-  import { setupRepoDrafts } from "@/utils/draftHelpers";
-  import { repoConfig } from "@/config/editConfig";
+import { onMount } from "svelte";
+import EditToolbar from "./EditToolbar.svelte";
+import EditToast from "./EditToast.svelte";
+import {
+	showToast,
+	ensureIconify,
+	getRepoFile,
+	genId,
+	deepClone,
+} from "@/utils/editMode";
+import { setupRepoDrafts } from "@/utils/draftHelpers";
+import { repoConfig } from "@/config/editConfig";
 
-  interface SponsorMethod {
-    id: string;
-    name: string;
-    icon?: string;
-    qrCode?: string;
-    link?: string;
-    description?: string;
-    enabled: boolean;
-    _draft?: boolean;
-    _deleted?: boolean;
-  }
+interface SponsorMethod {
+	id: string;
+	name: string;
+	icon?: string;
+	qrCode?: string;
+	link?: string;
+	description?: string;
+	enabled: boolean;
+	_draft?: boolean;
+	_deleted?: boolean;
+}
 
-  interface SponsorItem {
-    id: string;
-    name: string;
-    amount?: string;
-    date?: string;
-    avatar?: string;
-    _draft?: boolean;
-    _deleted?: boolean;
-  }
+interface SponsorItem {
+	id: string;
+	name: string;
+	amount?: string;
+	date?: string;
+	avatar?: string;
+	_draft?: boolean;
+	_deleted?: boolean;
+}
 
-  interface SponsorState {
-    title: string;
-    description: string;
-    usage: string;
-    showSponsorsList: boolean;
-    methods: SponsorMethod[];
-    sponsors: SponsorItem[];
-  }
+interface SponsorState {
+	title: string;
+	description: string;
+	usage: string;
+	showSponsorsList: boolean;
+	methods: SponsorMethod[];
+	sponsors: SponsorItem[];
+}
 
-  let editMode = $state(false);
-  let saving = $state(false);
-  let editingMethod = $state(-1);
-  let editingSponsor = $state(-1);
-  let state = $state<SponsorState>({
-    title: "",
-    description: "",
-    usage: "",
-    showSponsorsList: true,
-    methods: [],
-    sponsors: [],
-  });
-  let originalState = $state<SponsorState | null>(null);
-  let activeTab = $state<"methods" | "sponsors">("methods");
-  let fileSha = $state<string | null>(null);
-  let originalCodeContent = $state("");
+let editMode = $state(false);
+let saving = $state(false);
+let editingMethod = $state(-1);
+let editingSponsor = $state(-1);
+let state = $state<SponsorState>({
+	title: "",
+	description: "",
+	usage: "",
+	showSponsorsList: true,
+	methods: [],
+	sponsors: [],
+});
+let originalState = $state<SponsorState | null>(null);
+let activeTab = $state<"methods" | "sponsors">("methods");
+let fileSha = $state<string | null>(null);
+let originalCodeContent = $state("");
 
-  const filePath = "src/config/sponsorConfig.ts";
+const filePath = "src/config/sponsorConfig.ts";
 
-  const drafts = setupRepoDrafts({
-    pageKey: "sponsor",
-    pageName: "赞助页面",
-    getContent: () => generateConfigTs(),
-    setContent: () => {},
-    getPath: () => filePath,
-    getSha: () => fileSha,
-    setSha: (v) => (fileSha = v),
-    getOriginalContent: () => originalCodeContent,
-    setOriginalContent: (v) => { originalCodeContent = v; originalState = deepClone(state); },
-    getCommitMsg: (isEdit) => isEdit ? "chore(sponsor): 更新赞助配置" : "chore(sponsor): 创建赞助配置",
-    onSubmitted: () => {
-      setTimeout(() => window.location.reload(), 1200);
-    },
-  });
-  let hasChanges = $derived(drafts.hasLocalChanges());
+const drafts = setupRepoDrafts({
+	pageKey: "sponsor",
+	pageName: "赞助页面",
+	getContent: () => generateConfigTs(),
+	setContent: () => {},
+	getPath: () => filePath,
+	getSha: () => fileSha,
+	setSha: (v) => (fileSha = v),
+	getOriginalContent: () => originalCodeContent,
+	setOriginalContent: (v) => {
+		originalCodeContent = v;
+		originalState = deepClone(state);
+	},
+	getCommitMsg: (isEdit) =>
+		isEdit ? "chore(sponsor): 更新赞助配置" : "chore(sponsor): 创建赞助配置",
+	onSubmitted: () => {
+		setTimeout(() => window.location.reload(), 1200);
+	},
+});
+let hasChanges = $derived(drafts.hasLocalChanges());
 
-  onMount(() => {
-    ensureIconify();
-    collectFromDOM();
-    initRepoState();
-  });
+onMount(() => {
+	ensureIconify();
+	collectFromDOM();
+	initRepoState();
+});
 
-  function collectFromDOM() {
-    // 从页面头部收集基本信息
-    const titleEl = document.querySelector("h1[data-pagefind-meta='title']");
-    const descEl = document.querySelector("p.text-base.text-neutral-600");
-    const usageBox = document.querySelector(".usage-info-box p");
+function collectFromDOM() {
+	// 从页面头部收集基本信息
+	const titleEl = document.querySelector("h1[data-pagefind-meta='title']");
+	const descEl = document.querySelector("p.text-base.text-neutral-600");
+	const usageBox = document.querySelector(".usage-info-box p");
 
-    // 收集赞助方式
-    const methods: SponsorMethod[] = [];
-    const tabBtns = document.querySelectorAll("[data-sponsor-tab]");
-    tabBtns.forEach((btn) => {
-      const idx = parseInt((btn as HTMLElement).dataset.sponsorTab || "0");
-      const name = btn.textContent?.trim() || "";
-      const iconEl = btn.querySelector("iconify-icon, [class*='icon']");
-      const icon = iconEl?.getAttribute("icon") || "";
-      const panel = document.querySelector(`[data-sponsor-panel="${idx}"]`);
-      let qrCode = "";
-      let link = "";
-      let description = "";
-      let enabled = true;
-      if (panel) {
-        const img = panel.querySelector("img");
-        if (img) qrCode = img.getAttribute("src") || "";
-        const a = panel.querySelector("a.afd-btn");
-        if (a) link = (a as HTMLAnchorElement).href || "";
-        const subtext = panel.querySelector(".afd-card-subtext");
-        if (subtext) description = subtext.textContent?.trim() || "";
-        const empty = panel.querySelector(".sponsor-qr-card__empty");
-        if (empty) enabled = false;
-      }
-      methods.push({
-        id: genId("sm"),
-        name: name || "未命名",
-        icon: icon || undefined,
-        qrCode: qrCode || undefined,
-        link: link || undefined,
-        description: description || undefined,
-        enabled,
-      });
-    });
+	// 收集赞助方式
+	const methods: SponsorMethod[] = [];
+	const tabBtns = document.querySelectorAll("[data-sponsor-tab]");
+	tabBtns.forEach((btn) => {
+		const idx = parseInt((btn as HTMLElement).dataset.sponsorTab || "0");
+		const name = btn.textContent?.trim() || "";
+		const iconEl = btn.querySelector("iconify-icon, [class*='icon']");
+		const icon = iconEl?.getAttribute("icon") || "";
+		const panel = document.querySelector(`[data-sponsor-panel="${idx}"]`);
+		let qrCode = "";
+		let link = "";
+		let description = "";
+		let enabled = true;
+		if (panel) {
+			const img = panel.querySelector("img");
+			if (img) qrCode = img.getAttribute("src") || "";
+			const a = panel.querySelector("a.afd-btn");
+			if (a) link = (a as HTMLAnchorElement).href || "";
+			const subtext = panel.querySelector(".afd-card-subtext");
+			if (subtext) description = subtext.textContent?.trim() || "";
+			const empty = panel.querySelector(".sponsor-qr-card__empty");
+			if (empty) enabled = false;
+		}
+		methods.push({
+			id: genId("sm"),
+			name: name || "未命名",
+			icon: icon || undefined,
+			qrCode: qrCode || undefined,
+			link: link || undefined,
+			description: description || undefined,
+			enabled,
+		});
+	});
 
-    // 收集赞助者
-    const sponsors: SponsorItem[] = [];
-    document.querySelectorAll(".sponsor-row").forEach((row) => {
-      const nameEl = row.querySelector(".sponsor-name");
-      const name = nameEl?.textContent?.trim() || "";
-      const avatarImg = row.querySelector(".sponsor-avatar__img") as HTMLImageElement | null;
-      const avatar = avatarImg?.src || "";
-      const avatarFallback = row.querySelector(".sponsor-avatar span")?.textContent?.trim() || "";
-      const dateEl = row.querySelector(".sponsor-date");
-      const date = dateEl?.textContent?.trim() || "";
-      const amountEl = row.querySelector(".sponsor-amount");
-      const amount = amountEl?.textContent?.trim() || "";
-      sponsors.push({
-        id: genId("sp"),
-        name,
-        amount: amount || undefined,
-        date: date || undefined,
-        avatar: avatar || undefined,
-      });
-    });
+	// 收集赞助者
+	const sponsors: SponsorItem[] = [];
+	document.querySelectorAll(".sponsor-row").forEach((row) => {
+		const nameEl = row.querySelector(".sponsor-name");
+		const name = nameEl?.textContent?.trim() || "";
+		const avatarImg = row.querySelector(
+			".sponsor-avatar__img",
+		) as HTMLImageElement | null;
+		const avatar = avatarImg?.src || "";
+		const avatarFallback =
+			row.querySelector(".sponsor-avatar span")?.textContent?.trim() || "";
+		const dateEl = row.querySelector(".sponsor-date");
+		const date = dateEl?.textContent?.trim() || "";
+		const amountEl = row.querySelector(".sponsor-amount");
+		const amount = amountEl?.textContent?.trim() || "";
+		sponsors.push({
+			id: genId("sp"),
+			name,
+			amount: amount || undefined,
+			date: date || undefined,
+			avatar: avatar || undefined,
+		});
+	});
 
-    state = {
-      title: titleEl?.textContent?.trim() || "赞助",
-      description: descEl?.textContent?.trim() || "",
-      usage: usageBox?.textContent?.trim() || "",
-      showSponsorsList: true,
-      methods,
-      sponsors,
-    };
-    originalState = deepClone(state);
-    originalCodeContent = generateConfigTs();
-  }
+	state = {
+		title: titleEl?.textContent?.trim() || "赞助",
+		description: descEl?.textContent?.trim() || "",
+		usage: usageBox?.textContent?.trim() || "",
+		showSponsorsList: true,
+		methods,
+		sponsors,
+	};
+	originalState = deepClone(state);
+	originalCodeContent = generateConfigTs();
+}
 
-  async function initRepoState() {
-    try {
-      const file = await getRepoFile(filePath, repoConfig);
-      if (file) {
-        fileSha = file.sha;
-      }
-    } catch {}
-    drafts.restoreFromDrafts();
-  }
+async function initRepoState() {
+	try {
+		const file = await getRepoFile(filePath, repoConfig);
+		if (file) {
+			fileSha = file.sha;
+		}
+	} catch {}
+	drafts.restoreFromDrafts();
+}
 
-  function hideSSRContent() {
-    const qrCard = document.querySelector(".sponsor-qr-card__outer");
-    const sponsorListSection = document.querySelector(".sponsor-list")?.closest(".flex.w-full");
-    const usageBox = document.querySelector(".usage-info-box");
-    if (qrCard) (qrCard as HTMLElement).style.display = "none";
-    if (sponsorListSection) (sponsorListSection as HTMLElement).style.display = "none";
-    const usageParent = usageBox?.parentElement as HTMLElement | null;
-    if (usageParent) usageParent.style.display = "none";
-  }
+function hideSSRContent() {
+	const qrCard = document.querySelector(".sponsor-qr-card__outer");
+	const sponsorListSection = document
+		.querySelector(".sponsor-list")
+		?.closest(".flex.w-full");
+	const usageBox = document.querySelector(".usage-info-box");
+	if (qrCard) (qrCard as HTMLElement).style.display = "none";
+	if (sponsorListSection)
+		(sponsorListSection as HTMLElement).style.display = "none";
+	const usageParent = usageBox?.parentElement as HTMLElement | null;
+	if (usageParent) usageParent.style.display = "none";
+}
 
-  function showSSRContent() {
-    const qrCard = document.querySelector(".sponsor-qr-card__outer");
-    const sponsorListSection = document.querySelector(".sponsor-list")?.closest(".flex.w-full");
-    const usageBox = document.querySelector(".usage-info-box");
-    if (qrCard) (qrCard as HTMLElement).style.display = "";
-    if (sponsorListSection) (sponsorListSection as HTMLElement).style.display = "";
-    const usageParent = usageBox?.parentElement as HTMLElement | null;
-    if (usageParent) usageParent.style.display = "";
-  }
+function showSSRContent() {
+	const qrCard = document.querySelector(".sponsor-qr-card__outer");
+	const sponsorListSection = document
+		.querySelector(".sponsor-list")
+		?.closest(".flex.w-full");
+	const usageBox = document.querySelector(".usage-info-box");
+	if (qrCard) (qrCard as HTMLElement).style.display = "";
+	if (sponsorListSection)
+		(sponsorListSection as HTMLElement).style.display = "";
+	const usageParent = usageBox?.parentElement as HTMLElement | null;
+	if (usageParent) usageParent.style.display = "";
+}
 
-  function handleModeChange(e: CustomEvent) {
-    editMode = e.detail.editing;
-    if (editMode) {
-      hideSSRContent();
-      editingMethod = -1;
-      editingSponsor = -1;
-    } else {
-      showSSRContent();
-    }
-  }
+function handleModeChange(e: CustomEvent) {
+	editMode = e.detail.editing;
+	if (editMode) {
+		hideSSRContent();
+		editingMethod = -1;
+		editingSponsor = -1;
+	} else {
+		showSSRContent();
+	}
+}
 
-  function handleCancel() {
-    if (originalState) {
-      state = deepClone(originalState);
-    }
-    editingMethod = -1;
-    editingSponsor = -1;
-    drafts.clearDrafts();
-    showSSRContent();
-  }
+function handleCancel() {
+	if (originalState) {
+		state = deepClone(originalState);
+	}
+	editingMethod = -1;
+	editingSponsor = -1;
+	drafts.clearDrafts();
+	showSSRContent();
+}
 
-  // ===== Methods 操作 =====
-  function startEditMethod(index: number) {
-    editingMethod = index;
-    editingSponsor = -1;
-  }
+// ===== Methods 操作 =====
+function startEditMethod(index: number) {
+	editingMethod = index;
+	editingSponsor = -1;
+}
 
-  function updateMethodField(index: number, field: keyof SponsorMethod, value: string | boolean) {
-    state.methods[index] = { ...state.methods[index], [field]: value };
-    state = { ...state };
+function updateMethodField(
+	index: number,
+	field: keyof SponsorMethod,
+	value: string | boolean,
+) {
+	state.methods[index] = { ...state.methods[index], [field]: value };
+	state = { ...state };
+}
 
-  }
+function finishEditMethod(index: number) {
+	const m = state.methods[index];
+	if (!m.name.trim()) {
+		showToast("支付方式名称不能为空", "warning");
+		return;
+	}
+	editingMethod = -1;
 
-  function finishEditMethod(index: number) {
-    const m = state.methods[index];
-    if (!m.name.trim()) {
-      showToast("支付方式名称不能为空", "warning");
-      return;
-    }
-    editingMethod = -1;
+	showToast("已修改，记得点击保存", "info");
+}
 
-    showToast("已修改，记得点击保存", "info");
-  }
+function cancelMethodEdit(index: number) {
+	const m = state.methods[index];
+	if (m._draft && !m.name.trim()) {
+		state.methods = state.methods.filter((_, i) => i !== index);
+		state = { ...state };
+	} else if (originalState) {
+		const orig = originalState.methods.find((o) => o.id === m.id);
+		if (orig) {
+			state.methods[index] = deepClone(orig);
+			state = { ...state };
+		}
+	}
+	editingMethod = -1;
+}
 
-  function cancelMethodEdit(index: number) {
-    const m = state.methods[index];
-    if (m._draft && !m.name.trim()) {
-      state.methods = state.methods.filter((_, i) => i !== index);
-      state = { ...state };
-    } else if (originalState) {
-      const orig = originalState.methods.find(o => o.id === m.id);
-      if (orig) {
-        state.methods[index] = deepClone(orig);
-        state = { ...state };
-      }
-    }
-    editingMethod = -1;
-  }
+function deleteMethod(index: number) {
+	const m = state.methods[index];
+	if (!confirm(`确定要删除「${m.name}」吗？`)) return;
+	if (m._draft) {
+		state.methods = state.methods.filter((_, i) => i !== index);
+		state = { ...state };
+	} else {
+		state.methods[index] = { ...state.methods[index], _deleted: true };
+		state = { ...state };
+	}
 
-  function deleteMethod(index: number) {
-    const m = state.methods[index];
-    if (!confirm(`确定要删除「${m.name}」吗？`)) return;
-    if (m._draft) {
-      state.methods = state.methods.filter((_, i) => i !== index);
-      state = { ...state };
-    } else {
-      state.methods[index] = { ...state.methods[index], _deleted: true };
-      state = { ...state };
-    }
+	if (editingMethod === index) editingMethod = -1;
+	else if (editingMethod > index) editingMethod--;
+	showToast("已标记删除，记得点击保存", "info");
+}
 
-    if (editingMethod === index) editingMethod = -1;
-    else if (editingMethod > index) editingMethod--;
-    showToast("已标记删除，记得点击保存", "info");
-  }
+function moveMethodUp(index: number) {
+	if (index <= 0) return;
+	const arr = [...state.methods];
+	[arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+	state.methods = arr;
+	state = { ...state };
+}
 
-  function moveMethodUp(index: number) {
-    if (index <= 0) return;
-    const arr = [...state.methods];
-    [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
-    state.methods = arr;
-    state = { ...state };
+function moveMethodDown(index: number) {
+	if (index >= state.methods.length - 1) return;
+	const arr = [...state.methods];
+	[arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+	state.methods = arr;
+	state = { ...state };
+}
 
-  }
+function restoreMethod(index: number) {
+	state.methods[index] = { ...state.methods[index], _deleted: false };
+	state = { ...state };
+}
 
-  function moveMethodDown(index: number) {
-    if (index >= state.methods.length - 1) return;
-    const arr = [...state.methods];
-    [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
-    state.methods = arr;
-    state = { ...state };
+function addMethod() {
+	state.methods = [
+		...state.methods,
+		{
+			id: genId("sm"),
+			name: "",
+			icon: "",
+			qrCode: "",
+			link: "",
+			description: "",
+			enabled: true,
+			_draft: true,
+		},
+	];
+	state = { ...state };
+	editingMethod = state.methods.length - 1;
+	editingSponsor = -1;
+}
 
-  }
+// ===== Sponsors 操作 =====
+function startEditSponsor(index: number) {
+	editingSponsor = index;
+	editingMethod = -1;
+}
 
-  function restoreMethod(index: number) {
-    state.methods[index] = { ...state.methods[index], _deleted: false };
-    state = { ...state };
+function updateSponsorField(
+	index: number,
+	field: keyof SponsorItem,
+	value: string,
+) {
+	state.sponsors[index] = { ...state.sponsors[index], [field]: value };
+	state = { ...state };
+}
 
-  }
+function finishEditSponsor(index: number) {
+	const s = state.sponsors[index];
+	if (!s.name.trim()) {
+		showToast("赞助者名称不能为空", "warning");
+		return;
+	}
+	editingSponsor = -1;
 
-  function addMethod() {
-    state.methods = [
-      ...state.methods,
-      {
-        id: genId("sm"),
-        name: "",
-        icon: "",
-        qrCode: "",
-        link: "",
-        description: "",
-        enabled: true,
-        _draft: true,
-      },
-    ];
-    state = { ...state };
-    editingMethod = state.methods.length - 1;
-    editingSponsor = -1;
+	showToast("已修改，记得点击保存", "info");
+}
 
-  }
+function cancelSponsorEdit(index: number) {
+	const s = state.sponsors[index];
+	if (s._draft && !s.name.trim()) {
+		state.sponsors = state.sponsors.filter((_, i) => i !== index);
+		state = { ...state };
+	} else if (originalState) {
+		const orig = originalState.sponsors.find((o) => o.id === s.id);
+		if (orig) {
+			state.sponsors[index] = deepClone(orig);
+			state = { ...state };
+		}
+	}
+	editingSponsor = -1;
+}
 
-  // ===== Sponsors 操作 =====
-  function startEditSponsor(index: number) {
-    editingSponsor = index;
-    editingMethod = -1;
-  }
+function deleteSponsor(index: number) {
+	const s = state.sponsors[index];
+	if (!confirm(`确定要删除「${s.name}」吗？`)) return;
+	if (s._draft) {
+		state.sponsors = state.sponsors.filter((_, i) => i !== index);
+		state = { ...state };
+	} else {
+		state.sponsors[index] = { ...state.sponsors[index], _deleted: true };
+		state = { ...state };
+	}
 
-  function updateSponsorField(index: number, field: keyof SponsorItem, value: string) {
-    state.sponsors[index] = { ...state.sponsors[index], [field]: value };
-    state = { ...state };
+	if (editingSponsor === index) editingSponsor = -1;
+	else if (editingSponsor > index) editingSponsor--;
+	showToast("已标记删除，记得点击保存", "info");
+}
 
-  }
+function moveSponsorUp(index: number) {
+	if (index <= 0) return;
+	const arr = [...state.sponsors];
+	[arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+	state.sponsors = arr;
+	state = { ...state };
+}
 
-  function finishEditSponsor(index: number) {
-    const s = state.sponsors[index];
-    if (!s.name.trim()) {
-      showToast("赞助者名称不能为空", "warning");
-      return;
-    }
-    editingSponsor = -1;
+function moveSponsorDown(index: number) {
+	if (index >= state.sponsors.length - 1) return;
+	const arr = [...state.sponsors];
+	[arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+	state.sponsors = arr;
+	state = { ...state };
+}
 
-    showToast("已修改，记得点击保存", "info");
-  }
+function restoreSponsor(index: number) {
+	state.sponsors[index] = { ...state.sponsors[index], _deleted: false };
+	state = { ...state };
+}
 
-  function cancelSponsorEdit(index: number) {
-    const s = state.sponsors[index];
-    if (s._draft && !s.name.trim()) {
-      state.sponsors = state.sponsors.filter((_, i) => i !== index);
-      state = { ...state };
-    } else if (originalState) {
-      const orig = originalState.sponsors.find(o => o.id === s.id);
-      if (orig) {
-        state.sponsors[index] = deepClone(orig);
-        state = { ...state };
-      }
-    }
-    editingSponsor = -1;
-  }
+function addSponsor() {
+	state.sponsors = [
+		...state.sponsors,
+		{
+			id: genId("sp"),
+			name: "",
+			amount: "",
+			date: new Date().toISOString().slice(0, 10),
+			avatar: "",
+			_draft: true,
+		},
+	];
+	state = { ...state };
+	editingSponsor = state.sponsors.length - 1;
+	editingMethod = -1;
+}
 
-  function deleteSponsor(index: number) {
-    const s = state.sponsors[index];
-    if (!confirm(`确定要删除「${s.name}」吗？`)) return;
-    if (s._draft) {
-      state.sponsors = state.sponsors.filter((_, i) => i !== index);
-      state = { ...state };
-    } else {
-      state.sponsors[index] = { ...state.sponsors[index], _deleted: true };
-      state = { ...state };
-    }
+function updateStateField<K extends keyof SponsorState>(
+	field: K,
+	value: SponsorState[K],
+) {
+	state = { ...state, [field]: value };
+}
 
-    if (editingSponsor === index) editingSponsor = -1;
-    else if (editingSponsor > index) editingSponsor--;
-    showToast("已标记删除，记得点击保存", "info");
-  }
+function generateConfigTs(): string {
+	const lines = [
+		'import type { SponsorConfig } from "../types/config";',
+		"",
+		"export const sponsorConfig: SponsorConfig = {",
+		`\ttitle: ${JSON.stringify(state.title)},`,
+		"",
+		`\tdescription: ${JSON.stringify(state.description)},`,
+		"",
+		`\tusage: ${JSON.stringify(state.usage)},`,
+		"",
+		`\tshowSponsorsList: ${state.showSponsorsList},`,
+		"",
+		"\tshowComment: true,",
+		"",
+		"\tshowButtonInPost: true,",
+		"",
+		"\tmethods: [",
+	];
 
-  function moveSponsorUp(index: number) {
-    if (index <= 0) return;
-    const arr = [...state.sponsors];
-    [arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
-    state.sponsors = arr;
-    state = { ...state };
+	for (const m of state.methods.filter((m) => !m._deleted)) {
+		lines.push("\t\t{");
+		lines.push(`\t\t\tname: ${JSON.stringify(m.name)},`);
+		if (m.icon) lines.push(`\t\t\ticon: ${JSON.stringify(m.icon)},`);
+		if (m.qrCode) lines.push(`\t\t\tqrCode: ${JSON.stringify(m.qrCode)},`);
+		if (m.link) lines.push(`\t\t\tlink: ${JSON.stringify(m.link)},`);
+		if (m.description)
+			lines.push(`\t\t\tdescription: ${JSON.stringify(m.description)},`);
+		lines.push(`\t\t\tenabled: ${m.enabled},`);
+		lines.push("\t\t},");
+	}
 
-  }
+	lines.push("\t],");
+	lines.push("");
+	lines.push("\tsponsors: [");
 
-  function moveSponsorDown(index: number) {
-    if (index >= state.sponsors.length - 1) return;
-    const arr = [...state.sponsors];
-    [arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
-    state.sponsors = arr;
-    state = { ...state };
+	for (const s of state.sponsors.filter((s) => !s._deleted)) {
+		lines.push("\t\t{");
+		lines.push(`\t\t\tname: ${JSON.stringify(s.name)},`);
+		if (s.avatar) lines.push(`\t\t\tavatar: ${JSON.stringify(s.avatar)},`);
+		if (s.amount) lines.push(`\t\t\tamount: ${JSON.stringify(s.amount)},`);
+		if (s.date) lines.push(`\t\t\tdate: ${JSON.stringify(s.date)},`);
+		lines.push("\t\t},");
+	}
 
-  }
+	lines.push("\t],");
+	lines.push("};");
+	lines.push("");
+	return lines.join("\n");
+}
 
-  function restoreSponsor(index: number) {
-    state.sponsors[index] = { ...state.sponsors[index], _deleted: false };
-    state = { ...state };
+function handleSaveDraft() {
+	drafts.saveToDrafts();
+}
 
-  }
-
-  function addSponsor() {
-    state.sponsors = [
-      ...state.sponsors,
-      {
-        id: genId("sp"),
-        name: "",
-        amount: "",
-        date: new Date().toISOString().slice(0, 10),
-        avatar: "",
-        _draft: true,
-      },
-    ];
-    state = { ...state };
-    editingSponsor = state.sponsors.length - 1;
-    editingMethod = -1;
-
-  }
-
-  function updateStateField<K extends keyof SponsorState>(field: K, value: SponsorState[K]) {
-    state = { ...state, [field]: value };
-
-  }
-
-  function generateConfigTs(): string {
-    const lines = [
-      'import type { SponsorConfig } from "../types/config";',
-      "",
-      "export const sponsorConfig: SponsorConfig = {",
-      `\ttitle: ${JSON.stringify(state.title)},`,
-      "",
-      `\tdescription: ${JSON.stringify(state.description)},`,
-      "",
-      `\tusage: ${JSON.stringify(state.usage)},`,
-      "",
-      `\tshowSponsorsList: ${state.showSponsorsList},`,
-      "",
-      "\tshowComment: true,",
-      "",
-      "\tshowButtonInPost: true,",
-      "",
-      "\tmethods: [",
-    ];
-
-    for (const m of state.methods.filter(m => !m._deleted)) {
-      lines.push("\t\t{");
-      lines.push(`\t\t\tname: ${JSON.stringify(m.name)},`);
-      if (m.icon) lines.push(`\t\t\ticon: ${JSON.stringify(m.icon)},`);
-      if (m.qrCode) lines.push(`\t\t\tqrCode: ${JSON.stringify(m.qrCode)},`);
-      if (m.link) lines.push(`\t\t\tlink: ${JSON.stringify(m.link)},`);
-      if (m.description) lines.push(`\t\t\tdescription: ${JSON.stringify(m.description)},`);
-      lines.push(`\t\t\tenabled: ${m.enabled},`);
-      lines.push("\t\t},");
-    }
-
-    lines.push("\t],");
-    lines.push("");
-    lines.push("\tsponsors: [");
-
-    for (const s of state.sponsors.filter(s => !s._deleted)) {
-      lines.push("\t\t{");
-      lines.push(`\t\t\tname: ${JSON.stringify(s.name)},`);
-      if (s.avatar) lines.push(`\t\t\tavatar: ${JSON.stringify(s.avatar)},`);
-      if (s.amount) lines.push(`\t\t\tamount: ${JSON.stringify(s.amount)},`);
-      if (s.date) lines.push(`\t\t\tdate: ${JSON.stringify(s.date)},`);
-      lines.push("\t\t},");
-    }
-
-    lines.push("\t],");
-    lines.push("};");
-    lines.push("");
-    return lines.join("\n");
-  }
-
-  function handleSaveDraft() {
-    drafts.saveToDrafts();
-  }
-
-  async function handleSubmit() {
-    saving = true;
-    try { await drafts.submitDrafts(); } finally { saving = false; }
-  }
+async function handleSubmit() {
+	saving = true;
+	try {
+		await drafts.submitDrafts();
+	} finally {
+		saving = false;
+	}
+}
 </script>
 
 <EditToast />

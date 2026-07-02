@@ -17,7 +17,12 @@ const imageFiles = import.meta.glob<{ default: ImageMetadata }>(
 
 async function resolveAvatar(src?: string) {
 	if (!src) return "";
-	if (src.startsWith("/") || src.startsWith("http://") || src.startsWith("https://") || src.startsWith("data:")) {
+	if (
+		src.startsWith("/") ||
+		src.startsWith("http://") ||
+		src.startsWith("https://") ||
+		src.startsWith("data:")
+	) {
 		return src;
 	}
 	const normalizedPath = `../../${src}`.replace(/\\/g, "/");

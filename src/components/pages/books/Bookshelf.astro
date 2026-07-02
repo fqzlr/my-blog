@@ -11,10 +11,10 @@ interface BookData {
 
 interface Props {
 	books: BookData[];
-	'data-section'?: string;
+	"data-section"?: string;
 }
 
-const { books, 'data-section': dataSection } = Astro.props;
+const { books, "data-section": dataSection } = Astro.props;
 ---
 
 <div class="bookshelf" data-section={dataSection}>

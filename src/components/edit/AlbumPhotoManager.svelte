@@ -1,493 +1,540 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import EditToolbar from "./EditToolbar.svelte";
-	import EditToast from "./EditToast.svelte";
-	import {
-		showToast,
-		hasValidToken,
-		ensureIconify,
-		deleteRepoFile,
-		listRepoFiles,
-		getRepoFileBase64,
-		createRepoFile,
-		createRepoFileRawBase64,
-		getRepoFile,
-		updateRepoFile,
-	} from "@/utils/editMode";
-	import { repoConfig } from "@/config/editConfig";
+import { onMount } from "svelte";
+import EditToolbar from "./EditToolbar.svelte";
+import EditToast from "./EditToast.svelte";
+import {
+	showToast,
+	hasValidToken,
+	ensureIconify,
+	deleteRepoFile,
+	listRepoFiles,
+	getRepoFileBase64,
+	createRepoFile,
+	createRepoFileRawBase64,
+	getRepoFile,
+	updateRepoFile,
+} from "@/utils/editMode";
+import { repoConfig } from "@/config/editConfig";
 
-	interface PhotoItem {
-		url: string;
-		fileName: string;
-		repoPath: string;
-		sha: string;
-		selected: boolean;
-		isCover: boolean;
-	}
+interface PhotoItem {
+	url: string;
+	fileName: string;
+	repoPath: string;
+	sha: string;
+	selected: boolean;
+	isCover: boolean;
+}
 
-	interface PendingUpload {
-		file: File;
-		previewUrl: string;
-		fileName: string;
-		base64: string;
-	}
+interface PendingUpload {
+	file: File;
+	previewUrl: string;
+	fileName: string;
+	base64: string;
+}
 
-	let {
-		photos = [],
-		albumId,
-		albumName = "相册",
-	}: {
-		photos: string[];
-		albumId: string;
-		albumName?: string;
-	} = $props();
+let {
+	photos = [],
+	albumId,
+	albumName = "相册",
+}: {
+	photos: string[];
+	albumId: string;
+	albumName?: string;
+} = $props();
 
-	let editMode = $state(false);
-	let saving = $state(false);
-	let hasChanges = $state(false);
-	let photoItems = $state<PhotoItem[]>([]);
-	let originalOrder = $state<string[]>([]);
-	let draggingIndex = $state(-1);
-	let dragOverIndex = $state(-1);
-	let repoFilesLoaded = $state(false);
-	let progress = $state({ current: 0, total: 0, text: "" });
-	let pendingUploads = $state<PendingUpload[]>([]);
-	let fileInputEl: HTMLInputElement | undefined = $state();
-	let isDraggingOver = $state(false);
+let editMode = $state(false);
+let saving = $state(false);
+let hasChanges = $state(false);
+let photoItems = $state<PhotoItem[]>([]);
+let originalOrder = $state<string[]>([]);
+let draggingIndex = $state(-1);
+let dragOverIndex = $state(-1);
+let repoFilesLoaded = $state(false);
+let progress = $state({ current: 0, total: 0, text: "" });
+let pendingUploads = $state<PendingUpload[]>([]);
+let fileInputEl: HTMLInputElement | undefined = $state();
+let isDraggingOver = $state(false);
 
-	const repoDirPath = `public/gallery/${albumId}`;
+const repoDirPath = `public/gallery/${albumId}`;
 
-	onMount(() => {
-		ensureIconify();
-		photoItems = photos.map((url) => {
-			const fileName = url.split("/").pop() || "";
-			return {
-				url,
-				fileName,
-				repoPath: `${repoDirPath}/${fileName}`,
-				sha: "",
-				selected: false,
-				isCover: /^cover\./i.test(fileName),
-			};
-		});
-		originalOrder = photoItems.map((p) => p.fileName);
+onMount(() => {
+	ensureIconify();
+	photoItems = photos.map((url) => {
+		const fileName = url.split("/").pop() || "";
+		return {
+			url,
+			fileName,
+			repoPath: `${repoDirPath}/${fileName}`,
+			sha: "",
+			selected: false,
+			isCover: /^cover\./i.test(fileName),
+		};
 	});
+	originalOrder = photoItems.map((p) => p.fileName);
+});
 
-	// 进入/退出编辑模式
-	function handleModeChange(e: CustomEvent) {
-		editMode = e.detail.editing;
-		if (editMode) {
-			loadRepoFiles();
-			hideSSRContent();
-		} else {
-			showSSRContent();
+// 进入/退出编辑模式
+function handleModeChange(e: CustomEvent) {
+	editMode = e.detail.editing;
+	if (editMode) {
+		loadRepoFiles();
+		hideSSRContent();
+	} else {
+		showSSRContent();
+	}
+}
+
+function hideSSRContent() {
+	document.querySelectorAll<HTMLElement>(".gallery-photo-ssr").forEach((s) => {
+		s.style.display = "none";
+	});
+}
+
+function showSSRContent() {
+	document.querySelectorAll<HTMLElement>(".gallery-photo-ssr").forEach((s) => {
+		s.style.display = "";
+	});
+}
+
+async function loadRepoFiles() {
+	if (repoFilesLoaded || !hasValidToken()) {
+		repoFilesLoaded = true;
+		return;
+	}
+	try {
+		const files = await listRepoFiles(repoDirPath);
+		for (const photo of photoItems) {
+			const match = files.find((f) => f.name === photo.fileName);
+			if (match) {
+				photo.sha = match.sha;
+			}
 		}
+		photoItems = [...photoItems];
+	} catch (e) {
+		console.warn("Failed to load repo files:", e);
 	}
+	repoFilesLoaded = true;
+}
 
-	function hideSSRContent() {
-		document.querySelectorAll<HTMLElement>(".gallery-photo-ssr").forEach((s) => {
-			s.style.display = "none";
-		});
+// ===== 拖拽排序 =====
+function onDragStart(e: DragEvent, index: number) {
+	if (!e.dataTransfer) return;
+	draggingIndex = index;
+	e.dataTransfer.effectAllowed = "move";
+	e.dataTransfer.setData("text/plain", String(index));
+}
+
+function onDragOver(e: DragEvent, index: number) {
+	e.preventDefault();
+	if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+	if (dragOverIndex !== index) dragOverIndex = index;
+}
+
+function onDragLeave() {
+	dragOverIndex = -1;
+}
+
+function onDrop(e: DragEvent, targetIndex: number) {
+	e.preventDefault();
+	const sourceIndex = draggingIndex;
+	draggingIndex = -1;
+	dragOverIndex = -1;
+	if (sourceIndex < 0 || sourceIndex === targetIndex) return;
+	const arr = [...photoItems];
+	const [moved] = arr.splice(sourceIndex, 1);
+	arr.splice(targetIndex, 0, moved);
+	photoItems = arr;
+	hasChanges = true;
+}
+
+function onDragEnd() {
+	draggingIndex = -1;
+	dragOverIndex = -1;
+}
+
+// ===== 选择 =====
+function toggleSelect(index: number) {
+	photoItems[index] = {
+		...photoItems[index],
+		selected: !photoItems[index].selected,
+	};
+	photoItems = [...photoItems];
+}
+
+function selectAll() {
+	photoItems = photoItems.map((p) => ({ ...p, selected: true }));
+}
+
+function deselectAll() {
+	photoItems = photoItems.map((p) => ({ ...p, selected: false }));
+}
+
+// ===== 上传图片 =====
+function triggerFileInput() {
+	fileInputEl?.click();
+}
+
+function handleFileSelect(e: Event) {
+	const input = e.target as HTMLInputElement;
+	if (!input.files?.length) return;
+	addFiles(Array.from(input.files));
+	input.value = "";
+}
+
+function addFiles(files: File[]) {
+	const imageFiles = files.filter((f) => f.type.startsWith("image/"));
+	if (imageFiles.length === 0) {
+		showToast("请选择图片文件", "warning");
+		return;
 	}
-
-	function showSSRContent() {
-		document.querySelectorAll<HTMLElement>(".gallery-photo-ssr").forEach((s) => {
-			s.style.display = "";
-		});
+	for (const file of imageFiles) {
+		const reader = new FileReader();
+		reader.onload = () => {
+			const dataUrl = reader.result as string;
+			// Extract pure base64 (remove data:image/xxx;base64, prefix)
+			const base64 = dataUrl.split(",")[1] || "";
+			// Generate unique filename with timestamp
+			const ext = file.name.split(".").pop() || "jpg";
+			const ts = Date.now();
+			const idx = pendingUploads.length + photoItems.length + 1;
+			const prefix = String(idx).padStart(3, "0");
+			const fileName = `${prefix}_${ts}.${ext}`;
+			pendingUploads = [
+				...pendingUploads,
+				{ file, previewUrl: dataUrl, fileName, base64 },
+			];
+			hasChanges = true;
+		};
+		reader.readAsDataURL(file);
 	}
+}
 
-	async function loadRepoFiles() {
-		if (repoFilesLoaded || !hasValidToken()) {
-			repoFilesLoaded = true;
-			return;
-		}
-		try {
-			const files = await listRepoFiles(repoDirPath);
-			for (const photo of photoItems) {
-				const match = files.find((f) => f.name === photo.fileName);
-				if (match) {
-					photo.sha = match.sha;
+function removePendingUpload(index: number) {
+	pendingUploads = pendingUploads.filter((_, i) => i !== index);
+	if (pendingUploads.length === 0) hasChanges = false;
+}
+
+// Drag & drop on the grid area
+function onGridDragOver(e: DragEvent) {
+	e.preventDefault();
+	if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+	isDraggingOver = true;
+}
+function onGridDragLeave() {
+	isDraggingOver = false;
+}
+function onGridDrop(e: DragEvent) {
+	e.preventDefault();
+	isDraggingOver = false;
+	const files = e.dataTransfer?.files;
+	if (files?.length) addFiles(Array.from(files));
+}
+
+// ===== 设置封面 =====
+function setCover(index: number) {
+	photoItems = photoItems.map((p, i) => ({ ...p, isCover: i === index }));
+	hasChanges = true;
+	showToast(`已将「${photoItems[index].fileName}」设为封面`, "info");
+}
+
+// ===== 移动 =====
+function moveUp(index: number) {
+	if (index <= 0) return;
+	const arr = [...photoItems];
+	[arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+	photoItems = arr;
+	hasChanges = true;
+}
+
+function moveDown(index: number) {
+	if (index >= photoItems.length - 1) return;
+	const arr = [...photoItems];
+	[arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+	photoItems = arr;
+	hasChanges = true;
+}
+
+// ===== 保存 =====
+async function handleSave() {
+	if (!hasValidToken()) {
+		showToast("请先导入密钥再保存", "warning");
+		return;
+	}
+	saving = true;
+
+	try {
+		// 0. 上传新增图片
+		if (pendingUploads.length > 0) {
+			progress = {
+				current: 0,
+				total: pendingUploads.length,
+				text: "正在上传图片...",
+			};
+			let uploaded = 0;
+			for (const up of pendingUploads) {
+				progress.current++;
+				progress = { ...progress };
+				const repoPath = `${repoDirPath}/${up.fileName}`;
+				const ok = await createRepoFileRawBase64(
+					repoPath,
+					up.base64,
+					`feat: 新增相册 ${albumName} 图片 ${up.fileName}`,
+				);
+				if (ok) {
+					// Add to photoItems
+					const url = `/gallery/${albumId}/${up.fileName}`;
+					photoItems = [
+						...photoItems,
+						{
+							url,
+							fileName: up.fileName,
+							repoPath,
+							sha: "",
+							selected: false,
+							isCover: false,
+						},
+					];
+					uploaded++;
 				}
 			}
-			photoItems = [...photoItems];
-		} catch (e) {
-			console.warn("Failed to load repo files:", e);
+			pendingUploads = [];
+			showToast(`已上传 ${uploaded} 张图片`, "success");
 		}
-		repoFilesLoaded = true;
-	}
 
-	// ===== 拖拽排序 =====
-	function onDragStart(e: DragEvent, index: number) {
-		if (!e.dataTransfer) return;
-		draggingIndex = index;
-		e.dataTransfer.effectAllowed = "move";
-		e.dataTransfer.setData("text/plain", String(index));
-	}
-
-	function onDragOver(e: DragEvent, index: number) {
-		e.preventDefault();
-		if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
-		if (dragOverIndex !== index) dragOverIndex = index;
-	}
-
-	function onDragLeave() {
-		dragOverIndex = -1;
-	}
-
-	function onDrop(e: DragEvent, targetIndex: number) {
-		e.preventDefault();
-		const sourceIndex = draggingIndex;
-		draggingIndex = -1;
-		dragOverIndex = -1;
-		if (sourceIndex < 0 || sourceIndex === targetIndex) return;
-		const arr = [...photoItems];
-		const [moved] = arr.splice(sourceIndex, 1);
-		arr.splice(targetIndex, 0, moved);
-		photoItems = arr;
-		hasChanges = true;
-	}
-
-	function onDragEnd() {
-		draggingIndex = -1;
-		dragOverIndex = -1;
-	}
-
-	// ===== 选择 =====
-	function toggleSelect(index: number) {
-		photoItems[index] = { ...photoItems[index], selected: !photoItems[index].selected };
-		photoItems = [...photoItems];
-	}
-
-	function selectAll() {
-		photoItems = photoItems.map((p) => ({ ...p, selected: true }));
-	}
-
-	function deselectAll() {
-		photoItems = photoItems.map((p) => ({ ...p, selected: false }));
-	}
-
-	// ===== 上传图片 =====
-	function triggerFileInput() {
-		fileInputEl?.click();
-	}
-
-	function handleFileSelect(e: Event) {
-		const input = e.target as HTMLInputElement;
-		if (!input.files?.length) return;
-		addFiles(Array.from(input.files));
-		input.value = "";
-	}
-
-	function addFiles(files: File[]) {
-		const imageFiles = files.filter((f) => f.type.startsWith("image/"));
-		if (imageFiles.length === 0) {
-			showToast("请选择图片文件", "warning");
-			return;
-		}
-		for (const file of imageFiles) {
-			const reader = new FileReader();
-			reader.onload = () => {
-				const dataUrl = reader.result as string;
-				// Extract pure base64 (remove data:image/xxx;base64, prefix)
-				const base64 = dataUrl.split(",")[1] || "";
-				// Generate unique filename with timestamp
-				const ext = file.name.split(".").pop() || "jpg";
-				const ts = Date.now();
-				const idx = pendingUploads.length + photoItems.length + 1;
-				const prefix = String(idx).padStart(3, "0");
-				const fileName = `${prefix}_${ts}.${ext}`;
-				pendingUploads = [
-					...pendingUploads,
-					{ file, previewUrl: dataUrl, fileName, base64 },
-				];
-				hasChanges = true;
+		// 1. 删除选中的照片
+		const selectedItems = photoItems.filter((p) => p.selected);
+		if (selectedItems.length > 0) {
+			if (
+				!confirm(
+					`确定要删除 ${selectedItems.length} 张照片吗？此操作不可撤销！`,
+				)
+			) {
+				saving = false;
+				return;
+			}
+			progress = {
+				current: 0,
+				total: selectedItems.length,
+				text: "正在删除照片...",
 			};
-			reader.readAsDataURL(file);
+			for (const item of selectedItems) {
+				progress.current++;
+				progress = { ...progress };
+				if (!item.sha) {
+					const meta = await (await import("@/utils/editMode")).getRepoFileMeta(
+						item.repoPath,
+					);
+					if (meta) item.sha = meta.sha;
+				}
+				if (item.sha) {
+					await deleteRepoFile(
+						item.repoPath,
+						item.sha,
+						`chore: 删除相册 ${albumName} 中的 ${item.fileName}`,
+					);
+				}
+			}
+			photoItems = photoItems.filter((p) => !p.selected);
+			showToast(`已删除 ${selectedItems.length} 张照片`, "success");
 		}
-	}
 
-	function removePendingUpload(index: number) {
-		pendingUploads = pendingUploads.filter((_, i) => i !== index);
-		if (pendingUploads.length === 0) hasChanges = false;
-	}
+		// 2. 重排序（重命名文件添加序号前缀）
+		const currentOrder = photoItems.map((p) => p.fileName);
+		const orderChanged = currentOrder.some(
+			(name, i) => name !== originalOrder[i],
+		);
+		if (orderChanged) {
+			progress = {
+				current: 0,
+				total: photoItems.length * 2,
+				text: "正在重排序...",
+			};
+			let successCount = 0;
+			let failCount = 0;
 
-	// Drag & drop on the grid area
-	function onGridDragOver(e: DragEvent) {
-		e.preventDefault();
-		if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-		isDraggingOver = true;
-	}
-	function onGridDragLeave() {
-		isDraggingOver = false;
-	}
-	function onGridDrop(e: DragEvent) {
-		e.preventDefault();
-		isDraggingOver = false;
-		const files = e.dataTransfer?.files;
-		if (files?.length) addFiles(Array.from(files));
-	}
+			// Phase 1: 全部重命名为临时名
+			const tempNames: string[] = [];
+			for (let i = 0; i < photoItems.length; i++) {
+				progress.current++;
+				progress = { ...progress };
+				const photo = photoItems[i];
+				const ext = photo.fileName.split(".").pop() || "";
+				const tempName = `__tmp_reorder_${Date.now()}_${i}.${ext}`;
+				const tempPath = `${repoDirPath}/${tempName}`;
 
-	// ===== 设置封面 =====
-	function setCover(index: number) {
-		photoItems = photoItems.map((p, i) => ({ ...p, isCover: i === index }));
-		hasChanges = true;
-		showToast(`已将「${photoItems[index].fileName}」设为封面`, "info");
-	}
-
-	// ===== 移动 =====
-	function moveUp(index: number) {
-		if (index <= 0) return;
-		const arr = [...photoItems];
-		[arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
-		photoItems = arr;
-		hasChanges = true;
-	}
-
-	function moveDown(index: number) {
-		if (index >= photoItems.length - 1) return;
-		const arr = [...photoItems];
-		[arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
-		photoItems = arr;
-		hasChanges = true;
-	}
-
-	// ===== 保存 =====
-	async function handleSave() {
-		if (!hasValidToken()) {
-			showToast("请先导入密钥再保存", "warning");
-			return;
-		}
-		saving = true;
-
-		try {
-			// 0. 上传新增图片
-			if (pendingUploads.length > 0) {
-				progress = { current: 0, total: pendingUploads.length, text: "正在上传图片..." };
-				let uploaded = 0;
-				for (const up of pendingUploads) {
-					progress.current++;
-					progress = { ...progress };
-					const repoPath = `${repoDirPath}/${up.fileName}`;
-					const ok = await createRepoFileRawBase64(
-						repoPath,
-						up.base64,
-						`feat: 新增相册 ${albumName} 图片 ${up.fileName}`,
+				const b64 = await getRepoFileBase64(photo.repoPath);
+				if (b64) {
+					const ok = await createRepoFile(
+						tempPath,
+						b64,
+						`chore: 重排序 ${albumName} (${i + 1}/${photoItems.length})`,
 					);
 					if (ok) {
-						// Add to photoItems
-						const url = `/gallery/${albumId}/${up.fileName}`;
-						photoItems = [
-							...photoItems,
-							{
-								url,
-								fileName: up.fileName,
-								repoPath,
-								sha: "",
-								selected: false,
-								isCover: false,
-							},
-						];
-						uploaded++;
-					}
-				}
-				pendingUploads = [];
-				showToast(`已上传 ${uploaded} 张图片`, "success");
-			}
-
-			// 1. 删除选中的照片
-			const selectedItems = photoItems.filter((p) => p.selected);
-			if (selectedItems.length > 0) {
-				if (!confirm(`确定要删除 ${selectedItems.length} 张照片吗？此操作不可撤销！`)) {
-					saving = false;
-					return;
-				}
-				progress = { current: 0, total: selectedItems.length, text: "正在删除照片..." };
-				for (const item of selectedItems) {
-					progress.current++;
-					progress = { ...progress };
-					if (!item.sha) {
-						const meta = await (await import("@/utils/editMode")).getRepoFileMeta(item.repoPath);
-						if (meta) item.sha = meta.sha;
-					}
-					if (item.sha) {
-						await deleteRepoFile(
-							item.repoPath,
-							item.sha,
-							`chore: 删除相册 ${albumName} 中的 ${item.fileName}`,
-						);
-					}
-				}
-				photoItems = photoItems.filter((p) => !p.selected);
-				showToast(`已删除 ${selectedItems.length} 张照片`, "success");
-			}
-
-			// 2. 重排序（重命名文件添加序号前缀）
-			const currentOrder = photoItems.map((p) => p.fileName);
-			const orderChanged = currentOrder.some((name, i) => name !== originalOrder[i]);
-			if (orderChanged) {
-				progress = { current: 0, total: photoItems.length * 2, text: "正在重排序..." };
-				let successCount = 0;
-				let failCount = 0;
-
-				// Phase 1: 全部重命名为临时名
-				const tempNames: string[] = [];
-				for (let i = 0; i < photoItems.length; i++) {
-					progress.current++;
-					progress = { ...progress };
-					const photo = photoItems[i];
-					const ext = photo.fileName.split(".").pop() || "";
-					const tempName = `__tmp_reorder_${Date.now()}_${i}.${ext}`;
-					const tempPath = `${repoDirPath}/${tempName}`;
-
-					const b64 = await getRepoFileBase64(photo.repoPath);
-					if (b64) {
-						const ok = await createRepoFile(
-							tempPath,
-							b64,
-							`chore: 重排序 ${albumName} (${i + 1}/${photoItems.length})`,
-						);
-						if (ok) {
-							// 删除旧文件
-							if (photo.sha) {
-								await deleteRepoFile(photo.repoPath, photo.sha, `chore: 重排序清理`);
-							}
-							photo.repoPath = tempPath;
-							photo.fileName = tempName;
-							tempNames.push(tempName);
-							successCount++;
-						} else {
-							failCount++;
+						// 删除旧文件
+						if (photo.sha) {
+							await deleteRepoFile(
+								photo.repoPath,
+								photo.sha,
+								`chore: 重排序清理`,
+							);
 						}
+						photo.repoPath = tempPath;
+						photo.fileName = tempName;
+						tempNames.push(tempName);
+						successCount++;
 					} else {
 						failCount++;
 					}
+				} else {
+					failCount++;
 				}
+			}
 
-				// Phase 2: 从临时名改为最终名
-				for (let i = 0; i < photoItems.length; i++) {
-					progress.current++;
-					progress = { ...progress };
-					const photo = photoItems[i];
-					const ext = photo.fileName.split(".").pop() || "";
-					const prefix = String(i + 1).padStart(3, "0");
-					const finalName = `${prefix}_${photoItems[i].url.split("/").pop()?.split("_").slice(1).join("_") || `photo_${i + 1}.${ext}`}`;
-					// Use original filename pattern if possible
-					const origName = photos[i]?.split("/").pop() || `photo_${i + 1}.${ext}`;
-					const finalFileName = `${prefix}_${origName.replace(/^\d+_/, "")}`;
-					const finalPath = `${repoDirPath}/${finalFileName}`;
+			// Phase 2: 从临时名改为最终名
+			for (let i = 0; i < photoItems.length; i++) {
+				progress.current++;
+				progress = { ...progress };
+				const photo = photoItems[i];
+				const ext = photo.fileName.split(".").pop() || "";
+				const prefix = String(i + 1).padStart(3, "0");
+				const finalName = `${prefix}_${photoItems[i].url.split("/").pop()?.split("_").slice(1).join("_") || `photo_${i + 1}.${ext}`}`;
+				// Use original filename pattern if possible
+				const origName = photos[i]?.split("/").pop() || `photo_${i + 1}.${ext}`;
+				const finalFileName = `${prefix}_${origName.replace(/^\d+_/, "")}`;
+				const finalPath = `${repoDirPath}/${finalFileName}`;
 
-					const b64 = await getRepoFileBase64(photo.repoPath);
-					if (b64) {
-						const ok = await createRepoFile(
-							finalPath,
-							b64,
-							`chore: 重排序 ${albumName} 最终 (${i + 1}/${photoItems.length})`,
-						);
-						if (ok) {
-							// 获取临时文件的 sha 并删除
-							const meta = await (await import("@/utils/editMode")).getRepoFileMeta(photo.repoPath);
-							if (meta) {
-								await deleteRepoFile(photo.repoPath, meta.sha, `chore: 重排序清理`);
-							}
-							photo.repoPath = finalPath;
-							photo.fileName = finalFileName;
-							photo.url = `/gallery/${albumId}/${finalFileName}`;
+				const b64 = await getRepoFileBase64(photo.repoPath);
+				if (b64) {
+					const ok = await createRepoFile(
+						finalPath,
+						b64,
+						`chore: 重排序 ${albumName} 最终 (${i + 1}/${photoItems.length})`,
+					);
+					if (ok) {
+						// 获取临时文件的 sha 并删除
+						const meta = await (
+							await import("@/utils/editMode")
+						).getRepoFileMeta(photo.repoPath);
+						if (meta) {
+							await deleteRepoFile(
+								photo.repoPath,
+								meta.sha,
+								`chore: 重排序清理`,
+							);
 						}
+						photo.repoPath = finalPath;
+						photo.fileName = finalFileName;
+						photo.url = `/gallery/${albumId}/${finalFileName}`;
 					}
 				}
-
-				photoItems = [...photoItems];
-				originalOrder = photoItems.map((p) => p.fileName);
-
-				if (failCount > 0) {
-					showToast(`重排序部分失败 (${failCount} 个)，请刷新页面检查`, "warning");
-				} else {
-					showToast("重排序完成", "success");
-				}
 			}
 
-			// 3. 更新封面配置
-			const coverPhoto = photoItems.find((p) => p.isCover);
-			if (coverPhoto) {
-				progress = { current: 0, total: 1, text: "正在更新封面..." };
-				await updateCoverInConfig(coverPhoto.url);
-			}
+			photoItems = [...photoItems];
+			originalOrder = photoItems.map((p) => p.fileName);
 
-			hasChanges = false;
-			showToast("保存成功！页面将刷新以应用更改", "success");
-			setTimeout(() => window.location.reload(), 1500);
-		} catch (e) {
-			showToast("保存失败：" + (e as Error).message, "error");
-		}
-
-		saving = false;
-		progress = { current: 0, total: 0, text: "" };
-	}
-
-	async function updateCoverInConfig(coverUrl: string) {
-		try {
-			const file = await getRepoFile("src/config/galleryConfig.ts");
-			if (!file) {
-				showToast("无法读取配置文件，封面未更新", "warning");
-				return;
-			}
-			// Find the album entry and update/add cover field
-			const albumPattern = new RegExp(`(\\{[^}]*id:\\s*"${albumId}"[^}]*?)(\\})`, "s");
-			const match = file.content.match(albumPattern);
-			if (!match) {
-				showToast("未找到相册配置，封面未更新", "warning");
-				return;
-			}
-
-			let albumBlock = match[0];
-			// Remove existing cover field if present
-			albumBlock = albumBlock.replace(/,\s*cover:\s*"[^"]*"/, "");
-			// Add cover field before closing brace
-			const lastBrace = albumBlock.lastIndexOf("}");
-			const coverField = `,\n\t\t\tcover: "${coverUrl}"`;
-			albumBlock = albumBlock.slice(0, lastBrace) + coverField + ",\n\t\t" + albumBlock.slice(lastBrace);
-
-			const newContent = file.content.replace(match[0], albumBlock);
-			const ok = await updateRepoFile(
-				"src/config/galleryConfig.ts",
-				newContent,
-				file.sha,
-				`chore: 更新相册 ${albumName} 封面`,
-			);
-			if (ok) {
-				showToast("封面配置已更新", "success");
+			if (failCount > 0) {
+				showToast(
+					`重排序部分失败 (${failCount} 个)，请刷新页面检查`,
+					"warning",
+				);
 			} else {
-				showToast("封面配置更新失败", "error");
+				showToast("重排序完成", "success");
 			}
-		} catch (e) {
-			showToast("封面更新失败：" + (e as Error).message, "error");
 		}
-	}
 
-	function handleCancel() {
-		pendingUploads = [];
-		photoItems = photos.map((url) => {
-			const fileName = url.split("/").pop() || "";
-			return {
-				url,
-				fileName,
-				repoPath: `${repoDirPath}/${fileName}`,
-				sha: photoItems.find((p) => p.fileName === fileName)?.sha || "",
-				selected: false,
-				isCover: /^cover\./i.test(fileName),
-			};
-		});
-		originalOrder = photoItems.map((p) => p.fileName);
+		// 3. 更新封面配置
+		const coverPhoto = photoItems.find((p) => p.isCover);
+		if (coverPhoto) {
+			progress = { current: 0, total: 1, text: "正在更新封面..." };
+			await updateCoverInConfig(coverPhoto.url);
+		}
+
 		hasChanges = false;
-		showSSRContent();
+		showToast("保存成功！页面将刷新以应用更改", "success");
+		setTimeout(() => window.location.reload(), 1500);
+	} catch (e) {
+		showToast("保存失败：" + (e as Error).message, "error");
 	}
 
-	function handleSaveDraft() {
-		showToast("照片管理无需草稿，请直接提交", "info");
-	}
+	saving = false;
+	progress = { current: 0, total: 0, text: "" };
+}
 
-	const selectedCount = $derived(photoItems.filter((p) => p.selected).length);
-	const orderChanged = $derived(photoItems.map((p) => p.fileName).some((name, i) => name !== originalOrder[i]));
+async function updateCoverInConfig(coverUrl: string) {
+	try {
+		const file = await getRepoFile("src/config/galleryConfig.ts");
+		if (!file) {
+			showToast("无法读取配置文件，封面未更新", "warning");
+			return;
+		}
+		// Find the album entry and update/add cover field
+		const albumPattern = new RegExp(
+			`(\\{[^}]*id:\\s*"${albumId}"[^}]*?)(\\})`,
+			"s",
+		);
+		const match = file.content.match(albumPattern);
+		if (!match) {
+			showToast("未找到相册配置，封面未更新", "warning");
+			return;
+		}
+
+		let albumBlock = match[0];
+		// Remove existing cover field if present
+		albumBlock = albumBlock.replace(/,\s*cover:\s*"[^"]*"/, "");
+		// Add cover field before closing brace
+		const lastBrace = albumBlock.lastIndexOf("}");
+		const coverField = `,\n\t\t\tcover: "${coverUrl}"`;
+		albumBlock =
+			albumBlock.slice(0, lastBrace) +
+			coverField +
+			",\n\t\t" +
+			albumBlock.slice(lastBrace);
+
+		const newContent = file.content.replace(match[0], albumBlock);
+		const ok = await updateRepoFile(
+			"src/config/galleryConfig.ts",
+			newContent,
+			file.sha,
+			`chore: 更新相册 ${albumName} 封面`,
+		);
+		if (ok) {
+			showToast("封面配置已更新", "success");
+		} else {
+			showToast("封面配置更新失败", "error");
+		}
+	} catch (e) {
+		showToast("封面更新失败：" + (e as Error).message, "error");
+	}
+}
+
+function handleCancel() {
+	pendingUploads = [];
+	photoItems = photos.map((url) => {
+		const fileName = url.split("/").pop() || "";
+		return {
+			url,
+			fileName,
+			repoPath: `${repoDirPath}/${fileName}`,
+			sha: photoItems.find((p) => p.fileName === fileName)?.sha || "",
+			selected: false,
+			isCover: /^cover\./i.test(fileName),
+		};
+	});
+	originalOrder = photoItems.map((p) => p.fileName);
+	hasChanges = false;
+	showSSRContent();
+}
+
+function handleSaveDraft() {
+	showToast("照片管理无需草稿，请直接提交", "info");
+}
+
+const selectedCount = $derived(photoItems.filter((p) => p.selected).length);
+const orderChanged = $derived(
+	photoItems
+		.map((p) => p.fileName)
+		.some((name, i) => name !== originalOrder[i]),
+);
 </script>
 
 <EditToast />

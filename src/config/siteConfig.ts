@@ -16,7 +16,8 @@ export const siteConfig: SiteConfig = {
 	site_url: "https://fqzlr.com/",
 
 	// 站点描述
-	description: "fqzlr的个人技术博客，专注NAS分享、AI实践、学习笔记与技术总结，与个人成长分享。",
+	description:
+		"fqzlr的个人技术博客，专注NAS分享、AI实践、学习笔记与技术总结，与个人成长分享。",
 
 	// 站点关键词
 	keywords: [
@@ -206,8 +207,7 @@ export const siteConfig: SiteConfig = {
 	// 说说页面封面配置（微信朋友圈风格）
 	momentsCover: {
 		enable: true,
-		image:
-			"https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640",
+		image: "https://q1.qlogo.cn/g?b=qq&nk=20447289&s=640",
 	},
 
 	// 分类导航栏开关，在首页和归档页顶部显示分类快捷导航

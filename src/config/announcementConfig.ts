@@ -9,8 +9,7 @@ export const announcementConfig: AnnouncementConfig = {
 		{
 			tag: "欢迎",
 			title: "关于我的介绍",
-			content:
-				"欢迎来到我的博客。",
+			content: "欢迎来到我的博客。",
 			time: "2025-06-01",
 			link: "/about/",
 			sort: 1,

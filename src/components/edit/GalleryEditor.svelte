@@ -1,317 +1,347 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import EditToolbar from "./EditToolbar.svelte";
-	import EditToast from "./EditToast.svelte";
-	import {
-		getRepoFile,
-		updateRepoFile,
-		showToast,
-		hasValidToken,
-		genId,
-		deepClone,
-		ensureIconify,
-		saveDraft,
-		getDraft,
-		deleteDraft,
-		registerSubmitHandler,
-	} from "@/utils/editMode";
-	import { repoConfig } from "@/config/editConfig";
+import { onMount } from "svelte";
+import EditToolbar from "./EditToolbar.svelte";
+import EditToast from "./EditToast.svelte";
+import {
+	getRepoFile,
+	updateRepoFile,
+	showToast,
+	hasValidToken,
+	genId,
+	deepClone,
+	ensureIconify,
+	saveDraft,
+	getDraft,
+	deleteDraft,
+	registerSubmitHandler,
+} from "@/utils/editMode";
+import { repoConfig } from "@/config/editConfig";
 
-	interface AlbumItem {
-		id: string;
-		name: string;
-		description: string;
-		location: string;
-		date: string;
-		tags: string[];
-		cover: string;
-		photoCount?: number;
-		_draft?: boolean;
-	}
+interface AlbumItem {
+	id: string;
+	name: string;
+	description: string;
+	location: string;
+	date: string;
+	tags: string[];
+	cover: string;
+	photoCount?: number;
+	_draft?: boolean;
+}
 
-	let {
-		initialAlbums = [],
-		pageName = "相册",
-	}: {
-		initialAlbums?: AlbumItem[];
-		pageName?: string;
-	} = $props();
+let {
+	initialAlbums = [],
+	pageName = "相册",
+}: {
+	initialAlbums?: AlbumItem[];
+	pageName?: string;
+} = $props();
 
-	let editMode = $state(false);
-	let saving = $state(false);
-	let hasChanges = $state(false);
-	let albums = $state<AlbumItem[]>([]);
-	let originalAlbums = $state<AlbumItem[]>([]);
-	let editingIndex = $state(-1);
-	let gistLoaded = $state(false);
-	let originalFileContent = $state("");
-	let originalFileSha = $state("");
+let editMode = $state(false);
+let saving = $state(false);
+let hasChanges = $state(false);
+let albums = $state<AlbumItem[]>([]);
+let originalAlbums = $state<AlbumItem[]>([]);
+let editingIndex = $state(-1);
+let gistLoaded = $state(false);
+let originalFileContent = $state("");
+let originalFileSha = $state("");
 
-	onMount(() => {
-		ensureIconify();
-		albums = [...initialAlbums];
-		originalAlbums = deepClone(initialAlbums);
-		loadGalleryConfig();
-		const draft = getDraft<any>("gallery");
-		if (draft?.albums) {
-			if (confirm("发现未提交的相册草稿，是否恢复？")) {
-				albums = draft.albums;
-				hasChanges = true;
-				showToast("草稿已恢复", "success");
-			} else { deleteDraft("gallery"); }
-		}
-		window.addEventListener("blog:batch-submit", handleBatchSubmit);
-		return () => window.removeEventListener("blog:batch-submit", handleBatchSubmit);
-	});
-
-	function getTagsStr(album: AlbumItem): string {
-		return (album.tags || []).join(", ");
-	}
-
-	function updateField(index: number, field: keyof AlbumItem, value: any) {
-		albums[index] = { ...albums[index], [field]: value };
-		albums = [...albums];
-	}
-
-	function updateTags(index: number, value: string) {
-		const tags = value.split(/[,，\s]+/).map((t) => t.trim()).filter(Boolean);
-		albums[index] = { ...albums[index], tags };
-		albums = [...albums];
-	}
-
-	function startEdit(index: number) { editingIndex = index; }
-
-	function finishEdit(index: number) {
-		const album = albums[index];
-		if (!album.name.trim()) {
-			showToast("相册名称不能为空", "warning");
-			return;
-		}
-		albums[index] = { ...album, _draft: false };
-		albums = [...albums];
-		editingIndex = -1;
-		hasChanges = true;
-		showToast("已修改，记得点击提交保存", "info");
-	}
-
-	function cancelItemEdit(index: number) {
-		const album = albums[index];
-		if (album._draft && !album.name.trim()) {
-			albums = albums.filter((_, i) => i !== index);
+onMount(() => {
+	ensureIconify();
+	albums = [...initialAlbums];
+	originalAlbums = deepClone(initialAlbums);
+	loadGalleryConfig();
+	const draft = getDraft<any>("gallery");
+	if (draft?.albums) {
+		if (confirm("发现未提交的相册草稿，是否恢复？")) {
+			albums = draft.albums;
+			hasChanges = true;
+			showToast("草稿已恢复", "success");
 		} else {
-			const orig = originalAlbums.find((o) => o.id === album.id && !album._draft);
-			if (orig) {
-				albums[index] = deepClone(orig);
-				albums = [...albums];
-			}
+			deleteDraft("gallery");
 		}
-		editingIndex = -1;
 	}
+	window.addEventListener("blog:batch-submit", handleBatchSubmit);
+	return () =>
+		window.removeEventListener("blog:batch-submit", handleBatchSubmit);
+});
 
-	function deleteItem(index: number) {
-		const album = albums[index];
-		if (!confirm(`确定要删除相册「${album.name || "该相册"}」吗？`)) return;
+function getTagsStr(album: AlbumItem): string {
+	return (album.tags || []).join(", ");
+}
+
+function updateField(index: number, field: keyof AlbumItem, value: any) {
+	albums[index] = { ...albums[index], [field]: value };
+	albums = [...albums];
+}
+
+function updateTags(index: number, value: string) {
+	const tags = value
+		.split(/[,，\s]+/)
+		.map((t) => t.trim())
+		.filter(Boolean);
+	albums[index] = { ...albums[index], tags };
+	albums = [...albums];
+}
+
+function startEdit(index: number) {
+	editingIndex = index;
+}
+
+function finishEdit(index: number) {
+	const album = albums[index];
+	if (!album.name.trim()) {
+		showToast("相册名称不能为空", "warning");
+		return;
+	}
+	albums[index] = { ...album, _draft: false };
+	albums = [...albums];
+	editingIndex = -1;
+	hasChanges = true;
+	showToast("已修改，记得点击提交保存", "info");
+}
+
+function cancelItemEdit(index: number) {
+	const album = albums[index];
+	if (album._draft && !album.name.trim()) {
 		albums = albums.filter((_, i) => i !== index);
-		hasChanges = true;
-		if (editingIndex === index) editingIndex = -1;
-		else if (editingIndex > index) editingIndex--;
-		showToast("已删除，记得点击提交保存", "info");
-	}
-
-	function handleAdd() {
-		const newAlbum: AlbumItem = {
-			id: "new-album-" + Date.now(),
-			name: "",
-			description: "",
-			location: "",
-			date: new Date().toISOString().split("T")[0],
-			tags: [],
-			cover: "",
-			photoCount: 0,
-			_draft: true,
-		};
-		albums = [...albums, newAlbum];
-		editingIndex = albums.length - 1;
-		hasChanges = true;
-	}
-
-	async function loadGalleryConfig() {
-		if (!hasValidToken()) { gistLoaded = true; return; }
-		try {
-			const file = await getRepoFile("src/config/galleryConfig.ts", repoConfig);
-			if (file) {
-				originalFileContent = file.content;
-				originalFileSha = file.sha;
-				const match = file.content.match(/albums\s*:\s*\[([\s\S]*?)\]\s*,?\s*\n\s*(?:\/\/|columnWidth|networkAlbum|\})/);
-				if (match) {
-					try {
-						const cleaned = match[1]
-							.replace(/\/\/.*$/gm, "")
-							.replace(/\/\*[\s\S]*?\*\//g, "")
-							.replace(/,\s*$/, "");
-						const parsed: AlbumItem[] = JSON.parse("[" + cleaned + "]");
-						// Merge: remote data overrides local SSR data (matched by id)
-						for (const remote of parsed) {
-							const localIdx = albums.findIndex((a) => a.id === remote.id);
-							if (localIdx >= 0) {
-								albums[localIdx] = { ...remote, photoCount: albums[localIdx].photoCount };
-							} else {
-								albums = [...albums, remote];
-							}
-						}
-						originalAlbums = deepClone(albums);
-					} catch (e) {
-						console.warn("Failed to parse albums from config:", e);
-					}
-				}
-			}
-		} catch (e) {
-			console.warn("Failed to load gallery config:", e);
+	} else {
+		const orig = originalAlbums.find((o) => o.id === album.id && !album._draft);
+		if (orig) {
+			albums[index] = deepClone(orig);
+			albums = [...albums];
 		}
+	}
+	editingIndex = -1;
+}
+
+function deleteItem(index: number) {
+	const album = albums[index];
+	if (!confirm(`确定要删除相册「${album.name || "该相册"}」吗？`)) return;
+	albums = albums.filter((_, i) => i !== index);
+	hasChanges = true;
+	if (editingIndex === index) editingIndex = -1;
+	else if (editingIndex > index) editingIndex--;
+	showToast("已删除，记得点击提交保存", "info");
+}
+
+function handleAdd() {
+	const newAlbum: AlbumItem = {
+		id: "new-album-" + Date.now(),
+		name: "",
+		description: "",
+		location: "",
+		date: new Date().toISOString().split("T")[0],
+		tags: [],
+		cover: "",
+		photoCount: 0,
+		_draft: true,
+	};
+	albums = [...albums, newAlbum];
+	editingIndex = albums.length - 1;
+	hasChanges = true;
+}
+
+async function loadGalleryConfig() {
+	if (!hasValidToken()) {
 		gistLoaded = true;
+		return;
 	}
-
-	function handleSaveDraft() {
-		deleteDraft("gallery");
-		saveDraft({
-			pageKey: "gallery",
-			pageName: "相册",
-			description: `更新相册 共 ${albums.length} 个相册`,
-			operation: "update",
-			payload: { albums },
-		});
-		showToast("相册草稿已保存", "success");
-	}
-
-	async function handleBatchSubmit() {
-		const draft = getDraft<any>("gallery");
-		if (draft?.albums) { albums = draft.albums; await handleSave(); if (!saving) deleteDraft("gallery"); }
-	}
-
-	async function handleSave(): Promise<boolean> {
-		if (!hasValidToken()) {
-			showToast("请先导入密钥再保存", "warning");
-			return false;
-		}
-		saving = true;
-		try {
-			// Build clean albums JSON
-			const cleanAlbums = albums.map(({ _draft, photoCount, ...rest }) => ({
-				...rest,
-				id: rest.id || genId("album"),
-			}));
-			const albumsJson = JSON.stringify(cleanAlbums, null, 2);
-
-			// Try to read current file and replace only albums array
-			let contentToSave = "";
-			let sha = originalFileSha;
-
-			if (originalFileContent) {
-				// Re-read for latest sha
-				const latestFile = await getRepoFile("src/config/galleryConfig.ts", repoConfig);
-				if (latestFile) {
-					sha = latestFile.sha;
-					const content = latestFile.content;
-					const startMatch = content.match(/albums\s*:\s*\[/);
-					if (startMatch && startMatch.index !== undefined) {
-						const startIdx = startMatch.index;
-						const arrStart = startIdx + startMatch[0].length;
-						// Find matching closing bracket
-						let depth = 1;
-						let pos = arrStart;
-						for (; pos < content.length && depth > 0; pos++) {
-							if (content[pos] === "[") depth++;
-							else if (content[pos] === "]") depth--;
-						}
-						if (depth === 0) {
-							const before = content.slice(0, startIdx);
-							const after = content.slice(pos);
-							contentToSave = before + "albums: " + albumsJson + after;
+	try {
+		const file = await getRepoFile("src/config/galleryConfig.ts", repoConfig);
+		if (file) {
+			originalFileContent = file.content;
+			originalFileSha = file.sha;
+			const match = file.content.match(
+				/albums\s*:\s*\[([\s\S]*?)\]\s*,?\s*\n\s*(?:\/\/|columnWidth|networkAlbum|\})/,
+			);
+			if (match) {
+				try {
+					const cleaned = match[1]
+						.replace(/\/\/.*$/gm, "")
+						.replace(/\/\*[\s\S]*?\*\//g, "")
+						.replace(/,\s*$/, "");
+					const parsed: AlbumItem[] = JSON.parse("[" + cleaned + "]");
+					// Merge: remote data overrides local SSR data (matched by id)
+					for (const remote of parsed) {
+						const localIdx = albums.findIndex((a) => a.id === remote.id);
+						if (localIdx >= 0) {
+							albums[localIdx] = {
+								...remote,
+								photoCount: albums[localIdx].photoCount,
+							};
+						} else {
+							albums = [...albums, remote];
 						}
 					}
+					originalAlbums = deepClone(albums);
+				} catch (e) {
+					console.warn("Failed to parse albums from config:", e);
 				}
 			}
+		}
+	} catch (e) {
+		console.warn("Failed to load gallery config:", e);
+	}
+	gistLoaded = true;
+}
 
-			if (!contentToSave) {
-				// Fallback: generate full config
-				contentToSave = `import type { GalleryConfig } from "@/types/config";\n\n// 相册配置\nexport const galleryConfig: GalleryConfig = {\n\t// 相册列表\n\talbums: ${albumsJson},\n\n\t// 瀑布流最小列宽(px)\n\tcolumnWidth: 240,\n\n\t// 网络相册配置\n\tnetworkAlbum: {\n\t\tmaxQuantity: 10,\n\t\tdefaultQuantity: 6,\n\t},\n};\n`;
-			}
+function handleSaveDraft() {
+	deleteDraft("gallery");
+	saveDraft({
+		pageKey: "gallery",
+		pageName: "相册",
+		description: `更新相册 共 ${albums.length} 个相册`,
+		operation: "update",
+		payload: { albums },
+	});
+	showToast("相册草稿已保存", "success");
+}
 
-			// Get sha if we don't have it
-			if (!sha) {
-				const file = await getRepoFile("src/config/galleryConfig.ts", repoConfig);
-				if (file) sha = file.sha;
-			}
+async function handleBatchSubmit() {
+	const draft = getDraft<any>("gallery");
+	if (draft?.albums) {
+		albums = draft.albums;
+		await handleSave();
+		if (!saving) deleteDraft("gallery");
+	}
+}
 
-			const ok = await updateRepoFile(
+async function handleSave(): Promise<boolean> {
+	if (!hasValidToken()) {
+		showToast("请先导入密钥再保存", "warning");
+		return false;
+	}
+	saving = true;
+	try {
+		// Build clean albums JSON
+		const cleanAlbums = albums.map(({ _draft, photoCount, ...rest }) => ({
+			...rest,
+			id: rest.id || genId("album"),
+		}));
+		const albumsJson = JSON.stringify(cleanAlbums, null, 2);
+
+		// Try to read current file and replace only albums array
+		let contentToSave = "";
+		let sha = originalFileSha;
+
+		if (originalFileContent) {
+			// Re-read for latest sha
+			const latestFile = await getRepoFile(
 				"src/config/galleryConfig.ts",
-				contentToSave,
-				sha,
-				"chore: 更新相册配置",
 				repoConfig,
 			);
-
-			if (ok) {
-				showToast("保存成功！配置将在部署后生效", "success");
-				hasChanges = false;
-				originalAlbums = deepClone(albums);
-				// Re-read for next save
-				const updated = await getRepoFile("src/config/galleryConfig.ts", repoConfig);
-				if (updated) {
-					originalFileContent = updated.content;
-					originalFileSha = updated.sha;
+			if (latestFile) {
+				sha = latestFile.sha;
+				const content = latestFile.content;
+				const startMatch = content.match(/albums\s*:\s*\[/);
+				if (startMatch && startMatch.index !== undefined) {
+					const startIdx = startMatch.index;
+					const arrStart = startIdx + startMatch[0].length;
+					// Find matching closing bracket
+					let depth = 1;
+					let pos = arrStart;
+					for (; pos < content.length && depth > 0; pos++) {
+						if (content[pos] === "[") depth++;
+						else if (content[pos] === "]") depth--;
+					}
+					if (depth === 0) {
+						const before = content.slice(0, startIdx);
+						const after = content.slice(pos);
+						contentToSave = before + "albums: " + albumsJson + after;
+					}
 				}
-			} else {
-				showToast("保存失败，请检查 Token 权限（需要 repo 权限）", "error");
 			}
-			return ok;
-		} catch (e) {
-			showToast("保存失败：" + (e as Error).message, "error");
-			return false;
-		} finally {
-			saving = false;
 		}
-	}
 
-	function handleCancel() {
-		albums = deepClone(originalAlbums);
-		hasChanges = false;
+		if (!contentToSave) {
+			// Fallback: generate full config
+			contentToSave = `import type { GalleryConfig } from "@/types/config";\n\n// 相册配置\nexport const galleryConfig: GalleryConfig = {\n\t// 相册列表\n\talbums: ${albumsJson},\n\n\t// 瀑布流最小列宽(px)\n\tcolumnWidth: 240,\n\n\t// 网络相册配置\n\tnetworkAlbum: {\n\t\tmaxQuantity: 10,\n\t\tdefaultQuantity: 6,\n\t},\n};\n`;
+		}
+
+		// Get sha if we don't have it
+		if (!sha) {
+			const file = await getRepoFile("src/config/galleryConfig.ts", repoConfig);
+			if (file) sha = file.sha;
+		}
+
+		const ok = await updateRepoFile(
+			"src/config/galleryConfig.ts",
+			contentToSave,
+			sha,
+			"chore: 更新相册配置",
+			repoConfig,
+		);
+
+		if (ok) {
+			showToast("保存成功！配置将在部署后生效", "success");
+			hasChanges = false;
+			originalAlbums = deepClone(albums);
+			// Re-read for next save
+			const updated = await getRepoFile(
+				"src/config/galleryConfig.ts",
+				repoConfig,
+			);
+			if (updated) {
+				originalFileContent = updated.content;
+				originalFileSha = updated.sha;
+			}
+		} else {
+			showToast("保存失败，请检查 Token 权限（需要 repo 权限）", "error");
+		}
+		return ok;
+	} catch (e) {
+		showToast("保存失败：" + (e as Error).message, "error");
+		return false;
+	} finally {
+		saving = false;
+	}
+}
+
+function handleCancel() {
+	albums = deepClone(originalAlbums);
+	hasChanges = false;
+	editingIndex = -1;
+	showSSRContent();
+}
+
+function handleModeChange(e: CustomEvent) {
+	editMode = e.detail.editing;
+	if (editMode) {
+		hideSSRContent();
 		editingIndex = -1;
+	} else {
 		showSSRContent();
 	}
+}
 
-	function handleModeChange(e: CustomEvent) {
-		editMode = e.detail.editing;
-		if (editMode) {
-			hideSSRContent();
-			editingIndex = -1;
-		} else {
-			showSSRContent();
-		}
-	}
-
-	function hideSSRContent() {
-		document.querySelectorAll<HTMLElement>(".gallery-ssr-content").forEach((s) => {
+function hideSSRContent() {
+	document
+		.querySelectorAll<HTMLElement>(".gallery-ssr-content")
+		.forEach((s) => {
 			s.style.display = "none";
 		});
-	}
+}
 
-	function showSSRContent() {
-		document.querySelectorAll<HTMLElement>(".gallery-ssr-content").forEach((s) => {
+function showSSRContent() {
+	document
+		.querySelectorAll<HTMLElement>(".gallery-ssr-content")
+		.forEach((s) => {
 			s.style.display = "";
 		});
-	}
+}
 
-	// 注册批量提交处理程序
-	registerSubmitHandler("gallery", async (draft) => {
-		if (draft.payload?.type === "gist") return false; // gallery 不使用 gist
-		if (draft.payload?.albums) {
-			albums = draft.payload.albums;
-			const ok = await handleSave();
-			return ok;
-		}
-		return false;
-	});
+// 注册批量提交处理程序
+registerSubmitHandler("gallery", async (draft) => {
+	if (draft.payload?.type === "gist") return false; // gallery 不使用 gist
+	if (draft.payload?.albums) {
+		albums = draft.payload.albums;
+		const ok = await handleSave();
+		return ok;
+	}
+	return false;
+});
 </script>
 
 <EditToast />

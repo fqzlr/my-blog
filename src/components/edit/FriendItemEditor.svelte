@@ -1,69 +1,69 @@
 <script lang="ts">
-	import { createEventDispatcher } from "svelte";
-	import { onMount, onDestroy } from "svelte";
+import { createEventDispatcher } from "svelte";
+import { onMount, onDestroy } from "svelte";
 
-	const dispatch = createEventDispatcher();
+const dispatch = createEventDispatcher();
 
-	export let friend: {
-		id?: string;
-		title: string;
-		imgurl: string;
-		desc: string;
-		siteurl: string;
-		tags?: string[];
-		weight?: number;
-		enabled?: boolean;
-		_source?: string;
-	};
+export let friend: {
+	id?: string;
+	title: string;
+	imgurl: string;
+	desc: string;
+	siteurl: string;
+	tags?: string[];
+	weight?: number;
+	enabled?: boolean;
+	_source?: string;
+};
 
-	let form = {
-		title: friend.title || "",
-		imgurl: friend.imgurl || "",
-		desc: friend.desc || "",
-		siteurl: friend.siteurl || "",
-		tags: (friend.tags || ["Blog"]).join(", "),
-		weight: friend.weight ?? 10,
-		enabled: friend.enabled !== false,
-	};
+let form = {
+	title: friend.title || "",
+	imgurl: friend.imgurl || "",
+	desc: friend.desc || "",
+	siteurl: friend.siteurl || "",
+	tags: (friend.tags || ["Blog"]).join(", "),
+	weight: friend.weight ?? 10,
+	enabled: friend.enabled !== false,
+};
 
-	function handleSave() {
-		if (!form.title.trim()) {
-			alert("请输入站点名称");
-			return;
-		}
-		if (!form.siteurl.trim()) {
-			alert("请输入站点链接");
-			return;
-		}
-		dispatch("save", {
-			id: friend.id,
-			title: form.title.trim(),
-			imgurl: form.imgurl.trim(),
-			desc: form.desc.trim(),
-			siteurl: form.siteurl.trim(),
-			tags: form.tags
-				.split(",")
-				.map((t) => t.trim())
-				.filter(Boolean),
-			weight: Number(form.weight) || 0,
-			enabled: form.enabled,
-		});
+function handleSave() {
+	if (!form.title.trim()) {
+		alert("请输入站点名称");
+		return;
 	}
-
-	function handleCancel() {
-		dispatch("cancel");
+	if (!form.siteurl.trim()) {
+		alert("请输入站点链接");
+		return;
 	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === "Escape") handleCancel();
-	}
-
-	onMount(() => {
-		window.addEventListener("keydown", handleKeydown);
+	dispatch("save", {
+		id: friend.id,
+		title: form.title.trim(),
+		imgurl: form.imgurl.trim(),
+		desc: form.desc.trim(),
+		siteurl: form.siteurl.trim(),
+		tags: form.tags
+			.split(",")
+			.map((t) => t.trim())
+			.filter(Boolean),
+		weight: Number(form.weight) || 0,
+		enabled: form.enabled,
 	});
-	onDestroy(() => {
-		window.removeEventListener("keydown", handleKeydown);
-	});
+}
+
+function handleCancel() {
+	dispatch("cancel");
+}
+
+function handleKeydown(e: KeyboardEvent) {
+	if (e.key === "Escape") handleCancel();
+}
+
+onMount(() => {
+	window.addEventListener("keydown", handleKeydown);
+});
+onDestroy(() => {
+	window.removeEventListener("keydown", handleKeydown);
+});
 </script>
 
 <div class="modal-overlay" onclick={handleCancel} role="dialog" aria-modal="true">

@@ -1,81 +1,82 @@
 <script lang="ts">
-	import { createEventDispatcher } from "svelte";
-	import { onMount, onDestroy } from "svelte";
+import { createEventDispatcher } from "svelte";
+import { onMount, onDestroy } from "svelte";
 
-	const dispatch = createEventDispatcher();
+const dispatch = createEventDispatcher();
 
-	export let item: {
-		id?: string;
-		name: string;
-		url: string;
-		description: string;
-		category: string;
-		icon?: string;
-		enabled: boolean;
-	};
-	export let categories: string[] = [];
+export let item: {
+	id?: string;
+	name: string;
+	url: string;
+	description: string;
+	category: string;
+	icon?: string;
+	enabled: boolean;
+};
+export let categories: string[] = [];
 
-	let form = {
-		name: item.name || "",
-		url: item.url || "",
-		description: item.description || "",
-		category: item.category || (categories[0] || ""),
-		icon: item.icon || "",
-		enabled: item.enabled !== false,
-	};
-	let newCategory = "";
-	let showCustomCat = false;
+let form = {
+	name: item.name || "",
+	url: item.url || "",
+	description: item.description || "",
+	category: item.category || categories[0] || "",
+	icon: item.icon || "",
+	enabled: item.enabled !== false,
+};
+let newCategory = "";
+let showCustomCat = false;
 
-	function handleSave() {
-		if (!form.name.trim()) {
-			alert("请输入名称");
-			return;
-		}
-		if (!form.url.trim()) {
-			alert("请输入链接");
-			return;
-		}
-		let cat = form.category;
-		if (showCustomCat && newCategory.trim()) {
-			cat = newCategory.trim();
-		}
-		if (!cat) {
-			alert("请选择或输入分类");
-			return;
-		}
-		dispatch("save", {
-			id: item.id,
-			name: form.name.trim(),
-			url: form.url.trim(),
-			description: form.description.trim(),
-			category: cat,
-			icon: form.icon.trim() || `https://favicon.im/${new URL(form.url).hostname}`,
-			enabled: form.enabled,
-		});
+function handleSave() {
+	if (!form.name.trim()) {
+		alert("请输入名称");
+		return;
 	}
-
-	function handleCancel() {
-		dispatch("cancel");
+	if (!form.url.trim()) {
+		alert("请输入链接");
+		return;
 	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === "Escape") handleCancel();
+	let cat = form.category;
+	if (showCustomCat && newCategory.trim()) {
+		cat = newCategory.trim();
 	}
-
-	onMount(() => {
-		window.addEventListener("keydown", handleKeydown);
+	if (!cat) {
+		alert("请选择或输入分类");
+		return;
+	}
+	dispatch("save", {
+		id: item.id,
+		name: form.name.trim(),
+		url: form.url.trim(),
+		description: form.description.trim(),
+		category: cat,
+		icon:
+			form.icon.trim() || `https://favicon.im/${new URL(form.url).hostname}`,
+		enabled: form.enabled,
 	});
-	onDestroy(() => {
-		window.removeEventListener("keydown", handleKeydown);
-	});
+}
 
-	function getFavicon() {
-		try {
-			return `https://favicon.im/${new URL(form.url).hostname}`;
-		} catch {
-			return "";
-		}
+function handleCancel() {
+	dispatch("cancel");
+}
+
+function handleKeydown(e: KeyboardEvent) {
+	if (e.key === "Escape") handleCancel();
+}
+
+onMount(() => {
+	window.addEventListener("keydown", handleKeydown);
+});
+onDestroy(() => {
+	window.removeEventListener("keydown", handleKeydown);
+});
+
+function getFavicon() {
+	try {
+		return `https://favicon.im/${new URL(form.url).hostname}`;
+	} catch {
+		return "";
 	}
+}
 </script>
 
 <div class="modal-overlay" onclick={handleCancel} role="dialog" aria-modal="true">

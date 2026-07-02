@@ -67,7 +67,7 @@ export const calendarConfig: CalendarConfig = {
 	birthdays: [
 		{
 			name: "我的生日",
-			date: { type: "solar", month: 12, day: 1},
+			date: { type: "solar", month: 12, day: 1 },
 			icon: "material-symbols:cake",
 			note: "又长大一岁",
 		},

@@ -1,315 +1,329 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import EditToolbar from "./EditToolbar.svelte";
-	import EditToast from "./EditToast.svelte";
-	import {
-		showToast,
-		genId,
-		deepClone,
-		ensureIconify,
-		getRepoFile,
-	} from "@/utils/editMode";
-	import { setupRepoDrafts } from "@/utils/draftHelpers";
-	import { collectionsEditConfig } from "@/config/editConfig";
+import { onMount } from "svelte";
+import EditToolbar from "./EditToolbar.svelte";
+import EditToast from "./EditToast.svelte";
+import {
+	showToast,
+	genId,
+	deepClone,
+	ensureIconify,
+	getRepoFile,
+} from "@/utils/editMode";
+import { setupRepoDrafts } from "@/utils/draftHelpers";
+import { collectionsEditConfig } from "@/config/editConfig";
 
-	interface CollectionItem {
-		id?: string;
-		name: string;
-		url: string;
-		description: string;
-		category: string;
-		icon?: string;
-		enabled: boolean;
-		_draft?: boolean;
+interface CollectionItem {
+	id?: string;
+	name: string;
+	url: string;
+	description: string;
+	category: string;
+	icon?: string;
+	enabled: boolean;
+	_draft?: boolean;
+}
+
+const props = $props<{
+	initialData: string;
+}>();
+
+let editMode = $state(false);
+let saving = $state(false);
+let items = $state<CollectionItem[]>([]);
+let originalItems = $state<CollectionItem[]>([]);
+let editingIndex = $state(-1);
+let gistLoaded = $state(false);
+let activeTab = $state("all");
+let fileSha = $state<string | null>(null);
+
+const drafts = setupRepoDrafts({
+	pageKey: "collections",
+	pageName: "收藏",
+	getContent: () => JSON.stringify(items, null, 2),
+	setContent: (v) => (items = JSON.parse(v)),
+	getPath: () => "public/collections.json",
+	getSha: () => fileSha,
+	setSha: (v) => (fileSha = v),
+	getOriginalContent: () => JSON.stringify(originalItems, null, 2),
+	setOriginalContent: (v) => (originalItems = JSON.parse(v)),
+	getCommitMsg: (isEdit) =>
+		isEdit ? `chore: update collections` : `chore: create collections`,
+	onSubmitted: () => {
+		setTimeout(() => window.location.reload(), 1200);
+	},
+});
+
+let hasChanges = $derived(drafts.hasLocalChanges());
+
+onMount(() => {
+	ensureIconify();
+	// 从 initialData prop 解析初始数据
+	parseInitialData();
+	// 加载 Gist 数据（外部收藏）
+	loadGistData();
+});
+
+function parseInitialData() {
+	try {
+		const parsed = JSON.parse(props.initialData);
+		const apis: CollectionItem[] = parsed.apis || parsed || [];
+		items = apis.map((a: CollectionItem) => ({
+			...a,
+			id: a.id || genId("col"),
+			enabled: a.enabled !== false,
+		}));
+		originalItems = deepClone(items);
+	} catch (e) {
+		console.error("Failed to parse initial collections data:", e);
+		items = [];
+		originalItems = [];
 	}
+}
 
-	const props = $props<{
-		initialData: string;
-	}>();
-
-	let editMode = $state(false);
-	let saving = $state(false);
-	let items = $state<CollectionItem[]>([]);
-	let originalItems = $state<CollectionItem[]>([]);
-	let editingIndex = $state(-1);
-	let gistLoaded = $state(false);
-	let activeTab = $state("all");
-	let fileSha = $state<string | null>(null);
-
-	const drafts = setupRepoDrafts({
-		pageKey: "collections",
-		pageName: "收藏",
-		getContent: () => JSON.stringify(items, null, 2),
-		setContent: (v) => (items = JSON.parse(v)),
-		getPath: () => "public/collections.json",
-		getSha: () => fileSha,
-		setSha: (v) => (fileSha = v),
-		getOriginalContent: () => JSON.stringify(originalItems, null, 2),
-		setOriginalContent: (v) => (originalItems = JSON.parse(v)),
-		getCommitMsg: (isEdit) => isEdit ? `chore: update collections` : `chore: create collections`,
-		onSubmitted: () => {
-			setTimeout(() => window.location.reload(), 1200);
-		},
-	});
-
-	let hasChanges = $derived(drafts.hasLocalChanges());
-
-	onMount(() => {
-		ensureIconify();
-		// 从 initialData prop 解析初始数据
-		parseInitialData();
-		// 加载 Gist 数据（外部收藏）
-		loadGistData();
-	});
-
-	function parseInitialData() {
-		try {
-			const parsed = JSON.parse(props.initialData);
-			const apis: CollectionItem[] = parsed.apis || parsed || [];
-			items = apis.map((a: CollectionItem) => ({
-				...a,
-				id: a.id || genId("col"),
-				enabled: a.enabled !== false,
-			}));
-			originalItems = deepClone(items);
-		} catch (e) {
-			console.error("Failed to parse initial collections data:", e);
-			items = [];
-			originalItems = [];
-		}
-	}
-
-	async function loadGistData() {
-		if (!collectionsEditConfig.gistId) {
-			gistLoaded = true;
-			drafts.restoreFromDrafts();
-			return;
-		}
-		try {
-			const existing = await getRepoFile("public/collections.json");
-			if (existing && existing.content) {
-				const repoItems: CollectionItem[] = JSON.parse(existing.content);
-				const existingUrls = new Set(
-					items.map((i) => i.url.replace(/\/$/, "")),
-				);
-				for (const g of repoItems) {
-					const url = g.url.replace(/\/$/, "");
-					if (!existingUrls.has(url)) {
-						items = [
-							...items,
-							{ ...g, id: g.id || genId("col"), enabled: g.enabled !== false },
-						];
-						existingUrls.add(url);
-					}
-				}
-				originalItems = deepClone(items);
-			}
-		} catch (e) {
-			console.error("Failed to load repo collections:", e);
-		}
+async function loadGistData() {
+	if (!collectionsEditConfig.gistId) {
 		gistLoaded = true;
 		drafts.restoreFromDrafts();
+		return;
 	}
-
-	const enabledItems = $derived(items.filter((i) => i.enabled !== false));
-	const allCategories = $derived([...new Set(items.map((i) => i.category).filter(Boolean))]);
-	const enabledCategories = $derived([...new Set(enabledItems.map((i) => i.category).filter(Boolean))]);
-	const categories = $derived(editMode ? allCategories : enabledCategories);
-	const categoryCounts = $derived.by(() => {
-		const counts: Record<string, number> = {};
-		const source = editMode ? items : enabledItems;
-		for (const item of source) {
-			counts[item.category] = (counts[item.category] || 0) + 1;
-		}
-		return counts;
-	});
-	const sourceItems = $derived(editMode ? items : enabledItems);
-	const displayItems = $derived(activeTab === "all" ? sourceItems : sourceItems.filter((i) => i.category === activeTab));
-	const groupedItems = $derived.by(() => {
-		const groups: Record<string, CollectionItem[]> = {};
-		if (activeTab === "all" && !editMode) {
-			for (const cat of enabledCategories) {
-				groups[cat] = enabledItems.filter((i) => i.category === cat);
+	try {
+		const existing = await getRepoFile("public/collections.json");
+		if (existing && existing.content) {
+			const repoItems: CollectionItem[] = JSON.parse(existing.content);
+			const existingUrls = new Set(items.map((i) => i.url.replace(/\/$/, "")));
+			for (const g of repoItems) {
+				const url = g.url.replace(/\/$/, "");
+				if (!existingUrls.has(url)) {
+					items = [
+						...items,
+						{ ...g, id: g.id || genId("col"), enabled: g.enabled !== false },
+					];
+					existingUrls.add(url);
+				}
 			}
+			originalItems = deepClone(items);
 		}
-		return groups;
-	});
+	} catch (e) {
+		console.error("Failed to load repo collections:", e);
+	}
+	gistLoaded = true;
+	drafts.restoreFromDrafts();
+}
 
-	// 进入/退出编辑模式
-	function handleModeChange(e: CustomEvent) {
-		editMode = e.detail.editing;
-		if (editMode) {
-			editingIndex = -1;
-			activeTab = "all";
+const enabledItems = $derived(items.filter((i) => i.enabled !== false));
+const allCategories = $derived([
+	...new Set(items.map((i) => i.category).filter(Boolean)),
+]);
+const enabledCategories = $derived([
+	...new Set(enabledItems.map((i) => i.category).filter(Boolean)),
+]);
+const categories = $derived(editMode ? allCategories : enabledCategories);
+const categoryCounts = $derived.by(() => {
+	const counts: Record<string, number> = {};
+	const source = editMode ? items : enabledItems;
+	for (const item of source) {
+		counts[item.category] = (counts[item.category] || 0) + 1;
+	}
+	return counts;
+});
+const sourceItems = $derived(editMode ? items : enabledItems);
+const displayItems = $derived(
+	activeTab === "all"
+		? sourceItems
+		: sourceItems.filter((i) => i.category === activeTab),
+);
+const groupedItems = $derived.by(() => {
+	const groups: Record<string, CollectionItem[]> = {};
+	if (activeTab === "all" && !editMode) {
+		for (const cat of enabledCategories) {
+			groups[cat] = enabledItems.filter((i) => i.category === cat);
 		}
 	}
+	return groups;
+});
 
-	// 取消编辑：回滚到原始数据
-	function handleCancel() {
-		items = deepClone(originalItems);
-		drafts.clearDrafts();
+// 进入/退出编辑模式
+function handleModeChange(e: CustomEvent) {
+	editMode = e.detail.editing;
+	if (editMode) {
 		editingIndex = -1;
 		activeTab = "all";
 	}
+}
 
-	// 切换 Tab
-	function switchTab(tab: string) {
-		activeTab = tab;
+// 取消编辑：回滚到原始数据
+function handleCancel() {
+	items = deepClone(originalItems);
+	drafts.clearDrafts();
+	editingIndex = -1;
+	activeTab = "all";
+}
+
+// 切换 Tab
+function switchTab(tab: string) {
+	activeTab = tab;
+}
+
+// 移动卡片（在 displayItems 的可见顺序中上移/下移，确保分类过滤时也能正确排序）
+function moveUp(index: number) {
+	if (index <= 0) return;
+	const item = displayItems[index];
+	const prevItem = displayItems[index - 1];
+	const globalIdx = items.indexOf(item);
+	const prevGlobalIdx = items.indexOf(prevItem);
+	if (globalIdx < 0 || prevGlobalIdx < 0) return;
+	const arr = [...items];
+	[arr[prevGlobalIdx], arr[globalIdx]] = [arr[globalIdx], arr[prevGlobalIdx]];
+	items = arr;
+	if (editingIndex === globalIdx) editingIndex = prevGlobalIdx;
+	else if (editingIndex === prevGlobalIdx) editingIndex = globalIdx;
+}
+
+function moveDown(index: number) {
+	if (index >= displayItems.length - 1) return;
+	const item = displayItems[index];
+	const nextItem = displayItems[index + 1];
+	const globalIdx = items.indexOf(item);
+	const nextGlobalIdx = items.indexOf(nextItem);
+	if (globalIdx < 0 || nextGlobalIdx < 0) return;
+	const arr = [...items];
+	[arr[globalIdx], arr[nextGlobalIdx]] = [arr[nextGlobalIdx], arr[globalIdx]];
+	items = arr;
+	if (editingIndex === globalIdx) editingIndex = nextGlobalIdx;
+	else if (editingIndex === nextGlobalIdx) editingIndex = globalIdx;
+}
+
+// 开始内联编辑
+function startEdit(index: number) {
+	const item = displayItems[index];
+	editingIndex = items.indexOf(item);
+}
+
+function finishEdit(index: number) {
+	const item = items[index];
+	if (!item.name.trim()) {
+		showToast("名称不能为空", "warning");
+		return;
 	}
-
-	// 移动卡片（在 displayItems 的可见顺序中上移/下移，确保分类过滤时也能正确排序）
-	function moveUp(index: number) {
-		if (index <= 0) return;
-		const item = displayItems[index];
-		const prevItem = displayItems[index - 1];
-		const globalIdx = items.indexOf(item);
-		const prevGlobalIdx = items.indexOf(prevItem);
-		if (globalIdx < 0 || prevGlobalIdx < 0) return;
-		const arr = [...items];
-		[arr[prevGlobalIdx], arr[globalIdx]] = [arr[globalIdx], arr[prevGlobalIdx]];
-		items = arr;
-		if (editingIndex === globalIdx) editingIndex = prevGlobalIdx;
-		else if (editingIndex === prevGlobalIdx) editingIndex = globalIdx;
+	if (!item.url.trim()) {
+		showToast("链接不能为空", "warning");
+		return;
 	}
-
-	function moveDown(index: number) {
-		if (index >= displayItems.length - 1) return;
-		const item = displayItems[index];
-		const nextItem = displayItems[index + 1];
-		const globalIdx = items.indexOf(item);
-		const nextGlobalIdx = items.indexOf(nextItem);
-		if (globalIdx < 0 || nextGlobalIdx < 0) return;
-		const arr = [...items];
-		[arr[globalIdx], arr[nextGlobalIdx]] = [arr[nextGlobalIdx], arr[globalIdx]];
-		items = arr;
-		if (editingIndex === globalIdx) editingIndex = nextGlobalIdx;
-		else if (editingIndex === nextGlobalIdx) editingIndex = globalIdx;
+	if (!item.icon && item.url) {
+		try {
+			const hostname = new URL(item.url).hostname;
+			items[index] = { ...item, icon: `https://favicon.im/${hostname}` };
+			items = [...items];
+		} catch {}
 	}
+	editingIndex = -1;
+	showToast("已修改，记得点击保存", "info");
+}
 
-	// 开始内联编辑
-	function startEdit(index: number) {
-		const item = displayItems[index];
-		editingIndex = items.indexOf(item);
-	}
-
-	function finishEdit(index: number) {
-		const item = items[index];
-		if (!item.name.trim()) {
-			showToast("名称不能为空", "warning");
-			return;
+// 取消单卡片编辑
+function cancelItemEdit(index: number) {
+	const item = items[index];
+	if (item._draft && !item.name.trim()) {
+		// 新增的空草稿，直接删除
+		items = items.filter((_, i) => i !== index);
+	} else {
+		// 回滚该卡片到原始状态
+		const orig = originalItems.find(
+			(o) => (o.id || o.url) === (item.id || item.url) && !item._draft,
+		);
+		if (orig) {
+			items[index] = deepClone(orig);
+			items = [...items];
 		}
-		if (!item.url.trim()) {
-			showToast("链接不能为空", "warning");
-			return;
-		}
-		if (!item.icon && item.url) {
-			try {
-				const hostname = new URL(item.url).hostname;
-				items[index] = { ...item, icon: `https://favicon.im/${hostname}` };
-				items = [...items];
-			} catch {
-			}
-		}
-		editingIndex = -1;
-		showToast("已修改，记得点击保存", "info");
 	}
+	editingIndex = -1;
+}
 
-	// 取消单卡片编辑
-	function cancelItemEdit(index: number) {
-		const item = items[index];
-		if (item._draft && !item.name.trim()) {
-			// 新增的空草稿，直接删除
-			items = items.filter((_, i) => i !== index);
-		} else {
-			// 回滚该卡片到原始状态
-			const orig = originalItems.find(
-				(o) => (o.id || o.url) === (item.id || item.url) && !item._draft,
-			);
-			if (orig) {
-				items[index] = deepClone(orig);
-				items = [...items];
-			}
-		}
-		editingIndex = -1;
+function deleteItem(index: number) {
+	const item = displayItems[index];
+	const globalIdx = items.indexOf(item);
+	if (!confirm(`确定要删除「${item.name || "该条目"}」吗？`)) return;
+	items = items.filter((_, i) => i !== globalIdx);
+	if (editingIndex === globalIdx) editingIndex = -1;
+	else if (editingIndex > globalIdx) editingIndex--;
+	showToast("已删除，记得点击保存", "info");
+}
+
+function handleAdd() {
+	const defaultCategory = categories[0] || "";
+	const newItem: CollectionItem = {
+		id: genId("col"),
+		name: "",
+		url: "",
+		description: "",
+		category: defaultCategory,
+		icon: "",
+		enabled: true,
+		_draft: true,
+	};
+	items = [...items, newItem];
+	editingIndex = items.length - 1;
+	activeTab = "all";
+}
+
+function handleSaveDraft() {
+	const cleanData = items.map(({ _draft, ...rest }) => ({
+		...rest,
+		id: rest.id || genId("col"),
+		icon:
+			rest.icon ||
+			(rest.url ? `https://favicon.im/${new URL(rest.url).hostname}` : ""),
+		enabled: rest.enabled !== false,
+	}));
+	items = cleanData;
+	drafts.saveToDrafts();
+}
+
+async function handleSubmit() {
+	if (editingIndex >= 0) {
+		finishEdit(editingIndex);
+		if (editingIndex >= 0) return;
 	}
-
-	function deleteItem(index: number) {
-		const item = displayItems[index];
-		const globalIdx = items.indexOf(item);
-		if (!confirm(`确定要删除「${item.name || "该条目"}」吗？`)) return;
-		items = items.filter((_, i) => i !== globalIdx);
-		if (editingIndex === globalIdx) editingIndex = -1;
-		else if (editingIndex > globalIdx) editingIndex--;
-		showToast("已删除，记得点击保存", "info");
-	}
-
-	function handleAdd() {
-		const defaultCategory = categories[0] || "";
-		const newItem: CollectionItem = {
-			id: genId("col"),
-			name: "",
-			url: "",
-			description: "",
-			category: defaultCategory,
-			icon: "",
-			enabled: true,
-			_draft: true,
-		};
-		items = [...items, newItem];
-		editingIndex = items.length - 1;
-		activeTab = "all";
-	}
-
-	function handleSaveDraft() {
+	saving = true;
+	try {
 		const cleanData = items.map(({ _draft, ...rest }) => ({
 			...rest,
 			id: rest.id || genId("col"),
-			icon: rest.icon || (rest.url ? `https://favicon.im/${new URL(rest.url).hostname}` : ""),
+			icon:
+				rest.icon ||
+				(rest.url ? `https://favicon.im/${new URL(rest.url).hostname}` : ""),
 			enabled: rest.enabled !== false,
 		}));
 		items = cleanData;
-		drafts.saveToDrafts();
+		await drafts.submitDrafts();
+	} finally {
+		saving = false;
 	}
+}
 
-	async function handleSubmit() {
-		if (editingIndex >= 0) {
-			finishEdit(editingIndex);
-			if (editingIndex >= 0) return;
-		}
-		saving = true;
-		try {
-			const cleanData = items.map(({ _draft, ...rest }) => ({
-				...rest,
-				id: rest.id || genId("col"),
-				icon: rest.icon || (rest.url ? `https://favicon.im/${new URL(rest.url).hostname}` : ""),
-				enabled: rest.enabled !== false,
-			}));
-			items = cleanData;
-			await drafts.submitDrafts();
-		} finally {
-			saving = false;
-		}
-	}
+// 更新编辑中的卡片字段
+function updateField(
+	index: number,
+	field: keyof CollectionItem,
+	value: string | boolean,
+) {
+	items[index] = { ...items[index], [field]: value } as CollectionItem;
+	items = [...items];
+}
 
-	// 更新编辑中的卡片字段
-	function updateField(index: number, field: keyof CollectionItem, value: string | boolean) {
-		items[index] = { ...items[index], [field]: value } as CollectionItem;
-		items = [...items];
+// 获取 URL 的 hostname
+function getHostname(url: string) {
+	try {
+		return new URL(url).hostname;
+	} catch {
+		return url;
 	}
+}
 
-	// 获取 URL 的 hostname
-	function getHostname(url: string) {
-		try {
-			return new URL(url).hostname;
-		} catch {
-			return url;
-		}
-	}
-
-	// 判断图标是否为 http 链接
-	function isHttpIcon(icon?: string) {
-		return icon && icon.startsWith("http");
-	}
+// 判断图标是否为 http 链接
+function isHttpIcon(icon?: string) {
+	return icon && icon.startsWith("http");
+}
 </script>
 
 <EditToast />

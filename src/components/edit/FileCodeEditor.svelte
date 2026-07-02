@@ -1,142 +1,148 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import EditToolbar from "./EditToolbar.svelte";
-	import EditToast from "./EditToast.svelte";
-	import {
-		hasValidToken,
-		getRepoFile,
-		showToast,
-		ensureIconify,
-	} from "@/utils/editMode";
-	import { setupRepoDrafts } from "@/utils/draftHelpers";
-	import { repoConfig } from "@/config/editConfig";
+import { onMount } from "svelte";
+import EditToolbar from "./EditToolbar.svelte";
+import EditToast from "./EditToast.svelte";
+import {
+	hasValidToken,
+	getRepoFile,
+	showToast,
+	ensureIconify,
+} from "@/utils/editMode";
+import { setupRepoDrafts } from "@/utils/draftHelpers";
+import { repoConfig } from "@/config/editConfig";
 
-	let {
-		filePath,
-		pageName = "配置",
-		language = "typescript",
-	}: {
-		filePath: string;
-		pageName?: string;
-		language?: string;
-	} = $props();
+let {
+	filePath,
+	pageName = "配置",
+	language = "typescript",
+}: {
+	filePath: string;
+	pageName?: string;
+	language?: string;
+} = $props();
 
-	let editMode = $state(false);
-	let saving = $state(false);
-	let loading = $state(false);
-	let fileContent = $state("");
-	let originalContent = $state("");
-	let fileSha = $state<string | null>(null);
-	let textareaEl = $state<HTMLTextAreaElement>();
-	let contentLoaded = $state(false);
+let editMode = $state(false);
+let saving = $state(false);
+let loading = $state(false);
+let fileContent = $state("");
+let originalContent = $state("");
+let fileSha = $state<string | null>(null);
+let textareaEl = $state<HTMLTextAreaElement>();
+let contentLoaded = $state(false);
 
-	const drafts = setupRepoDrafts({
-		pageKey: "filecode",
-		pageName: pageName,
-		getContent: () => fileContent,
-		setContent: (v) => (fileContent = v),
-		getPath: () => filePath,
-		getSha: () => fileSha,
-		setSha: (v) => (fileSha = v),
-		getOriginalContent: () => originalContent,
-		setOriginalContent: (v) => (originalContent = v),
-		getCommitMsg: (isEdit) => isEdit ? `chore: 更新${pageName}配置` : `chore: 创建${pageName}配置`,
-	});
-	let hasChanges = $derived(drafts.hasLocalChanges());
+const drafts = setupRepoDrafts({
+	pageKey: "filecode",
+	pageName: pageName,
+	getContent: () => fileContent,
+	setContent: (v) => (fileContent = v),
+	getPath: () => filePath,
+	getSha: () => fileSha,
+	setSha: (v) => (fileSha = v),
+	getOriginalContent: () => originalContent,
+	setOriginalContent: (v) => (originalContent = v),
+	getCommitMsg: (isEdit) =>
+		isEdit ? `chore: 更新${pageName}配置` : `chore: 创建${pageName}配置`,
+});
+let hasChanges = $derived(drafts.hasLocalChanges());
 
-	onMount(() => {
-		ensureIconify();
-	});
+onMount(() => {
+	ensureIconify();
+});
 
-	async function loadFile() {
-		if (!hasValidToken()) {
-			showToast("请先导入密钥以加载当前配置", "warning");
-			contentLoaded = true;
-			drafts.restoreFromDrafts();
-			return;
-		}
-		loading = true;
-		try {
-			const file = await getRepoFile(filePath, repoConfig);
-			if (file) {
-				fileContent = file.content;
-				originalContent = file.content;
-				fileSha = file.sha;
-				contentLoaded = true;
-			} else {
-				showToast("无法获取文件内容，请检查仓库权限", "error");
-			}
-		} catch (e) {
-			showToast("加载文件失败：" + (e as Error).message, "error");
-		}
-		loading = false;
+async function loadFile() {
+	if (!hasValidToken()) {
+		showToast("请先导入密钥以加载当前配置", "warning");
+		contentLoaded = true;
 		drafts.restoreFromDrafts();
+		return;
 	}
+	loading = true;
+	try {
+		const file = await getRepoFile(filePath, repoConfig);
+		if (file) {
+			fileContent = file.content;
+			originalContent = file.content;
+			fileSha = file.sha;
+			contentLoaded = true;
+		} else {
+			showToast("无法获取文件内容，请检查仓库权限", "error");
+		}
+	} catch (e) {
+		showToast("加载文件失败：" + (e as Error).message, "error");
+	}
+	loading = false;
+	drafts.restoreFromDrafts();
+}
 
-	async function enterEditMode() {
-		editMode = true;
-		if (!contentLoaded) {
-			await loadFile();
+async function enterEditMode() {
+	editMode = true;
+	if (!contentLoaded) {
+		await loadFile();
+	}
+}
+
+function cancelEdit() {
+	fileContent = originalContent;
+	editMode = false;
+	drafts.clearDrafts();
+}
+
+function handleContentChange(e: Event) {
+	const target = e.target as HTMLTextAreaElement;
+	fileContent = target.value;
+}
+
+function handleReload() {
+	contentLoaded = false;
+	loadFile();
+}
+
+function handleSaveDraft() {
+	drafts.saveToDrafts();
+}
+
+async function handleSubmit() {
+	saving = true;
+	try {
+		await drafts.submitDrafts();
+	} finally {
+		saving = false;
+	}
+}
+
+function handleKeyDown(e: KeyboardEvent) {
+	if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+		e.preventDefault();
+		if (hasChanges && !saving) {
+			handleSubmit();
 		}
 	}
-
-	function cancelEdit() {
-		fileContent = originalContent;
-		editMode = false;
-		drafts.clearDrafts();
-	}
-
-	function handleContentChange(e: Event) {
-		const target = e.target as HTMLTextAreaElement;
-		fileContent = target.value;
-	}
-
-	function handleReload() {
-		contentLoaded = false;
-		loadFile();
-	}
-
-	function handleSaveDraft() {
-		drafts.saveToDrafts();
-	}
-
-	async function handleSubmit() {
-		saving = true;
-		try { await drafts.submitDrafts(); } finally { saving = false; }
-	}
-
-	function handleKeyDown(e: KeyboardEvent) {
-		if ((e.ctrlKey || e.metaKey) && e.key === "s") {
-			e.preventDefault();
-			if (hasChanges && !saving) {
-				handleSubmit();
-			}
-		}
-		if (e.key === "Escape") {
-			if (hasChanges) {
-				if (confirm("有未保存的更改，确定要取消吗？")) {
-					cancelEdit();
-				}
-			} else {
+	if (e.key === "Escape") {
+		if (hasChanges) {
+			if (confirm("有未保存的更改，确定要取消吗？")) {
 				cancelEdit();
 			}
+		} else {
+			cancelEdit();
 		}
 	}
+}
 
-	function handleTabKey(e: KeyboardEvent) {
-		if (e.key === "Tab") {
-			e.preventDefault();
-			const textarea = e.target as HTMLTextAreaElement;
-			const start = textarea.selectionStart;
-			const end = textarea.selectionEnd;
-			fileContent = fileContent.substring(0, start) + "\t" + fileContent.substring(end);
-			setTimeout(() => {
-				if (textareaEl) {
-					textareaEl.selectionStart = textareaEl.selectionEnd = start + 1;
-				}
-			}, 0);
-		}
+function handleTabKey(e: KeyboardEvent) {
+	if (e.key === "Tab") {
+		e.preventDefault();
+		const textarea = e.target as HTMLTextAreaElement;
+		const start = textarea.selectionStart;
+		const end = textarea.selectionEnd;
+		fileContent =
+			fileContent.substring(0, start) + "\t" + fileContent.substring(end);
+		setTimeout(() => {
+			if (textareaEl) {
+				textareaEl.selectionStart = textareaEl.selectionEnd = start + 1;
+			}
+		}, 0);
 	}
+}
 </script>
 
 <EditToast />

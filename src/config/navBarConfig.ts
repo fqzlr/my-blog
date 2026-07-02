@@ -123,12 +123,21 @@ function getPresetIcon(key: string): string | undefined {
  * 默认导航项顺序（当没有 navItems 配置时使用）
  * 这是默认的导航结构
  */
-function getDefaultNavItems(): { id: string; type: "preset" | "custom"; parent: "top" | "posts" | "contact" | "my" | "hidden" }[] {
-	const items: { id: string; type: "preset" | "custom"; parent: "top" | "posts" | "contact" | "my" | "hidden" }[] = [];
+function getDefaultNavItems(): {
+	id: string;
+	type: "preset" | "custom";
+	parent: "top" | "posts" | "contact" | "my" | "hidden";
+}[] {
+	const items: {
+		id: string;
+		type: "preset" | "custom";
+		parent: "top" | "posts" | "contact" | "my" | "hidden";
+	}[] = [];
 
 	// 顶级导航
 	items.push({ id: "home", type: "preset", parent: "top" });
-	if (isPresetAvailable("collections")) items.push({ id: "collections", type: "preset", parent: "top" });
+	if (isPresetAvailable("collections"))
+		items.push({ id: "collections", type: "preset", parent: "top" });
 
 	// 文章下拉（下拉头本身不算items，其children是posts组）
 	items.push({ id: "archive", type: "preset", parent: "posts" });
@@ -136,25 +145,41 @@ function getDefaultNavItems(): { id: string; type: "preset" | "custom"; parent: 
 	items.push({ id: "postlist", type: "preset", parent: "posts" });
 
 	// 联系我下拉
-	if (isPresetAvailable("friends")) items.push({ id: "friends", type: "preset", parent: "contact" });
-	if (isPresetAvailable("guestbook")) items.push({ id: "guestbook", type: "preset", parent: "contact" });
+	if (isPresetAvailable("friends"))
+		items.push({ id: "friends", type: "preset", parent: "contact" });
+	if (isPresetAvailable("guestbook"))
+		items.push({ id: "guestbook", type: "preset", parent: "contact" });
 	items.push({ id: "qqgroup", type: "preset", parent: "contact" });
 
 	// 我的下拉
-	if (isPresetAvailable("fhome")) items.push({ id: "fhome", type: "preset", parent: "my" });
-	if (isPresetAvailable("fnote")) items.push({ id: "fnote", type: "preset", parent: "my" });
-	if (isPresetAvailable("calendar")) items.push({ id: "calendar", type: "preset", parent: "my" });
-	if (isPresetAvailable("bangumi")) items.push({ id: "bangumi", type: "preset", parent: "my" });
-	if (isPresetAvailable("books")) items.push({ id: "books", type: "preset", parent: "my" });
-	if (isPresetAvailable("moviesgames")) items.push({ id: "moviesgames", type: "preset", parent: "my" });
-	if (isPresetAvailable("musicpage")) items.push({ id: "musicpage", type: "preset", parent: "my" });
-	if (isPresetAvailable("changelog")) items.push({ id: "changelog", type: "preset", parent: "my" });
-	if (isPresetAvailable("moments")) items.push({ id: "moments", type: "preset", parent: "my" });
-	if (isPresetAvailable("routines")) items.push({ id: "routines", type: "preset", parent: "my" });
-	if (isPresetAvailable("places")) items.push({ id: "places", type: "preset", parent: "my" });
-	if (isPresetAvailable("notebooks")) items.push({ id: "notebooks", type: "preset", parent: "my" });
-	if (isPresetAvailable("gallery")) items.push({ id: "gallery", type: "preset", parent: "my" });
-	if (isPresetAvailable("sponsor")) items.push({ id: "sponsor", type: "preset", parent: "my" });
+	if (isPresetAvailable("fhome"))
+		items.push({ id: "fhome", type: "preset", parent: "my" });
+	if (isPresetAvailable("fnote"))
+		items.push({ id: "fnote", type: "preset", parent: "my" });
+	if (isPresetAvailable("calendar"))
+		items.push({ id: "calendar", type: "preset", parent: "my" });
+	if (isPresetAvailable("bangumi"))
+		items.push({ id: "bangumi", type: "preset", parent: "my" });
+	if (isPresetAvailable("books"))
+		items.push({ id: "books", type: "preset", parent: "my" });
+	if (isPresetAvailable("moviesgames"))
+		items.push({ id: "moviesgames", type: "preset", parent: "my" });
+	if (isPresetAvailable("musicpage"))
+		items.push({ id: "musicpage", type: "preset", parent: "my" });
+	if (isPresetAvailable("changelog"))
+		items.push({ id: "changelog", type: "preset", parent: "my" });
+	if (isPresetAvailable("moments"))
+		items.push({ id: "moments", type: "preset", parent: "my" });
+	if (isPresetAvailable("routines"))
+		items.push({ id: "routines", type: "preset", parent: "my" });
+	if (isPresetAvailable("places"))
+		items.push({ id: "places", type: "preset", parent: "my" });
+	if (isPresetAvailable("notebooks"))
+		items.push({ id: "notebooks", type: "preset", parent: "my" });
+	if (isPresetAvailable("gallery"))
+		items.push({ id: "gallery", type: "preset", parent: "my" });
+	if (isPresetAvailable("sponsor"))
+		items.push({ id: "sponsor", type: "preset", parent: "my" });
 	items.push({ id: "about", type: "preset", parent: "my" });
 
 	return items;
@@ -268,7 +293,18 @@ const buildNavBarConfig = (): NavBarConfig => {
  */
 function buildDefaultNavBarConfig(): NavBarConfig {
 	// 兼容旧版 customLinks
-	const customLinks = (siteConfig.navbar as { customLinks?: { name: string; url: string; icon?: string; external?: boolean; parent?: string }[] })?.customLinks || [];
+	const customLinks =
+		(
+			siteConfig.navbar as {
+				customLinks?: {
+					name: string;
+					url: string;
+					icon?: string;
+					external?: boolean;
+					parent?: string;
+				}[];
+			}
+		)?.customLinks || [];
 	const customTopLinks: NavBarLink[] = [];
 	const customPostsLinks: NavBarLink[] = [];
 	const customContactLinks: NavBarLink[] = [];
@@ -292,7 +328,12 @@ function buildDefaultNavBarConfig(): NavBarConfig {
 	// 1. 构建文章下拉菜单
 	const postsNav: NavBarLink = {
 		...LinkPresets[LinkPreset.NavPosts],
-		children: [LinkPreset.Archive, LinkPreset.Categories, LinkPreset.PostList, ...customPostsLinks],
+		children: [
+			LinkPreset.Archive,
+			LinkPreset.Categories,
+			LinkPreset.PostList,
+			...customPostsLinks,
+		],
 	};
 
 	// 2. 构建联系我下拉菜单
@@ -380,7 +421,13 @@ function buildDefaultNavBarConfig(): NavBarConfig {
 }
 
 // 导出辅助函数供ConfigEditor使用
-export { PRESET_KEY_MAP, isPresetAvailable, getPresetDisplayName, getPresetIcon, getDefaultNavItems };
+export {
+	PRESET_KEY_MAP,
+	isPresetAvailable,
+	getPresetDisplayName,
+	getPresetIcon,
+	getDefaultNavItems,
+};
 
 // 导航搜索配置
 export const navBarSearchConfig: NavBarSearchConfig = {

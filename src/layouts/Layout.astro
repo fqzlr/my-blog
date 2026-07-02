@@ -22,9 +22,10 @@ import "@/styles/markdown-extend.styl";
 import "@rehype-callouts-theme";
 
 // 部署环境检测（Vercel: production/preview/development）
-const deployEnv = process.env.VERCEL_ENV || import.meta.env.MODE || 'development';
+const deployEnv =
+	process.env.VERCEL_ENV || import.meta.env.MODE || "development";
 // 当前部署分支（Vercel 自动设置，例如 master 或 feature/frontend-editing）
-const deployBranch = process.env.VERCEL_GIT_COMMIT_REF || 'master';
+const deployBranch = process.env.VERCEL_GIT_COMMIT_REF || "master";
 
 interface Props {
 	title?: string;

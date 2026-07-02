@@ -31,12 +31,24 @@ export interface GistDraftContext<T> {
 }
 
 export function setupGistDrafts<T>(ctx: GistDraftContext<T>) {
-	const { pageKey, pageName, getData, setData, getOriginalData, setOriginalData, gistConfig, onSubmitted } = ctx;
+	const {
+		pageKey,
+		pageName,
+		getData,
+		setData,
+		getOriginalData,
+		setOriginalData,
+		gistConfig,
+		onSubmitted,
+	} = ctx;
 
 	function saveToDrafts(): DraftChange | null {
 		const data = getData();
 		const original = getOriginalData();
-		if (JSON.stringify(data) === JSON.stringify(original) && getDraftsByPage(pageKey).length === 0) {
+		if (
+			JSON.stringify(data) === JSON.stringify(original) &&
+			getDraftsByPage(pageKey).length === 0
+		) {
 			showToast("没有需要暂存的更改", "info");
 			return null;
 		}
@@ -117,7 +129,10 @@ export function setupGistDrafts<T>(ctx: GistDraftContext<T>) {
 			gistIdToUse = gistConfig.gistId;
 		}
 		const original = getOriginalData();
-		if (JSON.stringify(dataToSubmit) === JSON.stringify(original) && gistIdToUse) {
+		if (
+			JSON.stringify(dataToSubmit) === JSON.stringify(original) &&
+			gistIdToUse
+		) {
 			showToast("没有需要提交的更改", "info");
 			return false;
 		}
@@ -131,16 +146,28 @@ export function setupGistDrafts<T>(ctx: GistDraftContext<T>) {
 
 	registerSubmitHandler(pageKey, async (draft) => {
 		if (draft.payload?.type === "gist" && draft.payload.data) {
-			return doSubmit(draft.payload.data as T, String(draft.payload.gistId || gistConfig.gistId));
+			return doSubmit(
+				draft.payload.data as T,
+				String(draft.payload.gistId || gistConfig.gistId),
+			);
 		}
 		return false;
 	});
 
 	function hasLocalChanges(): boolean {
-		return getDraftsByPage(pageKey).length > 0 || JSON.stringify(getData()) !== JSON.stringify(getOriginalData());
+		return (
+			getDraftsByPage(pageKey).length > 0 ||
+			JSON.stringify(getData()) !== JSON.stringify(getOriginalData())
+		);
 	}
 
-	return { saveToDrafts, restoreFromDrafts, submitDrafts, hasLocalChanges, clearDrafts: () => clearDraftsByPage(pageKey) };
+	return {
+		saveToDrafts,
+		restoreFromDrafts,
+		submitDrafts,
+		hasLocalChanges,
+		clearDrafts: () => clearDraftsByPage(pageKey),
+	};
 }
 
 // ============ Repo 文件类型编辑器草稿辅助 ============
@@ -160,7 +187,18 @@ export interface RepoDraftContext {
 }
 
 export function setupRepoDrafts(ctx: RepoDraftContext) {
-	const { pageKey, pageName, getContent, setContent, getPath, getSha, setSha, getOriginalContent, setOriginalContent, onSubmitted } = ctx;
+	const {
+		pageKey,
+		pageName,
+		getContent,
+		setContent,
+		getPath,
+		getSha,
+		setSha,
+		getOriginalContent,
+		setOriginalContent,
+		onSubmitted,
+	} = ctx;
 
 	function saveToDrafts(): DraftChange | null {
 		const content = getContent();
@@ -192,7 +230,10 @@ export function setupRepoDrafts(ctx: RepoDraftContext) {
 		const drafts = getDraftsByPage(pageKey);
 		if (drafts.length === 0) return false;
 		const latest = drafts[drafts.length - 1];
-		if (latest.payload?.type === "repo" && latest.payload.content !== undefined) {
+		if (
+			latest.payload?.type === "repo" &&
+			latest.payload.content !== undefined
+		) {
 			setContent(String(latest.payload.content));
 			showToast(`已恢复 ${pageName} 的暂存数据`, "info");
 			return true;
@@ -200,36 +241,53 @@ export function setupRepoDrafts(ctx: RepoDraftContext) {
 		return false;
 	}
 
-	async function doSubmit(content: string, sha: string | null, path: string, isEdit: boolean): Promise<boolean> {
-		const branch = typeof window !== 'undefined' ? window.__DEPLOY_BRANCH__ : undefined;
-		console.log('[RepoDrafts] doSubmit called:', { path, isEdit, hasSha: !!sha, contentLength: content.length, branch });
+	async function doSubmit(
+		content: string,
+		sha: string | null,
+		path: string,
+		isEdit: boolean,
+	): Promise<boolean> {
+		const branch =
+			typeof window !== "undefined" ? window.__DEPLOY_BRANCH__ : undefined;
+		console.log("[RepoDrafts] doSubmit called:", {
+			path,
+			isEdit,
+			hasSha: !!sha,
+			contentLength: content.length,
+			branch,
+		});
 		const commitMsg = ctx.getCommitMsg
 			? ctx.getCommitMsg(isEdit)
-			: isEdit ? `chore: update ${pageName}` : `chore: create ${pageName}`;
+			: isEdit
+				? `chore: update ${pageName}`
+				: `chore: create ${pageName}`;
 		let ok = false;
 		try {
 			// 如果需要更新但没有 sha，先尝试从仓库获取
 			let actualSha = sha;
 			if (isEdit && !actualSha) {
-				console.log('[RepoDrafts] isEdit but no sha, fetching file meta...');
+				console.log("[RepoDrafts] isEdit but no sha, fetching file meta...");
 				const existing = await getRepoFile(path);
 				if (existing && existing.sha) {
 					actualSha = existing.sha;
-					console.log('[RepoDrafts] Got sha from repo:', actualSha);
+					console.log("[RepoDrafts] Got sha from repo:", actualSha);
 				} else {
-					console.log('[RepoDrafts] File does not exist in repo, will create');
+					console.log("[RepoDrafts] File does not exist in repo, will create");
 				}
 			}
 			if (isEdit && actualSha) {
-				console.log('[RepoDrafts] Updating existing file...');
+				console.log("[RepoDrafts] Updating existing file...");
 				ok = await updateRepoFile(path, content, actualSha, commitMsg);
 			} else {
-				console.log('[RepoDrafts] Creating new file...');
+				console.log("[RepoDrafts] Creating new file...");
 				ok = await createRepoFile(path, content, commitMsg);
 			}
 		} catch (error) {
-			console.error('[RepoDrafts] doSubmit error:', error);
-			showToast(`提交 ${pageName} 失败: ${error instanceof Error ? error.message : String(error)}`, "error");
+			console.error("[RepoDrafts] doSubmit error:", error);
+			showToast(
+				`提交 ${pageName} 失败: ${error instanceof Error ? error.message : String(error)}`,
+				"error",
+			);
 			return false;
 		}
 		if (ok) {
@@ -246,27 +304,34 @@ export function setupRepoDrafts(ctx: RepoDraftContext) {
 	}
 
 	async function submitDrafts(): Promise<boolean> {
-		console.log('[RepoDrafts] submitDrafts called');
+		console.log("[RepoDrafts] submitDrafts called");
 		const drafts = getDraftsByPage(pageKey);
 		let contentToSubmit: string;
 		let shaToUse: string | null;
 		let pathToUse: string;
 		let isEdit: boolean;
 		if (drafts.length > 0) {
-			console.log('[RepoDrafts] Found drafts:', drafts.length);
+			console.log("[RepoDrafts] Found drafts:", drafts.length);
 			const latest = drafts[drafts.length - 1];
-			if (latest.payload?.type === "repo" && latest.payload.content !== undefined) {
+			if (
+				latest.payload?.type === "repo" &&
+				latest.payload.content !== undefined
+			) {
 				contentToSubmit = String(latest.payload.content);
 				shaToUse = (latest.payload.sha as string) || null;
 				pathToUse = String(latest.payload.path || getPath());
 				isEdit = !!latest.payload.isEdit;
-				console.log('[RepoDrafts] Using draft data:', { pathToUse, isEdit, hasSha: !!shaToUse });
+				console.log("[RepoDrafts] Using draft data:", {
+					pathToUse,
+					isEdit,
+					hasSha: !!shaToUse,
+				});
 			} else {
-				console.error('[RepoDrafts] Invalid draft payload');
+				console.error("[RepoDrafts] Invalid draft payload");
 				return false;
 			}
 		} else {
-			console.log('[RepoDrafts] No drafts, using current state');
+			console.log("[RepoDrafts] No drafts, using current state");
 			contentToSubmit = getContent();
 			shaToUse = getSha();
 			pathToUse = getPath();
@@ -288,14 +353,28 @@ export function setupRepoDrafts(ctx: RepoDraftContext) {
 		if (draft.payload?.type === "repo" && draft.payload.content !== undefined) {
 			const path = String(draft.payload.path || getPath());
 			const isEdit = !!draft.payload.sha || !!draft.payload.isEdit;
-			return doSubmit(String(draft.payload.content), (draft.payload.sha as string) || null, path, isEdit);
+			return doSubmit(
+				String(draft.payload.content),
+				(draft.payload.sha as string) || null,
+				path,
+				isEdit,
+			);
 		}
 		return false;
 	});
 
 	function hasLocalChanges(): boolean {
-		return getDraftsByPage(pageKey).length > 0 || getContent() !== getOriginalContent();
+		return (
+			getDraftsByPage(pageKey).length > 0 ||
+			getContent() !== getOriginalContent()
+		);
 	}
 
-	return { saveToDrafts, restoreFromDrafts, submitDrafts, hasLocalChanges, clearDrafts: () => clearDraftsByPage(pageKey) };
+	return {
+		saveToDrafts,
+		restoreFromDrafts,
+		submitDrafts,
+		hasLocalChanges,
+		clearDrafts: () => clearDraftsByPage(pageKey),
+	};
 }

@@ -354,7 +354,7 @@ export const zh_CN: Translation = {
 	[Key.contactMe]: "联系我",
 	[Key.qqGroup]: "QQ群",
 	[Key.navPosts]: "文章",
-		[Key.bookshelf]: "书架",
+	[Key.bookshelf]: "书架",
 	[Key.moviesGames]: "影视游戏",
 	[Key.musicPage]: "音乐",
 	[Key.changelog]: "更新日志",
@@ -367,7 +367,6 @@ export const zh_CN: Translation = {
 	[Key.books]: "书籍",
 	[Key.admin]: "管理",
 
-	
 	[Key.changelogTitle]: "更新日志",
 	[Key.changelogSubtitle]: "记录每一次改进",
 	[Key.changelogAll]: "全部",

@@ -1,81 +1,82 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import EditToolbar from "./EditToolbar.svelte";
-	import EditToast from "./EditToast.svelte";
-	import {
-		showToast,
-		genId,
-		deepClone,
-		ensureIconify,
-		getRepoFile,
-	} from "@/utils/editMode";
-	import { setupRepoDrafts } from "@/utils/draftHelpers";
+import { onMount } from "svelte";
+import EditToolbar from "./EditToolbar.svelte";
+import EditToast from "./EditToast.svelte";
+import {
+	showToast,
+	genId,
+	deepClone,
+	ensureIconify,
+	getRepoFile,
+} from "@/utils/editMode";
+import { setupRepoDrafts } from "@/utils/draftHelpers";
 
-	interface FriendItem {
-		id?: string;
-		title: string;
-		imgurl: string;
-		desc: string;
-		siteurl: string;
-		tags?: string[];
-		weight?: number;
-		enabled?: boolean;
-		_draft?: boolean;
+interface FriendItem {
+	id?: string;
+	title: string;
+	imgurl: string;
+	desc: string;
+	siteurl: string;
+	tags?: string[];
+	weight?: number;
+	enabled?: boolean;
+	_draft?: boolean;
+}
+
+let editMode = $state(false);
+let saving = $state(false);
+let friends = $state<FriendItem[]>([]);
+let originalFriends = $state<FriendItem[]>([]);
+let editingIndex = $state(-1);
+let repoLoaded = $state(false);
+let fileSha = $state<string | null>(null);
+let originalTS = $state<string>("");
+
+// 从 TypeScript 配置文件中解析友链数组
+function parseFriendsFromTS(tsContent: string): FriendItem[] {
+	// 统一换行符为 LF
+	tsContent = tsContent.replace(/\r\n/g, "\n");
+	const startMarker = "export const friendsConfig: FriendLink[] = [";
+	const startIdx = tsContent.indexOf(startMarker);
+	if (startIdx === -1) return [];
+	let bracketStart = startIdx + startMarker.length;
+	let depth = 1;
+	let idx = bracketStart;
+	while (idx < tsContent.length && depth > 0) {
+		if (tsContent[idx] === "[") depth++;
+		else if (tsContent[idx] === "]") depth--;
+		if (depth > 0) idx++;
 	}
-
-	let editMode = $state(false);
-	let saving = $state(false);
-	let friends = $state<FriendItem[]>([]);
-	let originalFriends = $state<FriendItem[]>([]);
-	let editingIndex = $state(-1);
-	let repoLoaded = $state(false);
-	let fileSha = $state<string | null>(null);
-	let originalTS = $state<string>("");
-
-	// 从 TypeScript 配置文件中解析友链数组
-	function parseFriendsFromTS(tsContent: string): FriendItem[] {
-		// 统一换行符为 LF
-		tsContent = tsContent.replace(/\r\n/g, "\n");
-		const startMarker = "export const friendsConfig: FriendLink[] = [";
-		const startIdx = tsContent.indexOf(startMarker);
-		if (startIdx === -1) return [];
-		let bracketStart = startIdx + startMarker.length;
-		let depth = 1;
-		let idx = bracketStart;
-		while (idx < tsContent.length && depth > 0) {
-			if (tsContent[idx] === "[") depth++;
-			else if (tsContent[idx] === "]") depth--;
-			if (depth > 0) idx++;
-		}
-		let arrayStr = tsContent.substring(bracketStart, idx).trim();
-		// 移除 JS 行注释，但保留字符串内的 // (如 URL)
-		arrayStr = stripLineComments(arrayStr);
-		// 移除尾逗号: 在 ] 前、} 前、以及字符串末尾
-		arrayStr = arrayStr.replace(/,(\s*[\]\}])/g, "$1");
-		arrayStr = arrayStr.replace(/,(\s*)$/, "$1");
-		// 给未加引号的属性名加上引号 (TypeScript -> JSON)
-		// 仅匹配行首的属性名，避免匹配字符串值中的冒号
-		arrayStr = arrayStr.replace(/^(\s*)(\w+)\s*:/gm, '$1"$2":');
-		try {
-			return JSON.parse(`[${arrayStr}]`);
-		} catch (e) {
-			console.error("Failed to parse friends from TS:", e);
-			return [];
-		}
+	let arrayStr = tsContent.substring(bracketStart, idx).trim();
+	// 移除 JS 行注释，但保留字符串内的 // (如 URL)
+	arrayStr = stripLineComments(arrayStr);
+	// 移除尾逗号: 在 ] 前、} 前、以及字符串末尾
+	arrayStr = arrayStr.replace(/,(\s*[\]\}])/g, "$1");
+	arrayStr = arrayStr.replace(/,(\s*)$/, "$1");
+	// 给未加引号的属性名加上引号 (TypeScript -> JSON)
+	// 仅匹配行首的属性名，避免匹配字符串值中的冒号
+	arrayStr = arrayStr.replace(/^(\s*)(\w+)\s*:/gm, '$1"$2":');
+	try {
+		return JSON.parse(`[${arrayStr}]`);
+	} catch (e) {
+		console.error("Failed to parse friends from TS:", e);
+		return [];
 	}
+}
 
-	// 移除行注释，但保留字符串内的 // (避免破坏 URL)
-	function stripLineComments(code: string): string {
-		const lines = code.split("\n");
-		return lines.map(line => {
+// 移除行注释，但保留字符串内的 // (避免破坏 URL)
+function stripLineComments(code: string): string {
+	const lines = code.split("\n");
+	return lines
+		.map((line) => {
 			let inStr = false;
 			let quotes = 0;
 			for (let i = 0; i < line.length - 1; i++) {
-				if (line[i] === '"' && (i === 0 || line[i - 1] !== '\\')) {
+				if (line[i] === '"' && (i === 0 || line[i - 1] !== "\\")) {
 					inStr = !inStr;
 					quotes++;
 				}
-				if (!inStr && line[i] === '/' && line[i + 1] === '/') {
+				if (!inStr && line[i] === "/" && line[i + 1] === "/") {
 					// 仅当 // 前面有偶数个引号时才认为是注释
 					if (quotes % 2 === 0) {
 						return line.substring(0, i);
@@ -83,52 +84,64 @@
 				}
 			}
 			return line;
-		}).join("\n");
+		})
+		.join("\n");
+}
+
+// 构建完整的 TypeScript 配置文件内容
+// 如果有原始文件内容，只替换 friendsConfig 数组部分，保留其余配置不变
+// 如果没有原始内容（新建场景），生成完整文件
+function buildFriendsConfigTS(
+	friends: FriendItem[],
+	originalContent?: string,
+): string {
+	const entries = friends.map((f) => {
+		const obj = {
+			title: f.title,
+			imgurl: f.imgurl,
+			desc: f.desc,
+			siteurl: f.siteurl,
+			tags: f.tags || ["Blog"],
+			weight: f.weight ?? 10,
+			enabled: f.enabled !== false,
+		};
+		const json = JSON.stringify(obj, null, 2)
+			.split("\n")
+			.map((line, i, arr) =>
+				i === arr.length - 1 ? `\t\t${line},` : `\t\t${line}`,
+			)
+			.join("\n");
+		return json;
+	});
+	const newArrayContent = `[\n${entries.join("\n")}\n]`;
+
+	if (originalContent) {
+		// 有原始内容：只替换 friendsConfig 数组部分
+		const startMarker = "export const friendsConfig: FriendLink[] = [";
+		const startIdx = originalContent.indexOf(startMarker);
+		if (startIdx !== -1) {
+			let bracketStart = startIdx + startMarker.length;
+			let depth = 1;
+			let idx = bracketStart;
+			while (idx < originalContent.length && depth > 0) {
+				if (originalContent[idx] === "[") depth++;
+				else if (originalContent[idx] === "]") depth--;
+				if (depth > 0) idx++;
+			}
+			// 替换数组内容（保留原始的 [ 和 ]）
+			const innerContent = entries.join("\n");
+			return (
+				originalContent.substring(0, bracketStart) +
+				"\n" +
+				innerContent +
+				"\n\t]" +
+				originalContent.substring(idx + 1)
+			);
+		}
 	}
 
-	// 构建完整的 TypeScript 配置文件内容
-	// 如果有原始文件内容，只替换 friendsConfig 数组部分，保留其余配置不变
-	// 如果没有原始内容（新建场景），生成完整文件
-	function buildFriendsConfigTS(friends: FriendItem[], originalContent?: string): string {
-		const entries = friends.map((f) => {
-			const obj = {
-				title: f.title,
-				imgurl: f.imgurl,
-				desc: f.desc,
-				siteurl: f.siteurl,
-				tags: f.tags || ["Blog"],
-				weight: f.weight ?? 10,
-				enabled: f.enabled !== false,
-			};
-			const json = JSON.stringify(obj, null, 2)
-				.split("\n")
-				.map((line, i, arr) => (i === arr.length - 1 ? `\t\t${line},` : `\t\t${line}`))
-				.join("\n");
-			return json;
-		});
-		const newArrayContent = `[\n${entries.join("\n")}\n]`;
-
-		if (originalContent) {
-			// 有原始内容：只替换 friendsConfig 数组部分
-			const startMarker = "export const friendsConfig: FriendLink[] = [";
-			const startIdx = originalContent.indexOf(startMarker);
-			if (startIdx !== -1) {
-				let bracketStart = startIdx + startMarker.length;
-				let depth = 1;
-				let idx = bracketStart;
-				while (idx < originalContent.length && depth > 0) {
-					if (originalContent[idx] === "[") depth++;
-					else if (originalContent[idx] === "]") depth--;
-					if (depth > 0) idx++;
-				}
-				// 替换数组内容（保留原始的 [ 和 ]）
-				const innerContent = entries.join("\n");
-				return originalContent.substring(0, bracketStart) + "\n" + innerContent + "\n\t]" + originalContent.substring(idx + 1);
-			}
-		}
-
-		// 没有原始内容：生成完整文件（新建场景）
-		return `import type { FriendLink, FriendsPageConfig } from "../types/config";
+	// 没有原始内容：生成完整文件（新建场景）
+	return `import type { FriendLink, FriendsPageConfig } from "../types/config";
 
 // 可以在src/content/spec/friends.md中编写友链页面下方的自定义内容
 
@@ -198,226 +211,260 @@ export const getEnabledFriends = (): FriendLink[] => {
 	return friends.sort((a, b) => b.weight - a.weight);
 };
 `;
-	}
+}
 
-	const typeColors: Record<string, { bg: string; text: string }> = {
-		Blog: { bg: "#3b82f6", text: "#ffffff" },
-		Docs: { bg: "#f59e0b", text: "#ffffff" },
-	};
+const typeColors: Record<string, { bg: string; text: string }> = {
+	Blog: { bg: "#3b82f6", text: "#ffffff" },
+	Docs: { bg: "#f59e0b", text: "#ffffff" },
+};
 
-	const drafts = setupRepoDrafts({
-		pageKey: "friends",
-		pageName: "友链",
-		getContent: () => buildFriendsConfigTS(friends, originalTS),
-		setContent: (v) => {
-			const parsed = parseFriendsFromTS(v);
-			if (parsed.length > 0 || v.includes("friendsConfig")) {
-				friends = parsed;
-			}
-		},
-		getPath: () => "src/config/friendsConfig.ts",
-		getSha: () => fileSha,
-		setSha: (v) => (fileSha = v),
-		getOriginalContent: () => originalTS,
-		setOriginalContent: (v) => (originalTS = v),
-		getCommitMsg: (isEdit) => isEdit ? `chore: update friends` : `chore: create friends`,
-		onSubmitted: () => {
-			setTimeout(() => window.location.reload(), 1200);
-		},
-	});
-
-	let hasChanges = $derived(drafts.hasLocalChanges());
-
-	onMount(() => {
-		ensureIconify();
-		collectFromDOM();
-		loadRepoData();
-	});
-
-	async function loadRepoData() {
-		const existing = await getRepoFile("src/config/friendsConfig.ts");
-		if (existing && existing.content) {
-			try {
-				const repoItems: FriendItem[] = parseFriendsFromTS(existing.content);
-				originalTS = existing.content;
-				// 用仓库数据中的 weight/enabled 覆盖 DOM 收集的默认值
-				const repoMap = new Map(repoItems.map(f => [f.siteurl.replace(/\/$/, ""), f]));
-				friends = friends.map(f => {
-					const key = f.siteurl.replace(/\/$/, "");
-					const repoItem = repoMap.get(key);
-					if (repoItem) {
-						return { ...f, weight: repoItem.weight ?? f.weight, enabled: repoItem.enabled ?? f.enabled };
-					}
-					return f;
-				});
-				// 添加仓库中有但 DOM 中没有的友链
-				const existingUrls = new Set(friends.map((f) => f.siteurl.replace(/\/$/, "")));
-				for (const g of repoItems) {
-					const url = g.siteurl.replace(/\/$/, "");
-					if (!existingUrls.has(url)) {
-						friends = [...friends, { ...g, id: g.id || genId("fr") }];
-						existingUrls.add(url);
-					}
-				}
-				originalFriends = deepClone(friends);
-			} catch (e) {
-				console.error("Failed to parse repo friends:", e);
-			}
-		} else {
-			// 仓库中不存在文件，用当前 DOM 数据生成原始内容
-			originalTS = buildFriendsConfigTS(friends);
+const drafts = setupRepoDrafts({
+	pageKey: "friends",
+	pageName: "友链",
+	getContent: () => buildFriendsConfigTS(friends, originalTS),
+	setContent: (v) => {
+		const parsed = parseFriendsFromTS(v);
+		if (parsed.length > 0 || v.includes("friendsConfig")) {
+			friends = parsed;
 		}
-		repoLoaded = true;
-		drafts.restoreFromDrafts();
-	}
+	},
+	getPath: () => "src/config/friendsConfig.ts",
+	getSha: () => fileSha,
+	setSha: (v) => (fileSha = v),
+	getOriginalContent: () => originalTS,
+	setOriginalContent: (v) => (originalTS = v),
+	getCommitMsg: (isEdit) =>
+		isEdit ? `chore: update friends` : `chore: create friends`,
+	onSubmitted: () => {
+		setTimeout(() => window.location.reload(), 1200);
+	},
+});
 
-	function collectFromDOM() {
-		const grid = document.getElementById("friends-grid");
-		if (!grid) return;
-		const items: FriendItem[] = [];
-		grid.querySelectorAll(".friend-card").forEach((el) => {
-			const card = el as HTMLElement;
-			const link = card.querySelector("a.friend-card-link") as HTMLAnchorElement | null;
-			if (!link) return;
-			const title = card.querySelector(".friend-card-title")?.textContent?.trim() || "";
-			const desc = card.querySelector(".friend-card-desc")?.textContent?.trim() || link.dataset.desc || "";
-			const img = card.querySelector("img.friend-card-avatar") as HTMLImageElement | null;
-			const badge = card.querySelector(".friend-card-type-badge");
-			const tag = badge?.textContent?.trim() || "Blog";
-			items.push({
-				id: card.dataset.friendId || link.href,
-				title,
-				imgurl: img?.src || "",
-				desc,
-				siteurl: link.href,
-				tags: [tag],
-				weight: 10,
-				enabled: true,
-			});
-		});
-		friends = items;
-		const ts = buildFriendsConfigTS(items);
-		originalTS = ts;
-		originalFriends = deepClone(items);
-	}
+let hasChanges = $derived(drafts.hasLocalChanges());
 
-	// 进入/退出编辑模式
-	function handleModeChange(e: CustomEvent) {
-		editMode = e.detail.editing;
-		if (editMode) {
-			hideSSRGrid();
-			editingIndex = -1;
-		} else {
-			showSSRGrid();
-		}
-	}
+onMount(() => {
+	ensureIconify();
+	collectFromDOM();
+	loadRepoData();
+});
 
-	function hideSSRGrid() {
-		const grid = document.getElementById("friends-grid");
-		if (grid) {
-			grid.style.display = "none";
-		}
-	}
-
-	function showSSRGrid() {
-		const grid = document.getElementById("friends-grid");
-		if (grid) {
-			grid.style.display = "";
-		}
-	}
-
-	// 取消编辑：回滚到原始数据
-	function handleCancel() {
-		friends = deepClone(originalFriends);
-		drafts.clearDrafts();
-		editingIndex = -1;
-		showSSRGrid();
-	}
-
-	// 移动卡片
-	function moveUp(index: number) {
-		if (index <= 0) return;
-		const arr = [...friends];
-		[arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
-		friends = arr;
-		if (editingIndex === index) editingIndex = index - 1;
-		else if (editingIndex === index - 1) editingIndex = index;
-	}
-
-	function moveDown(index: number) {
-		if (index >= friends.length - 1) return;
-		const arr = [...friends];
-		[arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
-		friends = arr;
-		if (editingIndex === index) editingIndex = index + 1;
-		else if (editingIndex === index + 1) editingIndex = index;
-	}
-
-	// 开始内联编辑
-	function startEdit(index: number) {
-		editingIndex = index;
-	}
-
-	// 完成内联编辑
-	function finishEdit(index: number) {
-		const f = friends[index];
-		if (!f.title.trim()) {
-			showToast("名称不能为空", "warning");
-			return;
-		}
-		if (!f.siteurl.trim()) {
-			showToast("链接不能为空", "warning");
-			return;
-		}
-		editingIndex = -1;
-		showToast("已修改，记得点击保存", "info");
-	}
-
-	// 取消单卡片编辑
-	function cancelItemEdit(index: number) {
-		const f = friends[index];
-		if (f._draft && !f.title.trim()) {
-			friends = friends.filter((_, i) => i !== index);
-		} else {
-			const orig = originalFriends.find(
-				(o) => (o.id || o.siteurl) === (f.id || f.siteurl) && !f._draft,
+async function loadRepoData() {
+	const existing = await getRepoFile("src/config/friendsConfig.ts");
+	if (existing && existing.content) {
+		try {
+			const repoItems: FriendItem[] = parseFriendsFromTS(existing.content);
+			originalTS = existing.content;
+			// 用仓库数据中的 weight/enabled 覆盖 DOM 收集的默认值
+			const repoMap = new Map(
+				repoItems.map((f) => [f.siteurl.replace(/\/$/, ""), f]),
 			);
-			if (orig) {
-				friends[index] = deepClone(orig);
-				friends = [...friends];
+			friends = friends.map((f) => {
+				const key = f.siteurl.replace(/\/$/, "");
+				const repoItem = repoMap.get(key);
+				if (repoItem) {
+					return {
+						...f,
+						weight: repoItem.weight ?? f.weight,
+						enabled: repoItem.enabled ?? f.enabled,
+					};
+				}
+				return f;
+			});
+			// 添加仓库中有但 DOM 中没有的友链
+			const existingUrls = new Set(
+				friends.map((f) => f.siteurl.replace(/\/$/, "")),
+			);
+			for (const g of repoItems) {
+				const url = g.siteurl.replace(/\/$/, "");
+				if (!existingUrls.has(url)) {
+					friends = [...friends, { ...g, id: g.id || genId("fr") }];
+					existingUrls.add(url);
+				}
 			}
+			originalFriends = deepClone(friends);
+		} catch (e) {
+			console.error("Failed to parse repo friends:", e);
 		}
-		editingIndex = -1;
+	} else {
+		// 仓库中不存在文件，用当前 DOM 数据生成原始内容
+		originalTS = buildFriendsConfigTS(friends);
 	}
+	repoLoaded = true;
+	drafts.restoreFromDrafts();
+}
 
-	// 删除卡片
-	function deleteItem(index: number) {
-		const f = friends[index];
-		if (!confirm(`确定要删除「${f.title || "该条目"}」吗？`)) return;
-		friends = friends.filter((_, i) => i !== index);
-		if (editingIndex === index) editingIndex = -1;
-		else if (editingIndex > index) editingIndex--;
-		showToast("已删除，记得点击保存", "info");
-	}
-
-	// 添加新友链（草稿模式，立即进入编辑态）
-	function handleAdd() {
-		const newFriend: FriendItem = {
-			id: genId("fr"),
-			title: "",
-			imgurl: "",
-			desc: "",
-			siteurl: "",
-			tags: ["Blog"],
+function collectFromDOM() {
+	const grid = document.getElementById("friends-grid");
+	if (!grid) return;
+	const items: FriendItem[] = [];
+	grid.querySelectorAll(".friend-card").forEach((el) => {
+		const card = el as HTMLElement;
+		const link = card.querySelector(
+			"a.friend-card-link",
+		) as HTMLAnchorElement | null;
+		if (!link) return;
+		const title =
+			card.querySelector(".friend-card-title")?.textContent?.trim() || "";
+		const desc =
+			card.querySelector(".friend-card-desc")?.textContent?.trim() ||
+			link.dataset.desc ||
+			"";
+		const img = card.querySelector(
+			"img.friend-card-avatar",
+		) as HTMLImageElement | null;
+		const badge = card.querySelector(".friend-card-type-badge");
+		const tag = badge?.textContent?.trim() || "Blog";
+		items.push({
+			id: card.dataset.friendId || link.href,
+			title,
+			imgurl: img?.src || "",
+			desc,
+			siteurl: link.href,
+			tags: [tag],
 			weight: 10,
 			enabled: true,
-			_draft: true,
-		};
-		friends = [...friends, newFriend];
-		editingIndex = friends.length - 1;
-	}
+		});
+	});
+	friends = items;
+	const ts = buildFriendsConfigTS(items);
+	originalTS = ts;
+	originalFriends = deepClone(items);
+}
 
-	function handleSaveDraft() {
+// 进入/退出编辑模式
+function handleModeChange(e: CustomEvent) {
+	editMode = e.detail.editing;
+	if (editMode) {
+		hideSSRGrid();
+		editingIndex = -1;
+	} else {
+		showSSRGrid();
+	}
+}
+
+function hideSSRGrid() {
+	const grid = document.getElementById("friends-grid");
+	if (grid) {
+		grid.style.display = "none";
+	}
+}
+
+function showSSRGrid() {
+	const grid = document.getElementById("friends-grid");
+	if (grid) {
+		grid.style.display = "";
+	}
+}
+
+// 取消编辑：回滚到原始数据
+function handleCancel() {
+	friends = deepClone(originalFriends);
+	drafts.clearDrafts();
+	editingIndex = -1;
+	showSSRGrid();
+}
+
+// 移动卡片
+function moveUp(index: number) {
+	if (index <= 0) return;
+	const arr = [...friends];
+	[arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+	friends = arr;
+	if (editingIndex === index) editingIndex = index - 1;
+	else if (editingIndex === index - 1) editingIndex = index;
+}
+
+function moveDown(index: number) {
+	if (index >= friends.length - 1) return;
+	const arr = [...friends];
+	[arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+	friends = arr;
+	if (editingIndex === index) editingIndex = index + 1;
+	else if (editingIndex === index + 1) editingIndex = index;
+}
+
+// 开始内联编辑
+function startEdit(index: number) {
+	editingIndex = index;
+}
+
+// 完成内联编辑
+function finishEdit(index: number) {
+	const f = friends[index];
+	if (!f.title.trim()) {
+		showToast("名称不能为空", "warning");
+		return;
+	}
+	if (!f.siteurl.trim()) {
+		showToast("链接不能为空", "warning");
+		return;
+	}
+	editingIndex = -1;
+	showToast("已修改，记得点击保存", "info");
+}
+
+// 取消单卡片编辑
+function cancelItemEdit(index: number) {
+	const f = friends[index];
+	if (f._draft && !f.title.trim()) {
+		friends = friends.filter((_, i) => i !== index);
+	} else {
+		const orig = originalFriends.find(
+			(o) => (o.id || o.siteurl) === (f.id || f.siteurl) && !f._draft,
+		);
+		if (orig) {
+			friends[index] = deepClone(orig);
+			friends = [...friends];
+		}
+	}
+	editingIndex = -1;
+}
+
+// 删除卡片
+function deleteItem(index: number) {
+	const f = friends[index];
+	if (!confirm(`确定要删除「${f.title || "该条目"}」吗？`)) return;
+	friends = friends.filter((_, i) => i !== index);
+	if (editingIndex === index) editingIndex = -1;
+	else if (editingIndex > index) editingIndex--;
+	showToast("已删除，记得点击保存", "info");
+}
+
+// 添加新友链（草稿模式，立即进入编辑态）
+function handleAdd() {
+	const newFriend: FriendItem = {
+		id: genId("fr"),
+		title: "",
+		imgurl: "",
+		desc: "",
+		siteurl: "",
+		tags: ["Blog"],
+		weight: 10,
+		enabled: true,
+		_draft: true,
+	};
+	friends = [...friends, newFriend];
+	editingIndex = friends.length - 1;
+}
+
+function handleSaveDraft() {
+	const cleanData = friends.map(({ _draft, ...rest }) => ({
+		...rest,
+		id: rest.id || genId("fr"),
+		weight: rest.weight ?? 10,
+		enabled: rest.enabled !== false,
+	}));
+	friends = cleanData;
+	drafts.saveToDrafts();
+}
+
+async function handleSubmit() {
+	if (editingIndex >= 0) {
+		finishEdit(editingIndex);
+		if (editingIndex >= 0) return;
+	}
+	saving = true;
+	try {
 		const cleanData = friends.map(({ _draft, ...rest }) => ({
 			...rest,
 			id: rest.id || genId("fr"),
@@ -425,40 +472,23 @@ export const getEnabledFriends = (): FriendLink[] => {
 			enabled: rest.enabled !== false,
 		}));
 		friends = cleanData;
+		// 先保存当前状态为草稿，确保提交的是最新内容
 		drafts.saveToDrafts();
+		await drafts.submitDrafts();
+	} finally {
+		saving = false;
 	}
+}
 
-	async function handleSubmit() {
-		if (editingIndex >= 0) {
-			finishEdit(editingIndex);
-			if (editingIndex >= 0) return;
-		}
-		saving = true;
-		try {
-			const cleanData = friends.map(({ _draft, ...rest }) => ({
-				...rest,
-				id: rest.id || genId("fr"),
-				weight: rest.weight ?? 10,
-				enabled: rest.enabled !== false,
-			}));
-			friends = cleanData;
-			// 先保存当前状态为草稿，确保提交的是最新内容
-			drafts.saveToDrafts();
-			await drafts.submitDrafts();
-		} finally {
-			saving = false;
-		}
-	}
+// 更新编辑中的卡片字段
+function updateField(index: number, field: keyof FriendItem, value: string) {
+	friends[index] = { ...friends[index], [field]: value };
+	friends = [...friends];
+}
 
-	// 更新编辑中的卡片字段
-	function updateField(index: number, field: keyof FriendItem, value: string) {
-		friends[index] = { ...friends[index], [field]: value };
-		friends = [...friends];
-	}
-
-	function getTagColor(tag: string) {
-		return typeColors[tag] || typeColors.Blog;
-	}
+function getTagColor(tag: string) {
+	return typeColors[tag] || typeColors.Blog;
+}
 </script>
 
 <EditToast />

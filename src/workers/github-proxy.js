@@ -11,7 +11,8 @@ function corsHeaders(extra = {}) {
 	return {
 		"Access-Control-Allow-Origin": "*",
 		"Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-		"Access-Control-Allow-Headers": "Content-Type, Authorization, Accept, X-GitHub-Api-Version, User-Agent",
+		"Access-Control-Allow-Headers":
+			"Content-Type, Authorization, Accept, X-GitHub-Api-Version, User-Agent",
 		"Access-Control-Max-Age": "86400",
 		...extra,
 	};
@@ -47,12 +48,13 @@ function pemToArrayBuffer(pem) {
 /** PKCS#1 → PKCS#8 */
 function pkcs1ToPkcs8(pkcs1Der) {
 	const ALGO_OID = new Uint8Array([
-		0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00,
+		0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
+		0x01, 0x05, 0x00,
 	]);
 	const VERSION = new Uint8Array([0x02, 0x01, 0x00]);
 	const pkcs1Len = pkcs1Der.byteLength;
 	// OCTET STRING header size
-	const octetHeader = pkcs1Len < 128 ? 2 : (pkcs1Len < 256 ? 3 : 4);
+	const octetHeader = pkcs1Len < 128 ? 2 : pkcs1Len < 256 ? 3 : 4;
 	const octetTotal = octetHeader + pkcs1Len;
 	const innerLen = VERSION.length + ALGO_OID.length + octetTotal;
 	// Build outer SEQUENCE with proper length encoding
@@ -66,13 +68,23 @@ function pkcs1ToPkcs8(pkcs1Der) {
 	const view = new Uint8Array(buf);
 	let pos = 0;
 	view[pos++] = 0x30;
-	view.set(outerLenBytes, pos); pos += outerLenBytes.length;
-	view.set(VERSION, pos); pos += VERSION.length;
-	view.set(ALGO_OID, pos); pos += ALGO_OID.length;
+	view.set(outerLenBytes, pos);
+	pos += outerLenBytes.length;
+	view.set(VERSION, pos);
+	pos += VERSION.length;
+	view.set(ALGO_OID, pos);
+	pos += ALGO_OID.length;
 	view[pos++] = 0x04;
-	if (pkcs1Len < 128) { view[pos++] = pkcs1Len; }
-	else if (pkcs1Len < 256) { view[pos++] = 0x81; view[pos++] = pkcs1Len; }
-	else { view[pos++] = 0x82; view[pos++] = (pkcs1Len >> 8) & 0xff; view[pos++] = pkcs1Len & 0xff; }
+	if (pkcs1Len < 128) {
+		view[pos++] = pkcs1Len;
+	} else if (pkcs1Len < 256) {
+		view[pos++] = 0x81;
+		view[pos++] = pkcs1Len;
+	} else {
+		view[pos++] = 0x82;
+		view[pos++] = (pkcs1Len >> 8) & 0xff;
+		view[pos++] = pkcs1Len & 0xff;
+	}
 	view.set(new Uint8Array(pkcs1Der), pos);
 	return buf;
 }
@@ -83,7 +95,10 @@ async function signJwtServer(appId, privateKeyPem) {
 	const header = { alg: "RS256", typ: "JWT" };
 	const payload = { iat: now - 60, exp: now + 600, iss: appId };
 	const b64url = (obj) =>
-		btoa(JSON.stringify(obj)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+		btoa(JSON.stringify(obj))
+			.replace(/\+/g, "-")
+			.replace(/\//g, "_")
+			.replace(/=+$/, "");
 	const data = `${b64url(header)}.${b64url(payload)}`;
 
 	let der = pemToArrayBuffer(privateKeyPem);
@@ -91,15 +106,33 @@ async function signJwtServer(appId, privateKeyPem) {
 	let key;
 	try {
 		const pkcs8 = pkcs1ToPkcs8(der);
-		key = await crypto.subtle.importKey("pkcs8", pkcs8, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+		key = await crypto.subtle.importKey(
+			"pkcs8",
+			pkcs8,
+			{ name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+			false,
+			["sign"],
+		);
 	} catch {
 		// 可能已经是 PKCS#8
-		key = await crypto.subtle.importKey("pkcs8", der, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+		key = await crypto.subtle.importKey(
+			"pkcs8",
+			der,
+			{ name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+			false,
+			["sign"],
+		);
 	}
 
-	const sigBuf = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(data));
+	const sigBuf = await crypto.subtle.sign(
+		"RSASSA-PKCS1-v1_5",
+		key,
+		new TextEncoder().encode(data),
+	);
 	const sig = btoa(String.fromCharCode(...new Uint8Array(sigBuf)))
-		.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+		.replace(/\+/g, "-")
+		.replace(/\//g, "_")
+		.replace(/=+$/, "");
 	return `${data}.${sig}`;
 }
 
@@ -125,7 +158,9 @@ async function getInstallationTokenServer(env) {
 		const ghRepo = env.PUBLIC_GITHUB_REPO || "my-blog";
 		let installationId = null;
 
-		const instResp = await fetch(`${GH_API}/app/installations`, { headers: authHeaders });
+		const instResp = await fetch(`${GH_API}/app/installations`, {
+			headers: authHeaders,
+		});
 		if (instResp.ok) {
 			const installations = await instResp.json();
 			for (const inst of installations) {
@@ -139,7 +174,10 @@ async function getInstallationTokenServer(env) {
 			}
 		}
 		if (!installationId) {
-			const instResp2 = await fetch(`${GH_API}/repos/${ghUser}/${ghRepo}/installation`, { headers: authHeaders });
+			const instResp2 = await fetch(
+				`${GH_API}/repos/${ghUser}/${ghRepo}/installation`,
+				{ headers: authHeaders },
+			);
 			if (instResp2.ok) {
 				const data = await instResp2.json();
 				installationId = data.id;
@@ -148,11 +186,14 @@ async function getInstallationTokenServer(env) {
 		if (!installationId) return null;
 
 		// 获取 token
-		const tokenResp = await fetch(`${GH_API}/app/installations/${installationId}/access_tokens`, {
-			method: "POST",
-			headers: { ...authHeaders, "Content-Type": "application/json" },
-			body: "{}",
-		});
+		const tokenResp = await fetch(
+			`${GH_API}/app/installations/${installationId}/access_tokens`,
+			{
+				method: "POST",
+				headers: { ...authHeaders, "Content-Type": "application/json" },
+				body: "{}",
+			},
+		);
 		if (!tokenResp.ok) return null;
 		const data = await tokenResp.json();
 		cachedToken = data.token;
@@ -177,7 +218,11 @@ export async function handleGithubProxy(request, env) {
 	if (request.method === "GET") {
 		const url = new URL(request.url);
 		const path = url.searchParams.get("path");
-		const hasServerAuth = !!(env && env.PUBLIC_GITHUB_APP_ID && env.GH_PRIVATE_KEY);
+		const hasServerAuth = !!(
+			env &&
+			env.PUBLIC_GITHUB_APP_ID &&
+			env.GH_PRIVATE_KEY
+		);
 		const hasAppId = !!(env && env.PUBLIC_GITHUB_APP_ID);
 		if (!path) {
 			return jsonResponse({
@@ -195,7 +240,9 @@ export async function handleGithubProxy(request, env) {
 		}
 		// GET with path → 转发 API 请求
 		// 如果客户端已提供 Authorization，直接透传；否则尝试服务端认证
-		const clientAuth = request.headers.get("Authorization") || request.headers.get("authorization");
+		const clientAuth =
+			request.headers.get("Authorization") ||
+			request.headers.get("authorization");
 		const clientAuthObj = {};
 		if (clientAuth) {
 			clientAuthObj.Authorization = clientAuth;
@@ -212,12 +259,17 @@ export async function handleGithubProxy(request, env) {
 
 	if (["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) {
 		let body;
-		try { body = await request.json(); } catch {
+		try {
+			body = await request.json();
+		} catch {
 			return jsonResponse({ error: "Invalid JSON body" }, 400);
 		}
 		const { path, method, headers = {}, body: reqBody } = body;
 		if (!path || typeof path !== "string") {
-			return jsonResponse({ error: "Missing 'path' field in request body" }, 400);
+			return jsonResponse(
+				{ error: "Missing 'path' field in request body" },
+				400,
+			);
 		}
 		const httpMethod = (method || request.method).toUpperCase();
 
@@ -226,20 +278,33 @@ export async function handleGithubProxy(request, env) {
 			const targetBranch = reqBody?.branch || "";
 			const deployBranch = env.VERCEL_GIT_COMMIT_REF || "";
 			// 如果写入目标是 master，或者没有指定分支（回退到 master），则拒绝
-			if (targetBranch === "master" || (!targetBranch && deployBranch !== "master")) {
-				console.warn(`[PROXY GUARD] Blocked write to master from ${env.VERCEL_ENV} environment (deploy branch: ${deployBranch})`);
-				return jsonResponse({
-					error: "Preview environment cannot write to master branch",
-					blocked: true,
-					deployBranch,
-					targetBranch: targetBranch || "master (default)",
-				}, 403);
+			if (
+				targetBranch === "master" ||
+				(!targetBranch && deployBranch !== "master")
+			) {
+				console.warn(
+					`[PROXY GUARD] Blocked write to master from ${env.VERCEL_ENV} environment (deploy branch: ${deployBranch})`,
+				);
+				return jsonResponse(
+					{
+						error: "Preview environment cannot write to master branch",
+						blocked: true,
+						deployBranch,
+						targetBranch: targetBranch || "master (default)",
+					},
+					403,
+				);
 			}
 		}
 
 		// 如果客户端没有 Authorization，且服务端有完整凭据，使用服务端认证
 		const hasClientAuth = headers.Authorization || headers.authorization;
-		if (!hasClientAuth && env && env.PUBLIC_GITHUB_APP_ID && env.GH_PRIVATE_KEY) {
+		if (
+			!hasClientAuth &&
+			env &&
+			env.PUBLIC_GITHUB_APP_ID &&
+			env.GH_PRIVATE_KEY
+		) {
 			const serverToken = await getInstallationTokenServer(env);
 			if (serverToken) {
 				headers.Authorization = `Bearer ${serverToken}`;
@@ -254,7 +319,9 @@ export async function handleGithubProxy(request, env) {
 
 async function forwardRequest(method, path, reqBody, clientHeaders) {
 	try {
-		const targetUrl = path.startsWith("http") ? path : `${GH_API}/${path.replace(/^\//, "")}`;
+		const targetUrl = path.startsWith("http")
+			? path
+			: `${GH_API}/${path.replace(/^\//, "")}`;
 
 		const headers = {
 			Accept: "application/vnd.github+json",
@@ -275,7 +342,8 @@ async function forwardRequest(method, path, reqBody, clientHeaders) {
 		const fetchOpts = { method, headers };
 		if (reqBody !== undefined && method !== "GET") {
 			headers["Content-Type"] = headers["Content-Type"] || "application/json";
-			fetchOpts.body = typeof reqBody === "string" ? reqBody : JSON.stringify(reqBody);
+			fetchOpts.body =
+				typeof reqBody === "string" ? reqBody : JSON.stringify(reqBody);
 		}
 
 		const resp = await fetch(targetUrl, fetchOpts);
@@ -286,8 +354,14 @@ async function forwardRequest(method, path, reqBody, clientHeaders) {
 			...corsHeaders(),
 		};
 
-		return new Response(text, { status: resp.status, headers: responseHeaders });
+		return new Response(text, {
+			status: resp.status,
+			headers: responseHeaders,
+		});
 	} catch (e) {
-		return jsonResponse({ error: "Proxy request failed", message: e?.message || String(e) }, 502);
+		return jsonResponse(
+			{ error: "Proxy request failed", message: e?.message || String(e) },
+			502,
+		);
 	}
 }

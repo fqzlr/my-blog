@@ -1,75 +1,78 @@
 <script lang="ts">
-	import { createEventDispatcher } from "svelte";
-	import { onMount, onDestroy } from "svelte";
+import { createEventDispatcher } from "svelte";
+import { onMount, onDestroy } from "svelte";
 
-	const dispatch = createEventDispatcher();
+const dispatch = createEventDispatcher();
 
-	export let item: {
-		id: string;
-		title: string;
-		name_cn: string;
-		category: string;
-		status: number;
-		score: number;
-		image: string;
-		tags: string[];
-		comment: string;
-		updated_at: string;
-	};
-	export let categories: { id: string; name: string }[] = [];
+export let item: {
+	id: string;
+	title: string;
+	name_cn: string;
+	category: string;
+	status: number;
+	score: number;
+	image: string;
+	tags: string[];
+	comment: string;
+	updated_at: string;
+};
+export let categories: { id: string; name: string }[] = [];
 
-	const statusOptions = [
-		{ value: 1, name: "想看" },
-		{ value: 2, name: "看过" },
-		{ value: 3, name: "在看" },
-		{ value: 4, name: "搁置" },
-		{ value: 5, name: "抛弃" },
-	];
+const statusOptions = [
+	{ value: 1, name: "想看" },
+	{ value: 2, name: "看过" },
+	{ value: 3, name: "在看" },
+	{ value: 4, name: "搁置" },
+	{ value: 5, name: "抛弃" },
+];
 
-	let form = {
-		title: item.title || "",
-		name_cn: item.name_cn || "",
-		category: item.category || "anime",
-		status: item.status || 1,
-		score: item.score || 0,
-		image: item.image || "",
-		tags: (item.tags || []).join(", "),
-		comment: item.comment || "",
-	};
+let form = {
+	title: item.title || "",
+	name_cn: item.name_cn || "",
+	category: item.category || "anime",
+	status: item.status || 1,
+	score: item.score || 0,
+	image: item.image || "",
+	tags: (item.tags || []).join(", "),
+	comment: item.comment || "",
+};
 
-	function handleSave() {
-		if (!form.title.trim()) {
-			alert("请输入标题");
-			return;
-		}
-		dispatch("save", {
-			id: item.id,
-			title: form.title.trim(),
-			name_cn: form.name_cn.trim() || form.title.trim(),
-			category: form.category,
-			status: Number(form.status),
-			score: Number(form.score) || 0,
-			image: form.image.trim(),
-			tags: form.tags.split(",").map((s) => s.trim()).filter(Boolean),
-			comment: form.comment.trim(),
-			updated_at: new Date().toISOString(),
-		});
+function handleSave() {
+	if (!form.title.trim()) {
+		alert("请输入标题");
+		return;
 	}
-
-	function handleCancel() {
-		dispatch("cancel");
-	}
-
-	function handleKeydown(e: KeyboardEvent) {
-		if (e.key === "Escape") handleCancel();
-	}
-
-	onMount(() => {
-		window.addEventListener("keydown", handleKeydown);
+	dispatch("save", {
+		id: item.id,
+		title: form.title.trim(),
+		name_cn: form.name_cn.trim() || form.title.trim(),
+		category: form.category,
+		status: Number(form.status),
+		score: Number(form.score) || 0,
+		image: form.image.trim(),
+		tags: form.tags
+			.split(",")
+			.map((s) => s.trim())
+			.filter(Boolean),
+		comment: form.comment.trim(),
+		updated_at: new Date().toISOString(),
 	});
-	onDestroy(() => {
-		window.removeEventListener("keydown", handleKeydown);
-	});
+}
+
+function handleCancel() {
+	dispatch("cancel");
+}
+
+function handleKeydown(e: KeyboardEvent) {
+	if (e.key === "Escape") handleCancel();
+}
+
+onMount(() => {
+	window.addEventListener("keydown", handleKeydown);
+});
+onDestroy(() => {
+	window.removeEventListener("keydown", handleKeydown);
+});
 </script>
 
 <div class="modal-overlay" onclick={handleCancel} role="dialog" aria-modal="true">

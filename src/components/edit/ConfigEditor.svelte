@@ -1,513 +1,613 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import EditToolbar from "./EditToolbar.svelte";
-	import EditToast from "./EditToast.svelte";
-	import {
-		getRepoFile,
-		showToast,
-		deepClone,
-		ensureIconify,
-	} from "@/utils/editMode";
-	import { setupRepoDrafts } from "@/utils/draftHelpers";
-	import { repoConfig } from "@/config/editConfig";
+import { onMount } from "svelte";
+import EditToolbar from "./EditToolbar.svelte";
+import EditToast from "./EditToast.svelte";
+import {
+	getRepoFile,
+	showToast,
+	deepClone,
+	ensureIconify,
+} from "@/utils/editMode";
+import { setupRepoDrafts } from "@/utils/draftHelpers";
+import { repoConfig } from "@/config/editConfig";
 
-	// ============ 类型定义（使用 any 兼容完整 siteConfig） ============
-	type FullConfig = Record<string, any>;
+// ============ 类型定义（使用 any 兼容完整 siteConfig） ============
+type FullConfig = Record<string, any>;
 
-	// ============ 状态 ============
-	let editMode = $state(true);
-	let saving = $state(false);
-	let codeMode = $state(false);
+// ============ 状态 ============
+let editMode = $state(true);
+let saving = $state(false);
+let codeMode = $state(false);
 
-	let config = $state<FullConfig>({});
-	let originalConfig = $state<FullConfig>({});
-	let codeContent = $state("");
-	let fileSha = $state<string | null>(null);
-	let originalCodeContent = $state("");
+let config = $state<FullConfig>({});
+let originalConfig = $state<FullConfig>({});
+let codeContent = $state("");
+let fileSha = $state<string | null>(null);
+let originalCodeContent = $state("");
 
-	const drafts = setupRepoDrafts({
-		pageKey: "config",
-		pageName: "站点配置",
-		getContent: () => codeMode ? codeContent : generateTsCode(config),
-		setContent: (v) => { codeContent = v; codeMode = true; },
-		getPath: () => "src/config/siteConfig.ts",
-		getSha: () => fileSha,
-		setSha: (v) => (fileSha = v),
-		getOriginalContent: () => originalCodeContent,
-		setOriginalContent: (v) => { originalCodeContent = v; originalConfig = deepClone(config); },
-		getCommitMsg: (isEdit) => isEdit ? "chore: 更新站点配置" : "chore: 创建站点配置",
-		onSubmitted: () => {
-			setTimeout(() => window.location.reload(), 1500);
-		},
-	});
-	let hasChanges = $derived(drafts.hasLocalChanges());
+const drafts = setupRepoDrafts({
+	pageKey: "config",
+	pageName: "站点配置",
+	getContent: () => (codeMode ? codeContent : generateTsCode(config)),
+	setContent: (v) => {
+		codeContent = v;
+		codeMode = true;
+	},
+	getPath: () => "src/config/siteConfig.ts",
+	getSha: () => fileSha,
+	setSha: (v) => (fileSha = v),
+	getOriginalContent: () => originalCodeContent,
+	setOriginalContent: (v) => {
+		originalCodeContent = v;
+		originalConfig = deepClone(config);
+	},
+	getCommitMsg: (isEdit) =>
+		isEdit ? "chore: 更新站点配置" : "chore: 创建站点配置",
+	onSubmitted: () => {
+		setTimeout(() => window.location.reload(), 1500);
+	},
+});
+let hasChanges = $derived(drafts.hasLocalChanges());
 
-	// 页面开关标签映射
-	const pageLabels: Record<string, string> = {
-		friends: "友链页面",
-		sponsor: "赞助页面",
-		guestbook: "留言板",
-		gallery: "相册页面",
-		collections: "收藏API",
-		stats: "统计页面",
-		calendar: "日历页面",
-		bangumi: "番剧页面",
-		books: "书架页面",
-		moviesGames: "影视游戏",
-		musicPage: "音乐页面",
-		changelog: "更新日志",
-		moments: "动态页面",
-		admin: "后台管理",
-		lifeRoutines: "日常规划",
-		lifePlaces: "旅行足迹",
-		lifeNotebooks: "笔记本",
-	};
+// 页面开关标签映射
+const pageLabels: Record<string, string> = {
+	friends: "友链页面",
+	sponsor: "赞助页面",
+	guestbook: "留言板",
+	gallery: "相册页面",
+	collections: "收藏API",
+	stats: "统计页面",
+	calendar: "日历页面",
+	bangumi: "番剧页面",
+	books: "书架页面",
+	moviesGames: "影视游戏",
+	musicPage: "音乐页面",
+	changelog: "更新日志",
+	moments: "动态页面",
+	admin: "后台管理",
+	lifeRoutines: "日常规划",
+	lifePlaces: "旅行足迹",
+	lifeNotebooks: "笔记本",
+};
 
-	// 语言选项
-	const langOptions = [
-		{ value: "zh_CN", label: "简体中文 (zh_CN)" },
-		{ value: "zh_TW", label: "繁體中文 (zh_TW)" },
-		{ value: "en", label: "English (en)" },
-		{ value: "ja", label: "日本語 (ja)" },
-		{ value: "ru", label: "Русский (ru)" },
-	];
+// 语言选项
+const langOptions = [
+	{ value: "zh_CN", label: "简体中文 (zh_CN)" },
+	{ value: "zh_TW", label: "繁體中文 (zh_TW)" },
+	{ value: "en", label: "English (en)" },
+	{ value: "ja", label: "日本語 (ja)" },
+	{ value: "ru", label: "Русский (ru)" },
+];
 
-	// ============ 生命周期 ============
-	onMount(() => {
-		ensureIconify();
-		loadConfig();
-		initRepoState();
-	});
+// ============ 生命周期 ============
+onMount(() => {
+	ensureIconify();
+	loadConfig();
+	initRepoState();
+});
 
-	function loadConfig() {
-		try {
-			const w = window as any;
-			if (w.__SITE_CONFIG__) {
-				config = deepClone(w.__SITE_CONFIG__);
-				// 确保嵌套对象有默认值
-				if (!config.themeColor) config.themeColor = { hue: 165, fixed: false, defaultMode: "light" };
-				if (!config.navbar) config.navbar = {};
-				if (!config.navbar.logo) config.navbar.logo = { type: "icon", value: "", alt: "logo" };
-				if (!config.pages) config.pages = {};
-				if (!config.pagination) config.pagination = { postsPerPage: 10 };
-				if (!config.postListLayout) config.postListLayout = { defaultMode: "list" };
-				// 初始化导航链接管理
-				initNavItems();
-				originalConfig = deepClone(config);
-				// 保存原始navItems的副本用于取消
-				originalNavItems = deepClone(navItems);
-				originalCodeContent = generateTsCode(config);
-			}
-		} catch (e) {
-			console.error("Failed to load site config:", e);
+function loadConfig() {
+	try {
+		const w = window as any;
+		if (w.__SITE_CONFIG__) {
+			config = deepClone(w.__SITE_CONFIG__);
+			// 确保嵌套对象有默认值
+			if (!config.themeColor)
+				config.themeColor = { hue: 165, fixed: false, defaultMode: "light" };
+			if (!config.navbar) config.navbar = {};
+			if (!config.navbar.logo)
+				config.navbar.logo = { type: "icon", value: "", alt: "logo" };
+			if (!config.pages) config.pages = {};
+			if (!config.pagination) config.pagination = { postsPerPage: 10 };
+			if (!config.postListLayout)
+				config.postListLayout = { defaultMode: "list" };
+			// 初始化导航链接管理
+			initNavItems();
+			originalConfig = deepClone(config);
+			// 保存原始navItems的副本用于取消
+			originalNavItems = deepClone(navItems);
+			originalCodeContent = generateTsCode(config);
 		}
+	} catch (e) {
+		console.error("Failed to load site config:", e);
 	}
+}
 
-	async function initRepoState() {
-		try {
-			const existing = await getRepoFile("src/config/siteConfig.ts", repoConfig);
-			if (existing) {
-				fileSha = existing.sha;
-			}
-		} catch {}
-		drafts.restoreFromDrafts();
-	}
-
-	let originalNavItems = $state<NavItem[]>([]);
-
-	// ============ 安全访问辅助 ============
-	function getThemeColor() {
-		return config.themeColor || { hue: 165, fixed: false, defaultMode: "light" };
-	}
-	function getNavbar() {
-		return config.navbar || {};
-	}
-	function getLogo() {
-		return config.navbar?.logo || { type: "icon", value: "", alt: "logo" };
-	}
-	function getPages() {
-		return config.pages || {};
-	}
-
-	// ============ 编辑模式控制 ============
-	function handleModeChange(e: CustomEvent) {
-		editMode = e.detail.editing;
-		if (editMode) {
-		} else {
-			codeMode = false;
+async function initRepoState() {
+	try {
+		const existing = await getRepoFile("src/config/siteConfig.ts", repoConfig);
+		if (existing) {
+			fileSha = existing.sha;
 		}
-	}
+	} catch {}
+	drafts.restoreFromDrafts();
+}
 
-	function handleCancel() {
-		config = deepClone(originalConfig);
-		navItems = deepClone(originalNavItems);
+let originalNavItems = $state<NavItem[]>([]);
+
+// ============ 安全访问辅助 ============
+function getThemeColor() {
+	return config.themeColor || { hue: 165, fixed: false, defaultMode: "light" };
+}
+function getNavbar() {
+	return config.navbar || {};
+}
+function getLogo() {
+	return config.navbar?.logo || { type: "icon", value: "", alt: "logo" };
+}
+function getPages() {
+	return config.pages || {};
+}
+
+// ============ 编辑模式控制 ============
+function handleModeChange(e: CustomEvent) {
+	editMode = e.detail.editing;
+	if (editMode) {
+	} else {
 		codeMode = false;
-		drafts.clearDrafts();
-		showToast("已取消编辑", "info");
 	}
+}
 
-	// ============ 表单更新工具 ============
-	function setConfig(path: string[], value: any) {
-		let obj: any = config;
-		for (let i = 0; i < path.length - 1; i++) {
-			if (!obj[path[i]]) obj[path[i]] = {};
-			obj = obj[path[i]];
-		}
-		obj[path[path.length - 1]] = value;
-		config = { ...config };
+function handleCancel() {
+	config = deepClone(originalConfig);
+	navItems = deepClone(originalNavItems);
+	codeMode = false;
+	drafts.clearDrafts();
+	showToast("已取消编辑", "info");
+}
+
+// ============ 表单更新工具 ============
+function setConfig(path: string[], value: any) {
+	let obj: any = config;
+	for (let i = 0; i < path.length - 1; i++) {
+		if (!obj[path[i]]) obj[path[i]] = {};
+		obj = obj[path[i]];
 	}
+	obj[path[path.length - 1]] = value;
+	config = { ...config };
+}
 
-	function updateKeywords(value: string) {
-		config.keywords = value
-			.split(/[,，]/)
-			.map((s) => s.trim())
-			.filter(Boolean);
-		config = { ...config };
-	}
+function updateKeywords(value: string) {
+	config.keywords = value
+		.split(/[,，]/)
+		.map((s) => s.trim())
+		.filter(Boolean);
+	config = { ...config };
+}
 
-	function getKeywordsString(): string {
-		return (config.keywords || []).join(", ");
-	}
+function getKeywordsString(): string {
+	return (config.keywords || []).join(", ");
+}
 
-	function updatePageField(key: string, value: boolean) {
-		config.pages = { ...config.pages, [key]: value };
-	}
+function updatePageField(key: string, value: boolean) {
+	config.pages = { ...config.pages, [key]: value };
+}
 
-	// ============ 导航栏链接管理 ============
-	type NavParent = "top" | "posts" | "contact" | "my" | "hidden";
-	type NavItem = {
-		id: string;
-		type: "preset" | "custom";
-		parent: NavParent;
-		name?: string;
-		url?: string;
-		icon?: string;
-		external?: boolean;
-	};
+// ============ 导航栏链接管理 ============
+type NavParent = "top" | "posts" | "contact" | "my" | "hidden";
+type NavItem = {
+	id: string;
+	type: "preset" | "custom";
+	parent: NavParent;
+	name?: string;
+	url?: string;
+	icon?: string;
+	external?: boolean;
+};
 
-	// 预设链接的中文名称、图标、页面开关依赖
-	const PRESET_META: Record<string, { label: string; icon: string; pageGate?: string }> = {
-		home: { label: "首页", icon: "material-symbols:home" },
-		archive: { label: "归档", icon: "material-symbols:schedule-outline-rounded" },
-		categories: { label: "分类标签", icon: "material-symbols:category" },
-		postlist: { label: "文章列表", icon: "material-symbols:list-alt-outline-rounded" },
-		collections: { label: "收藏", icon: "material-symbols:bookmark", pageGate: "collections" },
-		friends: { label: "友链", icon: "material-symbols:group", pageGate: "friends" },
-		guestbook: { label: "留言板", icon: "material-symbols:chat", pageGate: "guestbook" },
-		qqgroup: { label: "QQ群", icon: "fa7-brands:qq" },
-		fhome: { label: "导航主页", icon: "material-symbols:link" },
-		fnote: { label: "笔记", icon: "material-symbols:link" },
-		calendar: { label: "日历", icon: "material-symbols:calendar-today", pageGate: "calendar" },
-		bangumi: { label: "番剧", icon: "material-symbols:movie", pageGate: "bangumi" },
-		books: { label: "书架", icon: "material-symbols:book-5", pageGate: "books" },
-		moviesgames: { label: "影视游戏", icon: "material-symbols:movie", pageGate: "moviesGames" },
-		musicpage: { label: "音乐", icon: "material-symbols:music-note", pageGate: "musicPage" },
-		changelog: { label: "更新日志", icon: "material-symbols:history", pageGate: "changelog" },
-		moments: { label: "动态", icon: "material-symbols:local-cafe", pageGate: "moments" },
-		routines: { label: "日常规划", icon: "material-symbols:list-alt", pageGate: "lifeRoutines" },
-		places: { label: "旅行足迹", icon: "material-symbols:location-on", pageGate: "lifePlaces" },
-		notebooks: { label: "笔记本", icon: "material-symbols:menu-book", pageGate: "lifeNotebooks" },
-		gallery: { label: "相册", icon: "material-symbols:photo-library", pageGate: "gallery" },
-		sponsor: { label: "赞助", icon: "material-symbols:favorite", pageGate: "sponsor" },
-		about: { label: "关于", icon: "material-symbols:person" },
-	};
+// 预设链接的中文名称、图标、页面开关依赖
+const PRESET_META: Record<
+	string,
+	{ label: string; icon: string; pageGate?: string }
+> = {
+	home: { label: "首页", icon: "material-symbols:home" },
+	archive: { label: "归档", icon: "material-symbols:schedule-outline-rounded" },
+	categories: { label: "分类标签", icon: "material-symbols:category" },
+	postlist: {
+		label: "文章列表",
+		icon: "material-symbols:list-alt-outline-rounded",
+	},
+	collections: {
+		label: "收藏",
+		icon: "material-symbols:bookmark",
+		pageGate: "collections",
+	},
+	friends: {
+		label: "友链",
+		icon: "material-symbols:group",
+		pageGate: "friends",
+	},
+	guestbook: {
+		label: "留言板",
+		icon: "material-symbols:chat",
+		pageGate: "guestbook",
+	},
+	qqgroup: { label: "QQ群", icon: "fa7-brands:qq" },
+	fhome: { label: "导航主页", icon: "material-symbols:link" },
+	fnote: { label: "笔记", icon: "material-symbols:link" },
+	calendar: {
+		label: "日历",
+		icon: "material-symbols:calendar-today",
+		pageGate: "calendar",
+	},
+	bangumi: {
+		label: "番剧",
+		icon: "material-symbols:movie",
+		pageGate: "bangumi",
+	},
+	books: { label: "书架", icon: "material-symbols:book-5", pageGate: "books" },
+	moviesgames: {
+		label: "影视游戏",
+		icon: "material-symbols:movie",
+		pageGate: "moviesGames",
+	},
+	musicpage: {
+		label: "音乐",
+		icon: "material-symbols:music-note",
+		pageGate: "musicPage",
+	},
+	changelog: {
+		label: "更新日志",
+		icon: "material-symbols:history",
+		pageGate: "changelog",
+	},
+	moments: {
+		label: "动态",
+		icon: "material-symbols:local-cafe",
+		pageGate: "moments",
+	},
+	routines: {
+		label: "日常规划",
+		icon: "material-symbols:list-alt",
+		pageGate: "lifeRoutines",
+	},
+	places: {
+		label: "旅行足迹",
+		icon: "material-symbols:location-on",
+		pageGate: "lifePlaces",
+	},
+	notebooks: {
+		label: "笔记本",
+		icon: "material-symbols:menu-book",
+		pageGate: "lifeNotebooks",
+	},
+	gallery: {
+		label: "相册",
+		icon: "material-symbols:photo-library",
+		pageGate: "gallery",
+	},
+	sponsor: {
+		label: "赞助",
+		icon: "material-symbols:favorite",
+		pageGate: "sponsor",
+	},
+	about: { label: "关于", icon: "material-symbols:person" },
+};
 
-	const PARENT_LABELS: Record<NavParent, { label: string; icon: string; color: string }> = {
-		top: { label: "导航栏", icon: "material-symbols:top-panel-open", color: "#10b981" },
-		posts: { label: "文章", icon: "material-symbols:article", color: "#3b82f6" },
-		contact: { label: "联系我", icon: "material-symbols:mail", color: "#f59e0b" },
-		my: { label: "我的", icon: "material-symbols:person", color: "#8b5cf6" },
-		hidden: { label: "已隐藏", icon: "material-symbols:visibility-off", color: "#94a3b8" },
-	};
+const PARENT_LABELS: Record<
+	NavParent,
+	{ label: string; icon: string; color: string }
+> = {
+	top: {
+		label: "导航栏",
+		icon: "material-symbols:top-panel-open",
+		color: "#10b981",
+	},
+	posts: { label: "文章", icon: "material-symbols:article", color: "#3b82f6" },
+	contact: { label: "联系我", icon: "material-symbols:mail", color: "#f59e0b" },
+	my: { label: "我的", icon: "material-symbols:person", color: "#8b5cf6" },
+	hidden: {
+		label: "已隐藏",
+		icon: "material-symbols:visibility-off",
+		color: "#94a3b8",
+	},
+};
 
-	let navItems = $state<NavItem[]>([]);
+let navItems = $state<NavItem[]>([]);
 
-	function getDefaultNavOrder(): NavItem[] {
-		const items: NavItem[] = [];
-		items.push({ id: "home", type: "preset", parent: "top" });
-		items.push({ id: "collections", type: "preset", parent: "top" });
-		items.push({ id: "archive", type: "preset", parent: "posts" });
-		items.push({ id: "categories", type: "preset", parent: "posts" });
-		items.push({ id: "postlist", type: "preset", parent: "posts" });
-		items.push({ id: "friends", type: "preset", parent: "contact" });
-		items.push({ id: "guestbook", type: "preset", parent: "contact" });
-		items.push({ id: "qqgroup", type: "preset", parent: "contact" });
-		items.push({ id: "fhome", type: "preset", parent: "my" });
-		items.push({ id: "fnote", type: "preset", parent: "my" });
-		items.push({ id: "calendar", type: "preset", parent: "my" });
-		items.push({ id: "bangumi", type: "preset", parent: "my" });
-		items.push({ id: "books", type: "preset", parent: "my" });
-		items.push({ id: "moviesgames", type: "preset", parent: "my" });
-		items.push({ id: "musicpage", type: "preset", parent: "my" });
-		items.push({ id: "changelog", type: "preset", parent: "my" });
-		items.push({ id: "moments", type: "preset", parent: "my" });
-		items.push({ id: "routines", type: "preset", parent: "my" });
-		items.push({ id: "places", type: "preset", parent: "my" });
-		items.push({ id: "notebooks", type: "preset", parent: "my" });
-		items.push({ id: "gallery", type: "preset", parent: "my" });
-		items.push({ id: "sponsor", type: "preset", parent: "my" });
-		items.push({ id: "about", type: "preset", parent: "my" });
-		return items;
-	}
+function getDefaultNavOrder(): NavItem[] {
+	const items: NavItem[] = [];
+	items.push({ id: "home", type: "preset", parent: "top" });
+	items.push({ id: "collections", type: "preset", parent: "top" });
+	items.push({ id: "archive", type: "preset", parent: "posts" });
+	items.push({ id: "categories", type: "preset", parent: "posts" });
+	items.push({ id: "postlist", type: "preset", parent: "posts" });
+	items.push({ id: "friends", type: "preset", parent: "contact" });
+	items.push({ id: "guestbook", type: "preset", parent: "contact" });
+	items.push({ id: "qqgroup", type: "preset", parent: "contact" });
+	items.push({ id: "fhome", type: "preset", parent: "my" });
+	items.push({ id: "fnote", type: "preset", parent: "my" });
+	items.push({ id: "calendar", type: "preset", parent: "my" });
+	items.push({ id: "bangumi", type: "preset", parent: "my" });
+	items.push({ id: "books", type: "preset", parent: "my" });
+	items.push({ id: "moviesgames", type: "preset", parent: "my" });
+	items.push({ id: "musicpage", type: "preset", parent: "my" });
+	items.push({ id: "changelog", type: "preset", parent: "my" });
+	items.push({ id: "moments", type: "preset", parent: "my" });
+	items.push({ id: "routines", type: "preset", parent: "my" });
+	items.push({ id: "places", type: "preset", parent: "my" });
+	items.push({ id: "notebooks", type: "preset", parent: "my" });
+	items.push({ id: "gallery", type: "preset", parent: "my" });
+	items.push({ id: "sponsor", type: "preset", parent: "my" });
+	items.push({ id: "about", type: "preset", parent: "my" });
+	return items;
+}
 
-	/**
-	 * 判断预设链接是否在当前页面开关下可用
-	 */
-	function isPresetEnabled(key: string): boolean {
-		const meta = PRESET_META[key];
-		if (!meta) return true;
-		if (!meta.pageGate) return true;
-		return !!config.pages?.[meta.pageGate];
-	}
+/**
+ * 判断预设链接是否在当前页面开关下可用
+ */
+function isPresetEnabled(key: string): boolean {
+	const meta = PRESET_META[key];
+	if (!meta) return true;
+	if (!meta.pageGate) return true;
+	return !!config.pages?.[meta.pageGate];
+}
 
-	function initNavItems() {
-		// 先从已有配置的navItems加载
-		const existing = config.navbar?.navItems;
-		if (existing && Array.isArray(existing) && existing.length > 0) {
-			navItems = existing.map((it: any) => ({
-				id: it.id,
-				type: it.type || "custom",
-				parent: it.parent || "my",
-				name: it.name,
-				url: it.url,
-				icon: it.icon,
-				external: !!it.external,
-			}));
-			// 补充可能缺失的预设链接（比如新版本新增的页面）
-			const existingIds = new Set(navItems.map((n) => n.id));
-			const defaults = getDefaultNavOrder();
-			for (const d of defaults) {
-				if (!existingIds.has(d.id)) {
-					navItems.push(d);
-				}
-			}
-			return;
-		}
-
-		// 兼容旧版customLinks
-		const oldCustomLinks = (config.navbar as any)?.customLinks;
+function initNavItems() {
+	// 先从已有配置的navItems加载
+	const existing = config.navbar?.navItems;
+	if (existing && Array.isArray(existing) && existing.length > 0) {
+		navItems = existing.map((it: any) => ({
+			id: it.id,
+			type: it.type || "custom",
+			parent: it.parent || "my",
+			name: it.name,
+			url: it.url,
+			icon: it.icon,
+			external: !!it.external,
+		}));
+		// 补充可能缺失的预设链接（比如新版本新增的页面）
+		const existingIds = new Set(navItems.map((n) => n.id));
 		const defaults = getDefaultNavOrder();
-		if (oldCustomLinks && Array.isArray(oldCustomLinks) && oldCustomLinks.length > 0) {
-			let customIdx = 0;
-			for (const cl of oldCustomLinks) {
-				if (!cl.name || !cl.url) continue;
-				defaults.push({
-					id: `custom-${Date.now()}-${customIdx++}`,
-					type: "custom",
-					parent: (cl.parent as NavParent) || "my",
-					name: cl.name,
-					url: cl.url,
-					icon: cl.icon || "",
-					external: !!cl.external,
-				});
+		for (const d of defaults) {
+			if (!existingIds.has(d.id)) {
+				navItems.push(d);
 			}
 		}
-		navItems = defaults;
+		return;
 	}
 
-	function getItemsByParent(parent: NavParent): NavItem[] {
-		return navItems.filter((n) => n.parent === parent);
-	}
-
-	function getItemIndex(id: string): number {
-		return navItems.findIndex((n) => n.id === id);
-	}
-
-	function moveNavItem(id: string, dir: -1 | 1) {
-		const idx = getItemIndex(id);
-		if (idx === -1) return;
-		const item = navItems[idx];
-		const groupItems = getItemsByParent(item.parent);
-		const groupIdx = groupItems.findIndex((g) => g.id === id);
-		const newGroupIdx = groupIdx + dir;
-		if (newGroupIdx < 0 || newGroupIdx >= groupItems.length) return;
-
-		// 计算在扁平数组中的目标位置
-		const targetId = groupItems[newGroupIdx].id;
-		const targetIdx = getItemIndex(targetId);
-		const newItems = [...navItems];
-		newItems.splice(idx, 1);
-		newItems.splice(targetIdx, 0, item);
-		navItems = newItems;
-		config.navbar = { ...(config.navbar || {}), navItems: [...navItems] };
-		config = { ...config };
-	}
-
-	function changeNavItemParent(id: string, newParent: NavParent) {
-		const idx = getItemIndex(id);
-		if (idx === -1) return;
-		navItems = navItems.map((n) => (n.id === id ? { ...n, parent: newParent } : n));
-		// 移动到对应分组的末尾
-		const item = navItems[idx];
-		const newItems = navItems.filter((n) => n.id !== id);
-		// 找到目标分组的最后一项，插入到它之后
-		let insertIdx = newItems.length;
-		for (let i = newItems.length - 1; i >= 0; i--) {
-			if (newItems[i].parent === newParent) {
-				insertIdx = i + 1;
-				break;
-			}
-		}
-		newItems.splice(insertIdx, 0, { ...item, parent: newParent });
-		navItems = newItems;
-		config.navbar = { ...(config.navbar || {}), navItems: [...navItems] };
-		config = { ...config };
-	}
-
-	function toggleNavItemHidden(id: string) {
-		const idx = getItemIndex(id);
-		if (idx === -1) return;
-		const item = navItems[idx];
-		// 预设链接不能删除，只能隐藏/显示
-		if (item.type === "preset") {
-			const newParent: NavParent = item.parent === "hidden" ? "my" : "hidden";
-			changeNavItemParent(id, newParent);
+	// 兼容旧版customLinks
+	const oldCustomLinks = (config.navbar as any)?.customLinks;
+	const defaults = getDefaultNavOrder();
+	if (
+		oldCustomLinks &&
+		Array.isArray(oldCustomLinks) &&
+		oldCustomLinks.length > 0
+	) {
+		let customIdx = 0;
+		for (const cl of oldCustomLinks) {
+			if (!cl.name || !cl.url) continue;
+			defaults.push({
+				id: `custom-${Date.now()}-${customIdx++}`,
+				type: "custom",
+				parent: (cl.parent as NavParent) || "my",
+				name: cl.name,
+				url: cl.url,
+				icon: cl.icon || "",
+				external: !!cl.external,
+			});
 		}
 	}
+	navItems = defaults;
+}
 
-	function addCustomNavItem(parent: NavParent = "my") {
-		const newItem: NavItem = {
-			id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-			type: "custom",
-			parent,
-			name: "新链接",
-			url: "/",
-			icon: "",
-			external: false,
-		};
-		// 插入到对应分组末尾
-		const newItems = [...navItems];
-		let insertIdx = newItems.length;
-		for (let i = newItems.length - 1; i >= 0; i--) {
-			if (newItems[i].parent === parent) {
-				insertIdx = i + 1;
-				break;
-			}
+function getItemsByParent(parent: NavParent): NavItem[] {
+	return navItems.filter((n) => n.parent === parent);
+}
+
+function getItemIndex(id: string): number {
+	return navItems.findIndex((n) => n.id === id);
+}
+
+function moveNavItem(id: string, dir: -1 | 1) {
+	const idx = getItemIndex(id);
+	if (idx === -1) return;
+	const item = navItems[idx];
+	const groupItems = getItemsByParent(item.parent);
+	const groupIdx = groupItems.findIndex((g) => g.id === id);
+	const newGroupIdx = groupIdx + dir;
+	if (newGroupIdx < 0 || newGroupIdx >= groupItems.length) return;
+
+	// 计算在扁平数组中的目标位置
+	const targetId = groupItems[newGroupIdx].id;
+	const targetIdx = getItemIndex(targetId);
+	const newItems = [...navItems];
+	newItems.splice(idx, 1);
+	newItems.splice(targetIdx, 0, item);
+	navItems = newItems;
+	config.navbar = { ...(config.navbar || {}), navItems: [...navItems] };
+	config = { ...config };
+}
+
+function changeNavItemParent(id: string, newParent: NavParent) {
+	const idx = getItemIndex(id);
+	if (idx === -1) return;
+	navItems = navItems.map((n) =>
+		n.id === id ? { ...n, parent: newParent } : n,
+	);
+	// 移动到对应分组的末尾
+	const item = navItems[idx];
+	const newItems = navItems.filter((n) => n.id !== id);
+	// 找到目标分组的最后一项，插入到它之后
+	let insertIdx = newItems.length;
+	for (let i = newItems.length - 1; i >= 0; i--) {
+		if (newItems[i].parent === newParent) {
+			insertIdx = i + 1;
+			break;
 		}
-		newItems.splice(insertIdx, 0, newItem);
-		navItems = newItems;
-		config.navbar = { ...(config.navbar || {}), navItems: [...navItems] };
-		config = { ...config };
 	}
+	newItems.splice(insertIdx, 0, { ...item, parent: newParent });
+	navItems = newItems;
+	config.navbar = { ...(config.navbar || {}), navItems: [...navItems] };
+	config = { ...config };
+}
 
-	function updateCustomNavItem(id: string, field: string, value: any) {
-		navItems = navItems.map((n) => (n.id === id ? { ...n, [field]: value } : n));
-		config.navbar = { ...(config.navbar || {}), navItems: [...navItems] };
-		config = { ...config };
+function toggleNavItemHidden(id: string) {
+	const idx = getItemIndex(id);
+	if (idx === -1) return;
+	const item = navItems[idx];
+	// 预设链接不能删除，只能隐藏/显示
+	if (item.type === "preset") {
+		const newParent: NavParent = item.parent === "hidden" ? "my" : "hidden";
+		changeNavItemParent(id, newParent);
 	}
+}
 
-	function removeCustomNavItem(id: string) {
-		navItems = navItems.filter((n) => n.id !== id);
-		config.navbar = { ...(config.navbar || {}), navItems: [...navItems] };
-		config = { ...config };
-	}
-
-	function resetNavItems() {
-		navItems = getDefaultNavOrder();
-		config.navbar = { ...(config.navbar || {}), navItems: [...navItems] };
-		config = { ...config };
-		showToast("已重置为默认导航顺序", "info");
-	}
-
-	function getItemDisplayName(item: NavItem): string {
-		if (item.type === "preset") {
-			return PRESET_META[item.id]?.label || item.id;
+function addCustomNavItem(parent: NavParent = "my") {
+	const newItem: NavItem = {
+		id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+		type: "custom",
+		parent,
+		name: "新链接",
+		url: "/",
+		icon: "",
+		external: false,
+	};
+	// 插入到对应分组末尾
+	const newItems = [...navItems];
+	let insertIdx = newItems.length;
+	for (let i = newItems.length - 1; i >= 0; i--) {
+		if (newItems[i].parent === parent) {
+			insertIdx = i + 1;
+			break;
 		}
-		return item.name || "(未命名)";
 	}
+	newItems.splice(insertIdx, 0, newItem);
+	navItems = newItems;
+	config.navbar = { ...(config.navbar || {}), navItems: [...navItems] };
+	config = { ...config };
+}
 
-	function getItemIcon(item: NavItem): string {
-		if (item.type === "preset") {
-			return PRESET_META[item.id]?.icon || "material-symbols:link";
-		}
-		return item.icon || "material-symbols:link";
+function updateCustomNavItem(id: string, field: string, value: any) {
+	navItems = navItems.map((n) => (n.id === id ? { ...n, [field]: value } : n));
+	config.navbar = { ...(config.navbar || {}), navItems: [...navItems] };
+	config = { ...config };
+}
+
+function removeCustomNavItem(id: string) {
+	navItems = navItems.filter((n) => n.id !== id);
+	config.navbar = { ...(config.navbar || {}), navItems: [...navItems] };
+	config = { ...config };
+}
+
+function resetNavItems() {
+	navItems = getDefaultNavOrder();
+	config.navbar = { ...(config.navbar || {}), navItems: [...navItems] };
+	config = { ...config };
+	showToast("已重置为默认导航顺序", "info");
+}
+
+function getItemDisplayName(item: NavItem): string {
+	if (item.type === "preset") {
+		return PRESET_META[item.id]?.label || item.id;
 	}
+	return item.name || "(未命名)";
+}
 
-	// ============ 代码模式切换 ============
-	function toggleCodeMode() {
-		if (!codeMode) {
-			codeContent = generateTsCode(config);
-		}
-		codeMode = !codeMode;
+function getItemIcon(item: NavItem): string {
+	if (item.type === "preset") {
+		return PRESET_META[item.id]?.icon || "material-symbols:link";
 	}
+	return item.icon || "material-symbols:link";
+}
 
-	// ============ TypeScript 代码生成 ============
-	/**
-	 * 基于原始 siteConfig.ts 的模板结构生成完整 TypeScript 代码
-	 * 保留所有配置字段，仅替换可编辑部分的值
-	 */
-	function generateTsCode(cfg: FullConfig): string {
-		const tc = cfg.themeColor || {};
-		const nb = cfg.navbar || {};
-		const logo = nb.logo || {};
-		const pg = cfg.pages || {};
-		const pl = cfg.postListLayout || {};
-		const pn = cfg.pagination || {};
-		const wh = cfg.workHours || { start: 9, end: 18, workDays: [1, 2, 3, 4, 5, 6] };
-		const cc = cfg.card || { border: true, followTheme: false };
-		const favicon = cfg.favicon || [];
-		const rc = cfg.rehypeCallouts || { theme: "github" };
-		const an = cfg.analytics || {};
-		const hm = cfg.heatmap || {};
-		const io = cfg.imageOptimization || {};
-		const slm = cfg.showLastModified !== undefined ? cfg.showLastModified : true;
-		const ot = cfg.outdatedThreshold !== undefined ? cfg.outdatedThreshold : 30;
-		const sp = cfg.sharePoster !== undefined ? cfg.sharePoster : true;
-		const goi = cfg.generateOgImages !== undefined ? cfg.generateOgImages : false;
-		const doi = cfg.defaultOgImage || "/assets/images/aut.webp";
-		const cb = cfg.categoryBar !== undefined ? cfg.categoryBar : true;
-		const pw = cfg.pageWidth !== undefined ? cfg.pageWidth : 100;
+// ============ 代码模式切换 ============
+function toggleCodeMode() {
+	if (!codeMode) {
+		codeContent = generateTsCode(config);
+	}
+	codeMode = !codeMode;
+}
 
-		// 关键词数组
-		const kw = cfg.keywords || [];
-		const keywordsStr = kw.length > 0
-			? kw.map((k: string) => `\t\t"${k}",`).join("\n")
+// ============ TypeScript 代码生成 ============
+/**
+ * 基于原始 siteConfig.ts 的模板结构生成完整 TypeScript 代码
+ * 保留所有配置字段，仅替换可编辑部分的值
+ */
+function generateTsCode(cfg: FullConfig): string {
+	const tc = cfg.themeColor || {};
+	const nb = cfg.navbar || {};
+	const logo = nb.logo || {};
+	const pg = cfg.pages || {};
+	const pl = cfg.postListLayout || {};
+	const pn = cfg.pagination || {};
+	const wh = cfg.workHours || {
+		start: 9,
+		end: 18,
+		workDays: [1, 2, 3, 4, 5, 6],
+	};
+	const cc = cfg.card || { border: true, followTheme: false };
+	const favicon = cfg.favicon || [];
+	const rc = cfg.rehypeCallouts || { theme: "github" };
+	const an = cfg.analytics || {};
+	const hm = cfg.heatmap || {};
+	const io = cfg.imageOptimization || {};
+	const slm = cfg.showLastModified !== undefined ? cfg.showLastModified : true;
+	const ot = cfg.outdatedThreshold !== undefined ? cfg.outdatedThreshold : 30;
+	const sp = cfg.sharePoster !== undefined ? cfg.sharePoster : true;
+	const goi = cfg.generateOgImages !== undefined ? cfg.generateOgImages : false;
+	const doi = cfg.defaultOgImage || "/assets/images/aut.webp";
+	const cb = cfg.categoryBar !== undefined ? cfg.categoryBar : true;
+	const pw = cfg.pageWidth !== undefined ? cfg.pageWidth : 100;
+
+	// 关键词数组
+	const kw = cfg.keywords || [];
+	const keywordsStr =
+		kw.length > 0 ? kw.map((k: string) => `\t\t"${k}",`).join("\n") : "";
+
+	// favicon 数组
+	const faviconStr =
+		favicon.length > 0
+			? favicon
+					.map((f: any) => {
+						const parts: string[] = [];
+						if (f.src !== undefined)
+							parts.push(`src: ${JSON.stringify(f.src)}`);
+						if (f.sizes !== undefined)
+							parts.push(`sizes: ${JSON.stringify(f.sizes)}`);
+						return `\t\t{ ${parts.join(", ")} },`;
+					})
+					.join("\n")
 			: "";
 
-		// favicon 数组
-		const faviconStr = favicon.length > 0
-			? favicon.map((f: any) => {
-					const parts: string[] = [];
-					if (f.src !== undefined) parts.push(`src: ${JSON.stringify(f.src)}`);
-					if (f.sizes !== undefined) parts.push(`sizes: ${JSON.stringify(f.sizes)}`);
-					return `\t\t{ ${parts.join(", ")} },`;
-				}).join("\n")
+	// pages 对象
+	const pageKeys = Object.keys(pg);
+	const pagesStr = pageKeys.map((k) => `\t\t${k}: ${pg[k]},`).join("\n");
+
+	// workDays 数组
+	const workDaysStr = (wh.workDays || [1, 2, 3, 4, 5, 6]).join(", ");
+
+	// analytics 序列化
+	const googleId = an.googleAnalyticsId || "";
+	const msClarityId = an.microsoftClarityId || "";
+	const umami = an.umamiAnalytics || {};
+	const la51 = an.la51Analytics || {};
+	const umamiReplays = umami.relpays || {};
+	const ghHeatmap = hm.github || { enabled: true, username: "" };
+
+	// 导航链接配置（完整控制导航结构）
+	const navItemsForCode = navItems || [];
+	const navItemsStr =
+		navItemsForCode.length > 0
+			? navItemsForCode
+					.map((it: NavItem) => {
+						const parts: string[] = [];
+						parts.push(`\t\t\tid: ${JSON.stringify(it.id)}`);
+						parts.push(`\t\t\ttype: ${JSON.stringify(it.type)}`);
+						parts.push(`\t\t\tparent: ${JSON.stringify(it.parent)}`);
+						if (it.type === "custom") {
+							if (it.name) parts.push(`\t\t\tname: ${JSON.stringify(it.name)}`);
+							if (it.url) parts.push(`\t\t\turl: ${JSON.stringify(it.url)}`);
+							if (it.icon) parts.push(`\t\t\ticon: ${JSON.stringify(it.icon)}`);
+							if (it.external) parts.push(`\t\t\texternal: true`);
+						}
+						return `\t\t{\n${parts.join(",\n")},\n\t\t}`;
+					})
+					.join(",\n")
 			: "";
 
-		// pages 对象
-		const pageKeys = Object.keys(pg);
-		const pagesStr = pageKeys.map((k) => `\t\t${k}: ${pg[k]},`).join("\n");
-
-		// workDays 数组
-		const workDaysStr = (wh.workDays || [1, 2, 3, 4, 5, 6]).join(", ");
-
-		// analytics 序列化
-		const googleId = an.googleAnalyticsId || "";
-		const msClarityId = an.microsoftClarityId || "";
-		const umami = an.umamiAnalytics || {};
-		const la51 = an.la51Analytics || {};
-		const umamiReplays = umami.relpays || {};
-		const ghHeatmap = hm.github || { enabled: true, username: "" };
-
-		// 导航链接配置（完整控制导航结构）
-		const navItemsForCode = navItems || [];
-		const navItemsStr = navItemsForCode.length > 0
-			? navItemsForCode.map((it: NavItem) => {
-					const parts: string[] = [];
-					parts.push(`\t\t\tid: ${JSON.stringify(it.id)}`);
-					parts.push(`\t\t\ttype: ${JSON.stringify(it.type)}`);
-					parts.push(`\t\t\tparent: ${JSON.stringify(it.parent)}`);
-					if (it.type === "custom") {
-						if (it.name) parts.push(`\t\t\tname: ${JSON.stringify(it.name)}`);
-						if (it.url) parts.push(`\t\t\turl: ${JSON.stringify(it.url)}`);
-						if (it.icon) parts.push(`\t\t\ticon: ${JSON.stringify(it.icon)}`);
-						if (it.external) parts.push(`\t\t\texternal: true`);
-					}
-					return `\t\t{\n${parts.join(",\n")},\n\t\t}`;
-				}).join(",\n")
-			: "";
-
-		return `import type { SiteConfig } from "@/types/config";
+	return `import type { SiteConfig } from "@/types/config";
 import { fontConfig } from "./fontConfig";
 
 // 定义站点语言
@@ -728,19 +828,23 @@ ${pagesStr}
 	policeBeian: ${JSON.stringify(cfg.policeBeian || "")},
 };
 `;
-	}
+}
 
-	// ============ 保存到 GitHub ============
-	function handleSaveDraft() {
-		drafts.saveToDrafts();
-	}
+// ============ 保存到 GitHub ============
+function handleSaveDraft() {
+	drafts.saveToDrafts();
+}
 
-	async function handleSubmit() {
-		saving = true;
-		try { await drafts.submitDrafts(); } finally { saving = false; }
+async function handleSubmit() {
+	saving = true;
+	try {
+		await drafts.submitDrafts();
+	} finally {
+		saving = false;
 	}
+}
 
-	const huePreviewColor = $derived(`hsl(${getThemeColor().hue}, 70%, 50%)`);
+const huePreviewColor = $derived(`hsl(${getThemeColor().hue}, 70%, 50%)`);
 </script>
 
 <EditToast />

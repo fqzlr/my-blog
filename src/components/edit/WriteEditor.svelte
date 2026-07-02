@@ -1,893 +1,978 @@
 <script lang="ts">
-	import { onMount, tick } from "svelte";
-	import EditToast from "./EditToast.svelte";
-	import { marked } from "marked";
-	import {
-		hasValidCredentials,
-		showToast,
-		ensureIconify,
-		getRepoFile,
-		createRepoFile,
-		updateRepoFile,
-		readFileAsText,
-		getStoredAppId,
-		setStoredAppId,
-		getStoredPrivateKey,
-		setStoredPrivateKey,
-		clearStoredCredentials,
-		validateCredentials,
-		invalidateToken,
-		saveDraft,
-		getDraftCount,
-		getDraftsByPage,
-		removeDraft,
-		clearDraftsByPage,
-		registerSubmitHandler,
-		submitAllDrafts,
-		onDraftsChanged,
-	} from "@/utils/editMode";
-	import { repoConfig } from "@/config/editConfig";
+import { onMount, tick } from "svelte";
+import EditToast from "./EditToast.svelte";
+import { marked } from "marked";
+import {
+	hasValidCredentials,
+	showToast,
+	ensureIconify,
+	getRepoFile,
+	createRepoFile,
+	updateRepoFile,
+	readFileAsText,
+	getStoredAppId,
+	setStoredAppId,
+	getStoredPrivateKey,
+	setStoredPrivateKey,
+	clearStoredCredentials,
+	validateCredentials,
+	invalidateToken,
+	saveDraft,
+	getDraftCount,
+	getDraftsByPage,
+	removeDraft,
+	clearDraftsByPage,
+	registerSubmitHandler,
+	submitAllDrafts,
+	onDraftsChanged,
+} from "@/utils/editMode";
+import { repoConfig } from "@/config/editConfig";
 
-	const postFiles = import.meta.glob("../../content/posts/**/*.{md,mdx}", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+const postFiles = import.meta.glob("../../content/posts/**/*.{md,mdx}", {
+	query: "?raw",
+	import: "default",
+	eager: true,
+}) as Record<string, string>;
 
-	// ============ State ============
-	let title = $state("");
-	let content = $state("");
-	let coverUrl = $state("");
-	let description = $state("");
-	let tagsInput = $state("");
-	let category = $state("");
-	let pubDate = $state("");
-	let isDraft = $state(false);
-	let isPinned = $state(false);
-	let slug = $state("");
+// ============ State ============
+let title = $state("");
+let content = $state("");
+let coverUrl = $state("");
+let description = $state("");
+let tagsInput = $state("");
+let category = $state("");
+let pubDate = $state("");
+let isDraft = $state(false);
+let isPinned = $state(false);
+let slug = $state("");
 
-	let authed = $state(false);
-	let saving = $state(false);
-	let loading = $state(false);
-	let editMode = $state(false);
-	let existingSha = $state<string | null>(null);
-	let existingExt = $state<".md" | ".mdx">(".md");
-	let savePath = $state<string>("");
-	let showPreview = $state(false);
-	let saveSuccess = $state(false);
-	let pageDraftCount = $state(0);
-	let totalDraftCount = $state(0);
-	let unsubscribeDrafts: (() => void) | null = null;
-	let showKeyModal = $state(false);
-	let validating = $state(false);
-	let pendingKeyPem = $state("");
-	let selectedFileName = $state("");
-	let originalArticle = $state<Record<string, any>>({});
+let authed = $state(false);
+let saving = $state(false);
+let loading = $state(false);
+let editMode = $state(false);
+let existingSha = $state<string | null>(null);
+let existingExt = $state<".md" | ".mdx">(".md");
+let savePath = $state<string>("");
+let showPreview = $state(false);
+let saveSuccess = $state(false);
+let pageDraftCount = $state(0);
+let totalDraftCount = $state(0);
+let unsubscribeDrafts: (() => void) | null = null;
+let showKeyModal = $state(false);
+let validating = $state(false);
+let pendingKeyPem = $state("");
+let selectedFileName = $state("");
+let originalArticle = $state<Record<string, any>>({});
 
-	// Refs
-	let mdFileInput: HTMLInputElement | undefined;
-	let contentTextarea: HTMLTextAreaElement | undefined;
-	let titleInput: HTMLInputElement | undefined;
-	let keyFileInput: HTMLInputElement | undefined;
+// Refs
+let mdFileInput: HTMLInputElement | undefined;
+let contentTextarea: HTMLTextAreaElement | undefined;
+let titleInput: HTMLInputElement | undefined;
+let keyFileInput: HTMLInputElement | undefined;
 
-	// When set to true, after key is verified we should auto-publish
-	let pendingPublishAfterAuth = $state(false);
+// When set to true, after key is verified we should auto-publish
+let pendingPublishAfterAuth = $state(false);
 
-	// ============ Derived ============
-	let tags = $derived(
-		tagsInput
-			.split(/[,，]/)
-			.map((t) => t.trim())
-			.filter(Boolean),
-	);
+// ============ Derived ============
+let tags = $derived(
+	tagsInput
+		.split(/[,，]/)
+		.map((t) => t.trim())
+		.filter(Boolean),
+);
 
-	let wordCount = $derived(content.length);
+let wordCount = $derived(content.length);
 
-	let today = $derived(new Date().toISOString().slice(0, 10));
+let today = $derived(new Date().toISOString().slice(0, 10));
 
-	let articleUrl = $derived.by(() => {
-		if (editMode && savePath) {
-			const pathParts = savePath.replace(/^src\/content\//, "").split("/");
-			if (pathParts[0] === "posts") {
-				pathParts.shift();
+let articleUrl = $derived.by(() => {
+	if (editMode && savePath) {
+		const pathParts = savePath.replace(/^src\/content\//, "").split("/");
+		if (pathParts[0] === "posts") {
+			pathParts.shift();
+		}
+		return `/posts/${pathParts.join("/")}/`;
+	}
+	return `/posts/blog/${slug}/`;
+});
+
+function snapshotArticle(): Record<string, any> {
+	return {
+		title,
+		content,
+		coverUrl,
+		description,
+		tagsInput,
+		category,
+		pubDate,
+		isDraft,
+		isPinned,
+		slug,
+		existingSha,
+		existingExt,
+		savePath,
+		editMode,
+	};
+}
+
+function applyArticle(snap: Record<string, any>) {
+	if (snap.title !== undefined) title = snap.title;
+	if (snap.content !== undefined) content = snap.content;
+	if (snap.coverUrl !== undefined) coverUrl = snap.coverUrl;
+	if (snap.description !== undefined) description = snap.description;
+	if (snap.tagsInput !== undefined) tagsInput = snap.tagsInput;
+	if (snap.category !== undefined) category = snap.category;
+	if (snap.pubDate !== undefined) pubDate = snap.pubDate;
+	if (snap.isDraft !== undefined) isDraft = snap.isDraft;
+	if (snap.isPinned !== undefined) isPinned = snap.isPinned;
+	if (snap.slug !== undefined) slug = snap.slug;
+	if (snap.existingSha !== undefined) existingSha = snap.existingSha;
+	if (snap.existingExt !== undefined) existingExt = snap.existingExt;
+	if (snap.savePath !== undefined) savePath = snap.savePath;
+	if (snap.editMode !== undefined) editMode = snap.editMode;
+}
+
+function hasArticleChanges(): boolean {
+	const cur = snapshotArticle();
+	return JSON.stringify(cur) !== JSON.stringify(originalArticle);
+}
+
+// ============ Frontmatter Generation ============
+function generateFrontmatter(): string {
+	const dateVal = pubDate || today;
+	const lines: string[] = ["---"];
+	lines.push(`title: "${escapeYaml(title)}"`);
+	lines.push(`published: ${dateVal}`);
+	lines.push(`updated: ${dateVal}`);
+	if (description) {
+		lines.push(`description: "${escapeYaml(description)}"`);
+	}
+	if (coverUrl) {
+		lines.push(`image: "${escapeYaml(coverUrl)}"`);
+	}
+	if (tags.length > 0) {
+		lines.push("tags:");
+		for (const t of tags) {
+			lines.push(`  - ${escapeYaml(t)}`);
+		}
+	}
+	if (category) {
+		lines.push(`category: ${escapeYaml(category)}`);
+	}
+	lines.push(`draft: ${isDraft}`);
+	lines.push(`pinned: ${isPinned}`);
+	lines.push(`author: fqzlr`);
+	lines.push("---");
+	return lines.join("\n");
+}
+
+function escapeYaml(s: string): string {
+	return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+}
+
+function buildFullContent(): string {
+	const fm = generateFrontmatter();
+	const body = content.trimStart();
+	return `${fm}\n\n${body}`;
+}
+
+// ============ Slug Generation ============
+function generateSlugFromTitle(t: string): string {
+	return t
+		.toLowerCase()
+		.trim()
+		.replace(/[\s]+/g, "-")
+		.replace(/[^\w\u4e00-\u9fff-]/g, "")
+		.replace(/-+/g, "-")
+		.replace(/^-|-$/g, "");
+}
+
+function autoFillSlug() {
+	if (!slug && title) {
+		slug = generateSlugFromTitle(title);
+	}
+}
+
+// ============ Parse existing markdown frontmatter ============
+function parseFrontmatter(raw: string): {
+	data: Record<string, any>;
+	body: string;
+} {
+	const normalized = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+	const match = normalized.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
+	if (!match) {
+		return { data: {}, body: normalized };
+	}
+	const fmBlock = match[1];
+	const body = match[2];
+	const data: Record<string, any> = {};
+
+	const lines = fmBlock.split("\n");
+	let currentArrayKey: string | null = null;
+	for (const line of lines) {
+		const arrMatch = line.match(/^\s*-\s+(.+)$/);
+		if (arrMatch && currentArrayKey) {
+			if (!Array.isArray(data[currentArrayKey])) {
+				data[currentArrayKey] = [];
 			}
-			return `/posts/${pathParts.join("/")}/`;
+			data[currentArrayKey].push(parseYamlValue(arrMatch[1]));
+			continue;
 		}
-		return `/posts/blog/${slug}/`;
-	});
-
-	function snapshotArticle(): Record<string, any> {
-		return { title, content, coverUrl, description, tagsInput, category, pubDate, isDraft, isPinned, slug, existingSha, existingExt, savePath, editMode };
-	}
-
-	function applyArticle(snap: Record<string, any>) {
-		if (snap.title !== undefined) title = snap.title;
-		if (snap.content !== undefined) content = snap.content;
-		if (snap.coverUrl !== undefined) coverUrl = snap.coverUrl;
-		if (snap.description !== undefined) description = snap.description;
-		if (snap.tagsInput !== undefined) tagsInput = snap.tagsInput;
-		if (snap.category !== undefined) category = snap.category;
-		if (snap.pubDate !== undefined) pubDate = snap.pubDate;
-		if (snap.isDraft !== undefined) isDraft = snap.isDraft;
-		if (snap.isPinned !== undefined) isPinned = snap.isPinned;
-		if (snap.slug !== undefined) slug = snap.slug;
-		if (snap.existingSha !== undefined) existingSha = snap.existingSha;
-		if (snap.existingExt !== undefined) existingExt = snap.existingExt;
-		if (snap.savePath !== undefined) savePath = snap.savePath;
-		if (snap.editMode !== undefined) editMode = snap.editMode;
-	}
-
-	function hasArticleChanges(): boolean {
-		const cur = snapshotArticle();
-		return JSON.stringify(cur) !== JSON.stringify(originalArticle);
-	}
-
-	// ============ Frontmatter Generation ============
-	function generateFrontmatter(): string {
-		const dateVal = pubDate || today;
-		const lines: string[] = ["---"];
-		lines.push(`title: "${escapeYaml(title)}"`);
-		lines.push(`published: ${dateVal}`);
-		lines.push(`updated: ${dateVal}`);
-		if (description) {
-			lines.push(`description: "${escapeYaml(description)}"`);
-		}
-		if (coverUrl) {
-			lines.push(`image: "${escapeYaml(coverUrl)}"`);
-		}
-		if (tags.length > 0) {
-			lines.push("tags:");
-			for (const t of tags) {
-				lines.push(`  - ${escapeYaml(t)}`);
-			}
-		}
-		if (category) {
-			lines.push(`category: ${escapeYaml(category)}`);
-		}
-		lines.push(`draft: ${isDraft}`);
-		lines.push(`pinned: ${isPinned}`);
-		lines.push(`author: fqzlr`);
-		lines.push("---");
-		return lines.join("\n");
-	}
-
-	function escapeYaml(s: string): string {
-		return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-	}
-
-	function buildFullContent(): string {
-		const fm = generateFrontmatter();
-		const body = content.trimStart();
-		return `${fm}\n\n${body}`;
-	}
-
-	// ============ Slug Generation ============
-	function generateSlugFromTitle(t: string): string {
-		return t
-			.toLowerCase()
-			.trim()
-			.replace(/[\s]+/g, "-")
-			.replace(/[^\w\u4e00-\u9fff-]/g, "")
-			.replace(/-+/g, "-")
-			.replace(/^-|-$/g, "");
-	}
-
-	function autoFillSlug() {
-		if (!slug && title) {
-			slug = generateSlugFromTitle(title);
-		}
-	}
-
-	// ============ Parse existing markdown frontmatter ============
-	function parseFrontmatter(raw: string): {
-		data: Record<string, any>;
-		body: string;
-	} {
-		const normalized = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-		const match = normalized.match(/^---\s*\n([\s\S]*?)\n---\s*\n?([\s\S]*)$/);
-		if (!match) {
-			return { data: {}, body: normalized };
-		}
-		const fmBlock = match[1];
-		const body = match[2];
-		const data: Record<string, any> = {};
-
-		const lines = fmBlock.split("\n");
-		let currentArrayKey: string | null = null;
-		for (const line of lines) {
-			const arrMatch = line.match(/^\s*-\s+(.+)$/);
-			if (arrMatch && currentArrayKey) {
-				if (!Array.isArray(data[currentArrayKey])) {
-					data[currentArrayKey] = [];
-				}
-				data[currentArrayKey].push(parseYamlValue(arrMatch[1]));
-				continue;
-			}
-			const kvMatch = line.match(/^([\w-]+)\s*:\s*(.*)$/);
-			if (kvMatch) {
-				const key = kvMatch[1];
-				const val = kvMatch[2].trim();
-				currentArrayKey = null;
-				if (val === "" || val === "[]") {
+		const kvMatch = line.match(/^([\w-]+)\s*:\s*(.*)$/);
+		if (kvMatch) {
+			const key = kvMatch[1];
+			const val = kvMatch[2].trim();
+			currentArrayKey = null;
+			if (val === "" || val === "[]") {
+				data[key] = [];
+				currentArrayKey = key;
+			} else if (val.startsWith("[") && val.endsWith("]")) {
+				const inner = val.slice(1, -1).trim();
+				if (inner === "") {
 					data[key] = [];
-					currentArrayKey = key;
-				} else if (val.startsWith("[") && val.endsWith("]")) {
-					const inner = val.slice(1, -1).trim();
-					if (inner === "") {
-						data[key] = [];
-					} else {
-						data[key] = inner.split(",").map(s => parseYamlValue(s.trim())).filter(v => v !== "");
-					}
 				} else {
-					data[key] = parseYamlValue(val);
+					data[key] = inner
+						.split(",")
+						.map((s) => parseYamlValue(s.trim()))
+						.filter((v) => v !== "");
 				}
+			} else {
+				data[key] = parseYamlValue(val);
 			}
 		}
-		return { data, body };
 	}
+	return { data, body };
+}
 
-	function parseYamlValue(v: string): any {
-		v = v.trim();
-		if (v === "true") return true;
-		if (v === "false") return false;
-		if (v === "null" || v === "~") return null;
-		if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
-			return v.slice(1, -1);
-		}
-		if (/^\d{4}-\d{2}-\d{2}/.test(v)) {
-			return v;
-		}
-		if (/^-?\d+(\.\d+)?$/.test(v)) {
-			return Number(v);
-		}
+function parseYamlValue(v: string): any {
+	v = v.trim();
+	if (v === "true") return true;
+	if (v === "false") return false;
+	if (v === "null" || v === "~") return null;
+	if (
+		(v.startsWith('"') && v.endsWith('"')) ||
+		(v.startsWith("'") && v.endsWith("'"))
+	) {
+		return v.slice(1, -1);
+	}
+	if (/^\d{4}-\d{2}-\d{2}/.test(v)) {
 		return v;
 	}
+	if (/^-?\d+(\.\d+)?$/.test(v)) {
+		return Number(v);
+	}
+	return v;
+}
 
-	// ============ Load article from local files ============
-	function loadArticleFromLocal(pathParam: string): boolean {
-		const possibleKeys: string[] = [];
-		const baseRelPath = `../../content/${pathParam}`;
-		possibleKeys.push(baseRelPath + ".md");
-		possibleKeys.push(baseRelPath + ".mdx");
-		if (!pathParam.includes("/")) {
-			possibleKeys.push(`../../content/posts/${pathParam}.md`);
-			possibleKeys.push(`../../content/posts/${pathParam}.mdx`);
-			possibleKeys.push(`../../content/posts/blog/${pathParam}.md`);
-			possibleKeys.push(`../../content/posts/blog/${pathParam}.mdx`);
-		}
-
-		for (const key of possibleKeys) {
-			if (postFiles[key]) {
-				const rawContent = postFiles[key];
-				const ext = key.endsWith(".mdx") ? ".mdx" : ".md";
-				const { data: fmData, body } = parseFrontmatter(rawContent);
-
-				existingExt = ext;
-				slug = pathParam.includes("/") ? pathParam.split("/").pop() || "" : pathParam;
-				savePath = `src/content/${pathParam}`;
-				editMode = true;
-
-				title = fmData.title || "";
-				content = body || "";
-				description = fmData.description || "";
-				coverUrl = fmData.image || "";
-				category = fmData.category || "";
-				isDraft = !!fmData.draft;
-				isPinned = !!fmData.pinned;
-
-				if (Array.isArray(fmData.tags)) {
-					tagsInput = fmData.tags.join(", ");
-				}
-
-				if (fmData.published) {
-					const d = fmData.published instanceof Date ? fmData.published : new Date(fmData.published);
-					pubDate = isNaN(d.getTime()) ? today : d.toISOString().slice(0, 10);
-				}
-
-				originalArticle = snapshotArticle();
-				restoreFromDrafts();
-				showToast("文章已加载", "success");
-				return true;
-			}
-		}
-		return false;
+// ============ Load article from local files ============
+function loadArticleFromLocal(pathParam: string): boolean {
+	const possibleKeys: string[] = [];
+	const baseRelPath = `../../content/${pathParam}`;
+	possibleKeys.push(baseRelPath + ".md");
+	possibleKeys.push(baseRelPath + ".mdx");
+	if (!pathParam.includes("/")) {
+		possibleKeys.push(`../../content/posts/${pathParam}.md`);
+		possibleKeys.push(`../../content/posts/${pathParam}.mdx`);
+		possibleKeys.push(`../../content/posts/blog/${pathParam}.md`);
+		possibleKeys.push(`../../content/posts/blog/${pathParam}.mdx`);
 	}
 
-	// ============ Load article from sessionStorage ============
-	function loadArticleFromSession(data: any): boolean {
-		if (!data || !data.rawContent) return false;
-		try {
-			const rawContent: string = data.rawContent;
+	for (const key of possibleKeys) {
+		if (postFiles[key]) {
+			const rawContent = postFiles[key];
+			const ext = key.endsWith(".mdx") ? ".mdx" : ".md";
 			const { data: fmData, body } = parseFrontmatter(rawContent);
 
-			const fullPath: string = data.fullPath || "";
-			existingExt = fullPath.endsWith(".mdx") ? ".mdx" : ".md";
-			slug = data.slug || "";
-			savePath = `src/content/${fullPath.replace(/\.(md|mdx)$/, "")}`;
+			existingExt = ext;
+			slug = pathParam.includes("/")
+				? pathParam.split("/").pop() || ""
+				: pathParam;
+			savePath = `src/content/${pathParam}`;
 			editMode = true;
 
-			title = data.title || fmData.title || "";
+			title = fmData.title || "";
 			content = body || "";
-			description = data.description || fmData.description || "";
-			coverUrl = data.image || fmData.image || "";
-			category = data.category || fmData.category || "";
-			isDraft = data.draft !== undefined ? !!data.draft : !!fmData.draft;
-			isPinned = data.pinned !== undefined ? !!data.pinned : !!fmData.pinned;
+			description = fmData.description || "";
+			coverUrl = fmData.image || "";
+			category = fmData.category || "";
+			isDraft = !!fmData.draft;
+			isPinned = !!fmData.pinned;
 
-			const tagList = data.tags || fmData.tags;
-			if (Array.isArray(tagList)) {
-				tagsInput = tagList.join(", ");
+			if (Array.isArray(fmData.tags)) {
+				tagsInput = fmData.tags.join(", ");
 			}
 
-			const pubDateVal = data.published || fmData.published;
-			if (pubDateVal) {
-				pubDate = typeof pubDateVal === "string" ? pubDateVal.slice(0, 10) : today;
+			if (fmData.published) {
+				const d =
+					fmData.published instanceof Date
+						? fmData.published
+						: new Date(fmData.published);
+				pubDate = isNaN(d.getTime()) ? today : d.toISOString().slice(0, 10);
 			}
 
 			originalArticle = snapshotArticle();
 			restoreFromDrafts();
 			showToast("文章已加载", "success");
 			return true;
-		} catch (err) {
-			console.error("Failed to parse session article data:", err);
-			return false;
 		}
 	}
+	return false;
+}
 
-	async function tryGetShaFromGitHub(pathParam: string) {
-		try {
-			let paths: { path: string; ext: ".md" | ".mdx" }[] = [];
-			if (pathParam.includes("/")) {
-				const basePath = `src/content/${pathParam}`;
-				paths.push({ path: basePath + ".md", ext: ".md" });
-				paths.push({ path: basePath + ".mdx", ext: ".mdx" });
-			} else {
-				paths.push({ path: `src/content/posts/${pathParam}.md`, ext: ".md" });
-				paths.push({ path: `src/content/posts/${pathParam}.mdx`, ext: ".mdx" });
-				paths.push({ path: `src/content/posts/blog/${pathParam}.md`, ext: ".md" });
-				paths.push({ path: `src/content/posts/blog/${pathParam}.mdx`, ext: ".mdx" });
-			}
-			for (const p of paths) {
-				const result = await getRepoFile(p.path, repoConfig);
-				if (result) {
-					existingSha = result.sha;
-					if (p.ext !== existingExt) {
-						existingExt = p.ext;
-						savePath = p.path.replace(/\.(md|mdx)$/, "");
-					}
-					break;
-				}
-			}
-		} catch(e) {
-			console.warn("Could not fetch SHA from GitHub:", e);
+// ============ Load article from sessionStorage ============
+function loadArticleFromSession(data: any): boolean {
+	if (!data || !data.rawContent) return false;
+	try {
+		const rawContent: string = data.rawContent;
+		const { data: fmData, body } = parseFrontmatter(rawContent);
+
+		const fullPath: string = data.fullPath || "";
+		existingExt = fullPath.endsWith(".mdx") ? ".mdx" : ".md";
+		slug = data.slug || "";
+		savePath = `src/content/${fullPath.replace(/\.(md|mdx)$/, "")}`;
+		editMode = true;
+
+		title = data.title || fmData.title || "";
+		content = body || "";
+		description = data.description || fmData.description || "";
+		coverUrl = data.image || fmData.image || "";
+		category = data.category || fmData.category || "";
+		isDraft = data.draft !== undefined ? !!data.draft : !!fmData.draft;
+		isPinned = data.pinned !== undefined ? !!data.pinned : !!fmData.pinned;
+
+		const tagList = data.tags || fmData.tags;
+		if (Array.isArray(tagList)) {
+			tagsInput = tagList.join(", ");
 		}
+
+		const pubDateVal = data.published || fmData.published;
+		if (pubDateVal) {
+			pubDate =
+				typeof pubDateVal === "string" ? pubDateVal.slice(0, 10) : today;
+		}
+
+		originalArticle = snapshotArticle();
+		restoreFromDrafts();
+		showToast("文章已加载", "success");
+		return true;
+	} catch (err) {
+		console.error("Failed to parse session article data:", err);
+		return false;
 	}
+}
 
-	// ============ Load article for edit mode ============
-	async function loadArticle(pathParam: string) {
-		loading = true;
-		try {
-			if (loadArticleFromLocal(pathParam)) {
-				loading = false;
-				tryGetShaFromGitHub(pathParam);
-				return;
-			}
-
-			try {
-				const sessionData = sessionStorage.getItem("write-editor-article");
-				if (sessionData) {
-					const parsed = JSON.parse(sessionData);
-					sessionStorage.removeItem("write-editor-article");
-					if (parsed.fullPath && pathParam.includes(parsed.slug || "")) {
-						if (loadArticleFromSession(parsed)) {
-							loading = false;
-							tryGetShaFromGitHub(pathParam);
-							return;
-						}
-					}
-				}
-			} catch(e) {
-				console.warn("SessionStorage parse error:", e);
-			}
-
-			let paths: { path: string; ext: ".md" | ".mdx" }[] = [];
-
-			if (pathParam.includes("/")) {
-				const basePath = `src/content/${pathParam}`;
-				paths.push({ path: basePath + ".md", ext: ".md" });
-				paths.push({ path: basePath + ".mdx", ext: ".mdx" });
-			} else {
-				paths.push({ path: `src/content/posts/${pathParam}.md`, ext: ".md" });
-				paths.push({ path: `src/content/posts/${pathParam}.mdx`, ext: ".mdx" });
-				paths.push({ path: `src/content/posts/blog/${pathParam}.md`, ext: ".md" });
-				paths.push({ path: `src/content/posts/blog/${pathParam}.mdx`, ext: ".mdx" });
-			}
-
-			let result: { content: string; sha: string } | null = null;
-			let ext: ".md" | ".mdx" = ".md";
-			let foundPath = "";
-
-			for (const p of paths) {
-				result = await getRepoFile(p.path, repoConfig);
-				if (result) {
-					ext = p.ext;
-					foundPath = p.path;
-					break;
-				}
-			}
-
-			if (!result) {
-				showToast(`未找到文章: ${pathParam}`, "error");
-				loading = false;
-				return;
-			}
-
-			existingSha = result.sha;
-			existingExt = ext;
-			const pathParts = foundPath.split("/");
-			const fileName = pathParts[pathParts.length - 1];
-			slug = fileName.replace(/\.(md|mdx)$/, "");
-			savePath = foundPath.replace(/\.(md|mdx)$/, "");
-			editMode = true;
-
-			const { data, body } = parseFrontmatter(result.content);
-			title = data.title || "";
-			content = body || "";
-			description = data.description || "";
-			coverUrl = data.image || "";
-			category = data.category || "";
-			isDraft = !!data.draft;
-			isPinned = !!data.pinned;
-
-			if (Array.isArray(data.tags)) {
-				tagsInput = data.tags.join(", ");
-			}
-
-			if (data.published) {
-				pubDate = typeof data.published === "string" ? data.published.slice(0, 10) : today;
-			}
-
-			originalArticle = snapshotArticle();
-			restoreFromDrafts();
-			showToast("文章已加载", "success");
-		} catch (err) {
-			showToast("加载文章失败", "error");
-		} finally {
-			loading = false;
-		}
-	}
-
-	// ============ Draft Functions ============
-	function restoreFromDrafts() {
-		const drafts = getDraftsByPage("write");
-		if (drafts.length === 0) return;
-		const latest = drafts[drafts.length - 1];
-		if (latest && latest.payload) {
-			applyArticle(latest.payload);
-			showToast(`已从本地草稿恢复（${new Date(latest.timestamp).toLocaleString()}）`, "info");
-		}
-	}
-
-	function handleSaveDraft() {
-		const payload = snapshotArticle();
-		saveDraft({
-			pageKey: "write",
-			pageName: "文章写作",
-			description: title ? `文章: ${title}` : "未命名文章",
-			operation: editMode ? "update" : "create",
-			payload,
-		});
-		showToast("草稿已保存到本地", "success");
-	}
-
-	async function handleBatchSubmit() {
-		if (!authed) {
-			showToast("请先导入密钥", "warning");
-			triggerKeyImport();
-			return;
-		}
-		saving = true;
-		try {
-			const result = await submitAllDrafts();
-			if (result.failed === 0) showToast(`批量提交成功，共${result.success}项`, "success");
-			else showToast(`提交完成：成功${result.success}，失败${result.failed}`, "warning");
-		} finally {
-			saving = false;
-		}
-	}
-
-	async function publishDraftPayload(payload: Record<string, any>): Promise<boolean> {
-		const fmLines: string[] = ["---"];
-		const dVal = payload.pubDate || new Date().toISOString().slice(0, 10);
-		const esc = (s: any) => String(s ?? "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-		fmLines.push(`title: "${esc(payload.title)}"`);
-		fmLines.push(`published: ${dVal}`);
-		fmLines.push(`updated: ${dVal}`);
-		if (payload.description) fmLines.push(`description: "${esc(payload.description)}"`);
-		if (payload.coverUrl) fmLines.push(`image: "${esc(payload.coverUrl)}"`);
-		const tagList = String(payload.tagsInput || "").split(/[,，]/).map((t: string) => t.trim()).filter(Boolean);
-		if (tagList.length > 0) {
-			fmLines.push("tags:");
-			for (const t of tagList) fmLines.push(`  - ${esc(t)}`);
-		}
-		if (payload.category) fmLines.push(`category: ${esc(payload.category)}`);
-		fmLines.push(`draft: ${!!payload.isDraft}`);
-		fmLines.push(`pinned: ${!!payload.isPinned}`);
-		fmLines.push(`author: fqzlr`);
-		fmLines.push("---");
-		const body = String(payload.content || "").trimStart();
-		const fullContent = `${fmLines.join("\n")}\n\n${body}`;
-		const ext: ".md" | ".mdx" = payload.existingExt || ".md";
-		const filePath = payload.editMode && payload.savePath
-			? `${payload.savePath}${ext}`
-			: `src/content/posts/blog/${payload.slug}${ext}`;
-		const commitMsg = payload.editMode
-			? `chore(posts): update "${esc(payload.title)}"`
-			: `chore(posts): create "${esc(payload.title)}"`;
-		if (payload.editMode && payload.existingSha) {
-			return await updateRepoFile(filePath, fullContent, payload.existingSha, commitMsg, repoConfig);
+async function tryGetShaFromGitHub(pathParam: string) {
+	try {
+		let paths: { path: string; ext: ".md" | ".mdx" }[] = [];
+		if (pathParam.includes("/")) {
+			const basePath = `src/content/${pathParam}`;
+			paths.push({ path: basePath + ".md", ext: ".md" });
+			paths.push({ path: basePath + ".mdx", ext: ".mdx" });
 		} else {
-			return await createRepoFile(filePath, fullContent, commitMsg, repoConfig);
-		}
-	}
-
-	// ============ Save / Publish ============
-	async function doPublish() {
-		if (!title.trim()) {
-			showToast("请输入标题", "warning");
-			titleInput?.focus();
-			return;
-		}
-		if (!content.trim()) {
-			showToast("请输入文章内容", "warning");
-			contentTextarea?.focus();
-			return;
-		}
-		if (!slug.trim()) {
-			autoFillSlug();
-			if (!slug.trim()) {
-				showToast("请输入文章 slug", "warning");
-				return;
-			}
-		}
-
-		saving = true;
-		try {
-			const ok = await publishDraftPayload(snapshotArticle());
-			if (ok) {
-				showToast(editMode ? "文章已更新！" : "文章已发布！", "success");
-				editMode = true;
-				saveSuccess = true;
-				setTimeout(() => (saveSuccess = false), 5000);
-				const fp = editMode && savePath ? `${savePath}${existingExt}` : `src/content/posts/blog/${slug}${existingExt}`;
-				const result = await getRepoFile(fp, repoConfig);
-				if (result) {
-					existingSha = result.sha;
-				}
-				clearDraftsByPage("write");
-				originalArticle = snapshotArticle();
-			} else {
-				showToast("保存失败，请检查 GitHub App 权限配置", "error");
-			}
-		} catch (err) {
-			showToast("保存出错，请检查网络连接", "error");
-		} finally {
-			saving = false;
-		}
-	}
-
-	async function handleSubmit() {
-		if (!authed) {
-			showToast("请先导入密钥", "warning");
-			return;
-		}
-		await doPublish();
-	}
-
-	function handlePublish() {
-		handleSubmit();
-	}
-
-	// ============ Key Import (RyuChan-style simple flow) ============
-	function triggerKeyImport() {
-		keyFileInput?.click();
-	}
-
-	async function handleKeyFileSelect(e: Event) {
-		const input = e.target as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) {
-			input.value = "";
-			return;
-		}
-		try {
-			const pem = await readFileAsText(file);
-			const appId = repoConfig.appId;
-			if (!appId) {
-				showToast("请先在 Vercel 环境变量中配置 PUBLIC_GITHUB_APP_ID", "error");
-				input.value = "";
-				return;
-			}
-			showToast("正在验证私钥...", "info");
-			const result = await validateCredentials(appId, pem);
-			if (result.ok) {
-				setStoredAppId(appId);
-				setStoredPrivateKey(pem);
-				authed = true;
-				showToast("私钥导入成功！", "success");
-				if (pendingPublishAfterAuth) {
-					pendingPublishAfterAuth = false;
-					await tick();
-					handlePublish();
-				}
-			} else {
-				showToast(result.error || "私钥验证失败", "error");
-			}
-		} catch (err) {
-			showToast("读取私钥文件失败", "error");
-		} finally {
-			input.value = "";
-		}
-	}
-
-	function handleLogout() {
-		if (!confirm("确定要清除已保存的私钥吗？清除后需要重新导入才能编辑。")) return;
-		clearStoredCredentials();
-		invalidateToken();
-		authed = false;
-		showToast("已清除私钥", "info");
-	}
-
-	// ============ Import MD file ============
-	function handleImportMd() {
-		mdFileInput?.click();
-	}
-
-	async function handleMdFileSelect(e: Event) {
-		const input = e.target as HTMLInputElement;
-		const file = input.files?.[0];
-		if (!file) {
-			input.value = "";
-			return;
-		}
-		try {
-			const text = await readFileAsText(file);
-			const { data, body } = parseFrontmatter(text);
-
-			if (data.title) title = data.title;
-			if (body) content = body;
-			if (data.description) description = data.description;
-			if (data.image) coverUrl = data.image;
-			if (data.category) category = data.category;
-			if (typeof data.draft === "boolean") isDraft = data.draft;
-			if (typeof data.pinned === "boolean") isPinned = data.pinned;
-			if (Array.isArray(data.tags)) tagsInput = data.tags.join(", ");
-			if (data.published) {
-				pubDate = typeof data.published === "string" ? data.published.slice(0, 10) : "";
-			}
-
-			if (!slug) {
-				const name = file.name.replace(/\.(md|markdown|mdx)$/i, "");
-				slug = generateSlugFromTitle(name);
-			}
-
-			showToast("Markdown 文件已导入", "success");
-		} catch {
-			showToast("读取文件失败", "error");
-		}
-		input.value = "";
-	}
-
-	// ============ Markdown editor shortcuts ============
-	function handleEditorKeydown(e: KeyboardEvent) {
-		const textarea = e.currentTarget as HTMLTextAreaElement;
-		const ctrl = e.ctrlKey || e.metaKey;
-
-		if (ctrl && !e.shiftKey && !e.altKey) {
-			switch (e.key.toLowerCase()) {
-				case "b":
-					e.preventDefault();
-					applyFormat("bold");
-					break;
-				case "i":
-					e.preventDefault();
-					applyFormat("italic");
-					break;
-				case "k":
-					e.preventDefault();
-					applyFormat("link");
-					break;
-				case "s":
-					e.preventDefault();
-					handleSaveDraft();
-					break;
-			}
-		}
-	}
-
-	function applyFormat(format: string) {
-		const textarea = contentTextarea;
-		if (!textarea) return;
-		const start = textarea.selectionStart;
-		const end = textarea.selectionEnd;
-		const selected = content.substring(start, end);
-		let before = "";
-		let after = "";
-		let placeholder = "";
-		let cursorOffset = 0;
-
-		switch (format) {
-			case "bold":
-				before = "**";
-				after = "**";
-				placeholder = "加粗文本";
-				break;
-			case "italic":
-				before = "*";
-				after = "*";
-				placeholder = "斜体文本";
-				break;
-			case "strikethrough":
-				before = "~~";
-				after = "~~";
-				placeholder = "删除线文本";
-				break;
-			case "h2":
-				before = "## ";
-				after = "";
-				placeholder = "二级标题";
-				if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n## ";
-				break;
-			case "h3":
-				before = "### ";
-				after = "";
-				placeholder = "三级标题";
-				if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n### ";
-				break;
-			case "quote":
-				before = "> ";
-				after = "";
-				placeholder = "引用文本";
-				if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n> ";
-				break;
-			case "code":
-				before = "`";
-				after = "`";
-				placeholder = "代码";
-				break;
-			case "codeblock":
-				before = "\n```\n";
-				after = "\n```\n";
-				placeholder = "代码块";
-				cursorOffset = -1;
-				break;
-			case "ul":
-				before = "- ";
-				after = "";
-				placeholder = "列表项";
-				if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n- ";
-				break;
-			case "ol":
-				before = "1. ";
-				after = "";
-				placeholder = "列表项";
-				if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n1. ";
-				break;
-			case "link": {
-				const url = prompt("请输入链接地址:", "https://");
-				if (url === null) return;
-				const linkText = selected || "链接文本";
-				const markdown = `[${linkText}](${url})`;
-				const newText = content.substring(0, start) + markdown + content.substring(end);
-				content = newText;
-				tick().then(() => {
-					textarea.focus();
-					textarea.setSelectionRange(start + 1, start + 1 + linkText.length);
-				});
-				return;
-			}
-			case "image": {
-				const url = prompt("请输入图片 URL:", "https://");
-				if (url === null) return;
-				const altText = selected || "图片描述";
-				const markdown = `![${altText}](${url})`;
-				const newText = content.substring(0, start) + markdown + content.substring(end);
-				content = newText;
-				tick().then(() => {
-					textarea.focus();
-					textarea.setSelectionRange(start + 2, start + 2 + altText.length);
-				});
-				return;
-			}
-			case "hr":
-				before = "\n---\n";
-				after = "";
-				placeholder = "";
-				break;
-		}
-
-		const insertText = selected || placeholder;
-		const newText = content.substring(0, start) + before + insertText + after + content.substring(end);
-		content = newText;
-		tick().then(() => {
-			textarea.focus();
-			const selectStart = start + before.length;
-			const selectEnd = selectStart + insertText.length + cursorOffset;
-			textarea.setSelectionRange(selectStart, selectEnd > selectStart ? selectEnd : selectStart);
-		});
-	}
-
-	function handlePaste(e: ClipboardEvent) {
-		const items = e.clipboardData?.items;
-		if (!items) return;
-		for (let i = 0; i < items.length; i++) {
-			if (items[i].type.startsWith("image/")) {
-				e.preventDefault();
-				showToast("检测到图片粘贴，请先上传图片到图床获取URL后插入", "warning");
-				return;
-			}
-		}
-	}
-
-	function renderMarkdown(md: string): string {
-		if (!md) return "";
-		try {
-			return marked.parse(md, {
-				gfm: true,
-				breaks: true,
-			}) as string;
-		} catch (e) {
-			console.error("Markdown parse error:", e);
-			return `<p>${md}</p>`;
-		}
-	}
-
-	function handleTextareaKeydown(e: KeyboardEvent) {
-		if (e.key === "Tab") {
-			e.preventDefault();
-			const textarea = e.currentTarget as HTMLTextAreaElement;
-			const start = textarea.selectionStart;
-			const end = textarea.selectionEnd;
-			content = content.substring(0, start) + "  " + content.substring(end);
-			tick().then(() => {
-				textarea.focus();
-				textarea.setSelectionRange(start + 2, start + 2);
+			paths.push({ path: `src/content/posts/${pathParam}.md`, ext: ".md" });
+			paths.push({ path: `src/content/posts/${pathParam}.mdx`, ext: ".mdx" });
+			paths.push({
+				path: `src/content/posts/blog/${pathParam}.md`,
+				ext: ".md",
+			});
+			paths.push({
+				path: `src/content/posts/blog/${pathParam}.mdx`,
+				ext: ".mdx",
 			});
 		}
+		for (const p of paths) {
+			const result = await getRepoFile(p.path, repoConfig);
+			if (result) {
+				existingSha = result.sha;
+				if (p.ext !== existingExt) {
+					existingExt = p.ext;
+					savePath = p.path.replace(/\.(md|mdx)$/, "");
+				}
+				break;
+			}
+		}
+	} catch (e) {
+		console.warn("Could not fetch SHA from GitHub:", e);
 	}
+}
 
-	// ============ Init ============
-	onMount(async () => {
-		ensureIconify();
-		authed = hasValidCredentials();
-
-		registerSubmitHandler("write", async (draft) => {
-			return await publishDraftPayload(draft.payload || {});
-		});
-
-		totalDraftCount = getDraftCount();
-		pageDraftCount = getDraftsByPage("write").length;
-		unsubscribeDrafts = onDraftsChanged((count) => {
-			totalDraftCount = count;
-			pageDraftCount = getDraftsByPage("write").length;
-		});
-
-		const params = new URLSearchParams(window.location.search);
-		const pathParam = params.get("path");
-		const slugParam = params.get("slug");
-		if (pathParam) {
-			loadArticle(pathParam);
-		} else if (slugParam) {
-			loadArticle(slugParam);
-		} else {
-			pubDate = today;
-			originalArticle = snapshotArticle();
-			restoreFromDrafts();
+// ============ Load article for edit mode ============
+async function loadArticle(pathParam: string) {
+	loading = true;
+	try {
+		if (loadArticleFromLocal(pathParam)) {
+			loading = false;
+			tryGetShaFromGitHub(pathParam);
+			return;
 		}
 
-		return () => {
-			if (unsubscribeDrafts) {
-				unsubscribeDrafts();
-				unsubscribeDrafts = null;
+		try {
+			const sessionData = sessionStorage.getItem("write-editor-article");
+			if (sessionData) {
+				const parsed = JSON.parse(sessionData);
+				sessionStorage.removeItem("write-editor-article");
+				if (parsed.fullPath && pathParam.includes(parsed.slug || "")) {
+					if (loadArticleFromSession(parsed)) {
+						loading = false;
+						tryGetShaFromGitHub(pathParam);
+						return;
+					}
+				}
 			}
-		};
+		} catch (e) {
+			console.warn("SessionStorage parse error:", e);
+		}
+
+		let paths: { path: string; ext: ".md" | ".mdx" }[] = [];
+
+		if (pathParam.includes("/")) {
+			const basePath = `src/content/${pathParam}`;
+			paths.push({ path: basePath + ".md", ext: ".md" });
+			paths.push({ path: basePath + ".mdx", ext: ".mdx" });
+		} else {
+			paths.push({ path: `src/content/posts/${pathParam}.md`, ext: ".md" });
+			paths.push({ path: `src/content/posts/${pathParam}.mdx`, ext: ".mdx" });
+			paths.push({
+				path: `src/content/posts/blog/${pathParam}.md`,
+				ext: ".md",
+			});
+			paths.push({
+				path: `src/content/posts/blog/${pathParam}.mdx`,
+				ext: ".mdx",
+			});
+		}
+
+		let result: { content: string; sha: string } | null = null;
+		let ext: ".md" | ".mdx" = ".md";
+		let foundPath = "";
+
+		for (const p of paths) {
+			result = await getRepoFile(p.path, repoConfig);
+			if (result) {
+				ext = p.ext;
+				foundPath = p.path;
+				break;
+			}
+		}
+
+		if (!result) {
+			showToast(`未找到文章: ${pathParam}`, "error");
+			loading = false;
+			return;
+		}
+
+		existingSha = result.sha;
+		existingExt = ext;
+		const pathParts = foundPath.split("/");
+		const fileName = pathParts[pathParts.length - 1];
+		slug = fileName.replace(/\.(md|mdx)$/, "");
+		savePath = foundPath.replace(/\.(md|mdx)$/, "");
+		editMode = true;
+
+		const { data, body } = parseFrontmatter(result.content);
+		title = data.title || "";
+		content = body || "";
+		description = data.description || "";
+		coverUrl = data.image || "";
+		category = data.category || "";
+		isDraft = !!data.draft;
+		isPinned = !!data.pinned;
+
+		if (Array.isArray(data.tags)) {
+			tagsInput = data.tags.join(", ");
+		}
+
+		if (data.published) {
+			pubDate =
+				typeof data.published === "string"
+					? data.published.slice(0, 10)
+					: today;
+		}
+
+		originalArticle = snapshotArticle();
+		restoreFromDrafts();
+		showToast("文章已加载", "success");
+	} catch (err) {
+		showToast("加载文章失败", "error");
+	} finally {
+		loading = false;
+	}
+}
+
+// ============ Draft Functions ============
+function restoreFromDrafts() {
+	const drafts = getDraftsByPage("write");
+	if (drafts.length === 0) return;
+	const latest = drafts[drafts.length - 1];
+	if (latest && latest.payload) {
+		applyArticle(latest.payload);
+		showToast(
+			`已从本地草稿恢复（${new Date(latest.timestamp).toLocaleString()}）`,
+			"info",
+		);
+	}
+}
+
+function handleSaveDraft() {
+	const payload = snapshotArticle();
+	saveDraft({
+		pageKey: "write",
+		pageName: "文章写作",
+		description: title ? `文章: ${title}` : "未命名文章",
+		operation: editMode ? "update" : "create",
+		payload,
 	});
+	showToast("草稿已保存到本地", "success");
+}
+
+async function handleBatchSubmit() {
+	if (!authed) {
+		showToast("请先导入密钥", "warning");
+		triggerKeyImport();
+		return;
+	}
+	saving = true;
+	try {
+		const result = await submitAllDrafts();
+		if (result.failed === 0)
+			showToast(`批量提交成功，共${result.success}项`, "success");
+		else
+			showToast(
+				`提交完成：成功${result.success}，失败${result.failed}`,
+				"warning",
+			);
+	} finally {
+		saving = false;
+	}
+}
+
+async function publishDraftPayload(
+	payload: Record<string, any>,
+): Promise<boolean> {
+	const fmLines: string[] = ["---"];
+	const dVal = payload.pubDate || new Date().toISOString().slice(0, 10);
+	const esc = (s: any) =>
+		String(s ?? "")
+			.replace(/\\/g, "\\\\")
+			.replace(/"/g, '\\"');
+	fmLines.push(`title: "${esc(payload.title)}"`);
+	fmLines.push(`published: ${dVal}`);
+	fmLines.push(`updated: ${dVal}`);
+	if (payload.description)
+		fmLines.push(`description: "${esc(payload.description)}"`);
+	if (payload.coverUrl) fmLines.push(`image: "${esc(payload.coverUrl)}"`);
+	const tagList = String(payload.tagsInput || "")
+		.split(/[,，]/)
+		.map((t: string) => t.trim())
+		.filter(Boolean);
+	if (tagList.length > 0) {
+		fmLines.push("tags:");
+		for (const t of tagList) fmLines.push(`  - ${esc(t)}`);
+	}
+	if (payload.category) fmLines.push(`category: ${esc(payload.category)}`);
+	fmLines.push(`draft: ${!!payload.isDraft}`);
+	fmLines.push(`pinned: ${!!payload.isPinned}`);
+	fmLines.push(`author: fqzlr`);
+	fmLines.push("---");
+	const body = String(payload.content || "").trimStart();
+	const fullContent = `${fmLines.join("\n")}\n\n${body}`;
+	const ext: ".md" | ".mdx" = payload.existingExt || ".md";
+	const filePath =
+		payload.editMode && payload.savePath
+			? `${payload.savePath}${ext}`
+			: `src/content/posts/blog/${payload.slug}${ext}`;
+	const commitMsg = payload.editMode
+		? `chore(posts): update "${esc(payload.title)}"`
+		: `chore(posts): create "${esc(payload.title)}"`;
+	if (payload.editMode && payload.existingSha) {
+		return await updateRepoFile(
+			filePath,
+			fullContent,
+			payload.existingSha,
+			commitMsg,
+			repoConfig,
+		);
+	} else {
+		return await createRepoFile(filePath, fullContent, commitMsg, repoConfig);
+	}
+}
+
+// ============ Save / Publish ============
+async function doPublish() {
+	if (!title.trim()) {
+		showToast("请输入标题", "warning");
+		titleInput?.focus();
+		return;
+	}
+	if (!content.trim()) {
+		showToast("请输入文章内容", "warning");
+		contentTextarea?.focus();
+		return;
+	}
+	if (!slug.trim()) {
+		autoFillSlug();
+		if (!slug.trim()) {
+			showToast("请输入文章 slug", "warning");
+			return;
+		}
+	}
+
+	saving = true;
+	try {
+		const ok = await publishDraftPayload(snapshotArticle());
+		if (ok) {
+			showToast(editMode ? "文章已更新！" : "文章已发布！", "success");
+			editMode = true;
+			saveSuccess = true;
+			setTimeout(() => (saveSuccess = false), 5000);
+			const fp =
+				editMode && savePath
+					? `${savePath}${existingExt}`
+					: `src/content/posts/blog/${slug}${existingExt}`;
+			const result = await getRepoFile(fp, repoConfig);
+			if (result) {
+				existingSha = result.sha;
+			}
+			clearDraftsByPage("write");
+			originalArticle = snapshotArticle();
+		} else {
+			showToast("保存失败，请检查 GitHub App 权限配置", "error");
+		}
+	} catch (err) {
+		showToast("保存出错，请检查网络连接", "error");
+	} finally {
+		saving = false;
+	}
+}
+
+async function handleSubmit() {
+	if (!authed) {
+		showToast("请先导入密钥", "warning");
+		return;
+	}
+	await doPublish();
+}
+
+function handlePublish() {
+	handleSubmit();
+}
+
+// ============ Key Import (RyuChan-style simple flow) ============
+function triggerKeyImport() {
+	keyFileInput?.click();
+}
+
+async function handleKeyFileSelect(e: Event) {
+	const input = e.target as HTMLInputElement;
+	const file = input.files?.[0];
+	if (!file) {
+		input.value = "";
+		return;
+	}
+	try {
+		const pem = await readFileAsText(file);
+		const appId = repoConfig.appId;
+		if (!appId) {
+			showToast("请先在 Vercel 环境变量中配置 PUBLIC_GITHUB_APP_ID", "error");
+			input.value = "";
+			return;
+		}
+		showToast("正在验证私钥...", "info");
+		const result = await validateCredentials(appId, pem);
+		if (result.ok) {
+			setStoredAppId(appId);
+			setStoredPrivateKey(pem);
+			authed = true;
+			showToast("私钥导入成功！", "success");
+			if (pendingPublishAfterAuth) {
+				pendingPublishAfterAuth = false;
+				await tick();
+				handlePublish();
+			}
+		} else {
+			showToast(result.error || "私钥验证失败", "error");
+		}
+	} catch (err) {
+		showToast("读取私钥文件失败", "error");
+	} finally {
+		input.value = "";
+	}
+}
+
+function handleLogout() {
+	if (!confirm("确定要清除已保存的私钥吗？清除后需要重新导入才能编辑。"))
+		return;
+	clearStoredCredentials();
+	invalidateToken();
+	authed = false;
+	showToast("已清除私钥", "info");
+}
+
+// ============ Import MD file ============
+function handleImportMd() {
+	mdFileInput?.click();
+}
+
+async function handleMdFileSelect(e: Event) {
+	const input = e.target as HTMLInputElement;
+	const file = input.files?.[0];
+	if (!file) {
+		input.value = "";
+		return;
+	}
+	try {
+		const text = await readFileAsText(file);
+		const { data, body } = parseFrontmatter(text);
+
+		if (data.title) title = data.title;
+		if (body) content = body;
+		if (data.description) description = data.description;
+		if (data.image) coverUrl = data.image;
+		if (data.category) category = data.category;
+		if (typeof data.draft === "boolean") isDraft = data.draft;
+		if (typeof data.pinned === "boolean") isPinned = data.pinned;
+		if (Array.isArray(data.tags)) tagsInput = data.tags.join(", ");
+		if (data.published) {
+			pubDate =
+				typeof data.published === "string" ? data.published.slice(0, 10) : "";
+		}
+
+		if (!slug) {
+			const name = file.name.replace(/\.(md|markdown|mdx)$/i, "");
+			slug = generateSlugFromTitle(name);
+		}
+
+		showToast("Markdown 文件已导入", "success");
+	} catch {
+		showToast("读取文件失败", "error");
+	}
+	input.value = "";
+}
+
+// ============ Markdown editor shortcuts ============
+function handleEditorKeydown(e: KeyboardEvent) {
+	const textarea = e.currentTarget as HTMLTextAreaElement;
+	const ctrl = e.ctrlKey || e.metaKey;
+
+	if (ctrl && !e.shiftKey && !e.altKey) {
+		switch (e.key.toLowerCase()) {
+			case "b":
+				e.preventDefault();
+				applyFormat("bold");
+				break;
+			case "i":
+				e.preventDefault();
+				applyFormat("italic");
+				break;
+			case "k":
+				e.preventDefault();
+				applyFormat("link");
+				break;
+			case "s":
+				e.preventDefault();
+				handleSaveDraft();
+				break;
+		}
+	}
+}
+
+function applyFormat(format: string) {
+	const textarea = contentTextarea;
+	if (!textarea) return;
+	const start = textarea.selectionStart;
+	const end = textarea.selectionEnd;
+	const selected = content.substring(start, end);
+	let before = "";
+	let after = "";
+	let placeholder = "";
+	let cursorOffset = 0;
+
+	switch (format) {
+		case "bold":
+			before = "**";
+			after = "**";
+			placeholder = "加粗文本";
+			break;
+		case "italic":
+			before = "*";
+			after = "*";
+			placeholder = "斜体文本";
+			break;
+		case "strikethrough":
+			before = "~~";
+			after = "~~";
+			placeholder = "删除线文本";
+			break;
+		case "h2":
+			before = "## ";
+			after = "";
+			placeholder = "二级标题";
+			if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n## ";
+			break;
+		case "h3":
+			before = "### ";
+			after = "";
+			placeholder = "三级标题";
+			if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n### ";
+			break;
+		case "quote":
+			before = "> ";
+			after = "";
+			placeholder = "引用文本";
+			if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n> ";
+			break;
+		case "code":
+			before = "`";
+			after = "`";
+			placeholder = "代码";
+			break;
+		case "codeblock":
+			before = "\n```\n";
+			after = "\n```\n";
+			placeholder = "代码块";
+			cursorOffset = -1;
+			break;
+		case "ul":
+			before = "- ";
+			after = "";
+			placeholder = "列表项";
+			if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n- ";
+			break;
+		case "ol":
+			before = "1. ";
+			after = "";
+			placeholder = "列表项";
+			if (start > 0 && content.charAt(start - 1) !== "\n") before = "\n1. ";
+			break;
+		case "link": {
+			const url = prompt("请输入链接地址:", "https://");
+			if (url === null) return;
+			const linkText = selected || "链接文本";
+			const markdown = `[${linkText}](${url})`;
+			const newText =
+				content.substring(0, start) + markdown + content.substring(end);
+			content = newText;
+			tick().then(() => {
+				textarea.focus();
+				textarea.setSelectionRange(start + 1, start + 1 + linkText.length);
+			});
+			return;
+		}
+		case "image": {
+			const url = prompt("请输入图片 URL:", "https://");
+			if (url === null) return;
+			const altText = selected || "图片描述";
+			const markdown = `![${altText}](${url})`;
+			const newText =
+				content.substring(0, start) + markdown + content.substring(end);
+			content = newText;
+			tick().then(() => {
+				textarea.focus();
+				textarea.setSelectionRange(start + 2, start + 2 + altText.length);
+			});
+			return;
+		}
+		case "hr":
+			before = "\n---\n";
+			after = "";
+			placeholder = "";
+			break;
+	}
+
+	const insertText = selected || placeholder;
+	const newText =
+		content.substring(0, start) +
+		before +
+		insertText +
+		after +
+		content.substring(end);
+	content = newText;
+	tick().then(() => {
+		textarea.focus();
+		const selectStart = start + before.length;
+		const selectEnd = selectStart + insertText.length + cursorOffset;
+		textarea.setSelectionRange(
+			selectStart,
+			selectEnd > selectStart ? selectEnd : selectStart,
+		);
+	});
+}
+
+function handlePaste(e: ClipboardEvent) {
+	const items = e.clipboardData?.items;
+	if (!items) return;
+	for (let i = 0; i < items.length; i++) {
+		if (items[i].type.startsWith("image/")) {
+			e.preventDefault();
+			showToast("检测到图片粘贴，请先上传图片到图床获取URL后插入", "warning");
+			return;
+		}
+	}
+}
+
+function renderMarkdown(md: string): string {
+	if (!md) return "";
+	try {
+		return marked.parse(md, {
+			gfm: true,
+			breaks: true,
+		}) as string;
+	} catch (e) {
+		console.error("Markdown parse error:", e);
+		return `<p>${md}</p>`;
+	}
+}
+
+function handleTextareaKeydown(e: KeyboardEvent) {
+	if (e.key === "Tab") {
+		e.preventDefault();
+		const textarea = e.currentTarget as HTMLTextAreaElement;
+		const start = textarea.selectionStart;
+		const end = textarea.selectionEnd;
+		content = content.substring(0, start) + "  " + content.substring(end);
+		tick().then(() => {
+			textarea.focus();
+			textarea.setSelectionRange(start + 2, start + 2);
+		});
+	}
+}
+
+// ============ Init ============
+onMount(async () => {
+	ensureIconify();
+	authed = hasValidCredentials();
+
+	registerSubmitHandler("write", async (draft) => {
+		return await publishDraftPayload(draft.payload || {});
+	});
+
+	totalDraftCount = getDraftCount();
+	pageDraftCount = getDraftsByPage("write").length;
+	unsubscribeDrafts = onDraftsChanged((count) => {
+		totalDraftCount = count;
+		pageDraftCount = getDraftsByPage("write").length;
+	});
+
+	const params = new URLSearchParams(window.location.search);
+	const pathParam = params.get("path");
+	const slugParam = params.get("slug");
+	if (pathParam) {
+		loadArticle(pathParam);
+	} else if (slugParam) {
+		loadArticle(slugParam);
+	} else {
+		pubDate = today;
+		originalArticle = snapshotArticle();
+		restoreFromDrafts();
+	}
+
+	return () => {
+		if (unsubscribeDrafts) {
+			unsubscribeDrafts();
+			unsubscribeDrafts = null;
+		}
+	};
+});
 </script>
 
 <EditToast />

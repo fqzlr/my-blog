@@ -1,13 +1,12 @@
 // 外部说说数据源配置（基于 GitHub Gist，完全免费）
-// 数据存储在 GitHub Gist 中，通过 GitHub API 读写
-// 添加新说说不会修改仓库中的任何代码
+// 已禁用 - 改用本地 moments.json
 
 export const externalMomentsConfig = {
 	// 是否启用外部说说数据源
-	enable: true,
+	enable: false,
 
 	// GitHub Gist ID（创建 Gist 后从 URL 中获取）
-	gistId: "562ca26ed50f406e0814cd5fd06866d3",
+	gistId: "",
 
 	// Gist 中的文件名
 	fileName: "moments.json",

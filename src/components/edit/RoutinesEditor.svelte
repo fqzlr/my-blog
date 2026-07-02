@@ -1,313 +1,445 @@
 <script lang="ts">
-  import { onMount } from "svelte";
-  import EditToolbar from "./EditToolbar.svelte";
-  import EditToast from "./EditToast.svelte";
-  import { marked } from "marked";
-  import {
-    hasValidToken,
-    showToast,
-    ensureIconify,
-    getRepoFile,
-    updateRepoFile,
-    createRepoFile,
-    deleteRepoFile,
-    genId,
-    deepClone,
-    saveDraft,
-    getDraft,
-    deleteDraft,
-    registerSubmitHandler,
-  } from "@/utils/editMode";
-  import { repoConfig } from "@/config/editConfig";
+import { onMount } from "svelte";
+import EditToolbar from "./EditToolbar.svelte";
+import EditToast from "./EditToast.svelte";
+import { marked } from "marked";
+import {
+	hasValidToken,
+	showToast,
+	ensureIconify,
+	getRepoFile,
+	updateRepoFile,
+	createRepoFile,
+	deleteRepoFile,
+	genId,
+	deepClone,
+	saveDraft,
+	getDraft,
+	deleteDraft,
+	registerSubmitHandler,
+} from "@/utils/editMode";
+import { repoConfig } from "@/config/editConfig";
 
-  interface RoutineItem {
-    id: string;
-    slug: string;
-    name: string;
-    time: string;
-    icon: string;
-    color: string;
-    description: string;
-    body: string;
-    updatedAt: string;
-    sha?: string;
-    _draft?: boolean;
-    _deleted?: boolean;
-  }
+interface RoutineItem {
+	id: string;
+	slug: string;
+	name: string;
+	time: string;
+	icon: string;
+	color: string;
+	description: string;
+	body: string;
+	updatedAt: string;
+	sha?: string;
+	_draft?: boolean;
+	_deleted?: boolean;
+}
 
-  let editMode = $state(false);
-  let saving = $state(false);
-  let hasChanges = $state(false);
-  let routines = $state<RoutineItem[]>([]);
-  let originalRoutines = $state<RoutineItem[]>([]);
-  let editingIndex = $state(-1);
-  let editPreview = $state("");
+let editMode = $state(false);
+let saving = $state(false);
+let hasChanges = $state(false);
+let routines = $state<RoutineItem[]>([]);
+let originalRoutines = $state<RoutineItem[]>([]);
+let editingIndex = $state(-1);
+let editPreview = $state("");
 
-  const emojiOptions = ["📌", "📝", "🎯", "⏰", "💪", "🧘", "📚", "💤", "🏃", "🍎", "💧", "☀️", "🌙", "✅", "🚀", "🔥", "💡", "🎨", "🎵", "❤️"];
+const emojiOptions = [
+	"📌",
+	"📝",
+	"🎯",
+	"⏰",
+	"💪",
+	"🧘",
+	"📚",
+	"💤",
+	"🏃",
+	"🍎",
+	"💧",
+	"☀️",
+	"🌙",
+	"✅",
+	"🚀",
+	"🔥",
+	"💡",
+	"🎨",
+	"🎵",
+	"❤️",
+];
 
-  onMount(() => {
-    ensureIconify();
-    collectFromDOM();
-    const draft = getDraft<any>("routines");
-    if (draft?.routines) {
-      if (confirm("发现未提交的日常规划草稿，是否恢复？")) {
-        routines = draft.routines;
-        hasChanges = true;
-        showToast("草稿已恢复", "success");
-      } else { deleteDraft("routines"); }
-    }
-    window.addEventListener("blog:batch-submit", handleBatchSubmit);
-    return () => window.removeEventListener("blog:batch-submit", handleBatchSubmit);
-  });
+onMount(() => {
+	ensureIconify();
+	collectFromDOM();
+	const draft = getDraft<any>("routines");
+	if (draft?.routines) {
+		if (confirm("发现未提交的日常规划草稿，是否恢复？")) {
+			routines = draft.routines;
+			hasChanges = true;
+			showToast("草稿已恢复", "success");
+		} else {
+			deleteDraft("routines");
+		}
+	}
+	window.addEventListener("blog:batch-submit", handleBatchSubmit);
+	return () =>
+		window.removeEventListener("blog:batch-submit", handleBatchSubmit);
+});
 
-  function htmlToMarkdown(html: string): string {
-    if (!html) return "";
-    return html
-      .replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, "# $1\n")
-      .replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, "## $1\n")
-      .replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, "### $1\n")
-      .replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, "#### $1\n")
-      .replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, "$1\n")
-      .replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, "**$1**")
-      .replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, "**$1**")
-      .replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, "*$1*")
-      .replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, "*$1*")
-      .replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, "`$1`")
-      .replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, "[$2]($1)")
-      .replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, "$1")
-      .replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, "$1")
-      .replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "- $1\n")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<hr\s*\/?>/gi, "---\n")
-      .replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, "> $1\n")
-      .replace(/<[^>]+>/g, "")
-      .replace(/&nbsp;/g, " ")
-      .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&")
-      .trim();
-  }
+function htmlToMarkdown(html: string): string {
+	if (!html) return "";
+	return html
+		.replace(/<h1[^>]*>([\s\S]*?)<\/h1>/gi, "# $1\n")
+		.replace(/<h2[^>]*>([\s\S]*?)<\/h2>/gi, "## $1\n")
+		.replace(/<h3[^>]*>([\s\S]*?)<\/h3>/gi, "### $1\n")
+		.replace(/<h4[^>]*>([\s\S]*?)<\/h4>/gi, "#### $1\n")
+		.replace(/<p[^>]*>([\s\S]*?)<\/p>/gi, "$1\n")
+		.replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, "**$1**")
+		.replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, "**$1**")
+		.replace(/<em[^>]*>([\s\S]*?)<\/em>/gi, "*$1*")
+		.replace(/<i[^>]*>([\s\S]*?)<\/i>/gi, "*$1*")
+		.replace(/<code[^>]*>([\s\S]*?)<\/code>/gi, "`$1`")
+		.replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, "[$2]($1)")
+		.replace(/<ul[^>]*>([\s\S]*?)<\/ul>/gi, "$1")
+		.replace(/<ol[^>]*>([\s\S]*?)<\/ol>/gi, "$1")
+		.replace(/<li[^>]*>([\s\S]*?)<\/li>/gi, "- $1\n")
+		.replace(/<br\s*\/?>/gi, "\n")
+		.replace(/<hr\s*\/?>/gi, "---\n")
+		.replace(/<blockquote[^>]*>([\s\S]*?)<\/blockquote>/gi, "> $1\n")
+		.replace(/<[^>]+>/g, "")
+		.replace(/&nbsp;/g, " ")
+		.replace(/&lt;/g, "<")
+		.replace(/&gt;/g, ">")
+		.replace(/&amp;/g, "&")
+		.trim();
+}
 
-  function collectFromDOM() {
-    const result: RoutineItem[] = [];
-    document.querySelectorAll(".routine-card").forEach((card) => {
-      const iconEl = card.querySelector(".routine-icon-wrap span");
-      const icon = iconEl?.textContent?.trim() || "📌";
-      const nameEl = card.querySelector(".routine-title");
-      const name = nameEl?.textContent?.trim() || "";
-      const timeEl = card.querySelector(".routine-time");
-      const time = timeEl?.textContent?.trim() || "";
-      const descEl = card.querySelector(".routine-desc");
-      const description = descEl?.textContent?.trim() || "";
-      const contentEl = card.querySelector(".routine-content");
-      const bodyHtml = contentEl?.innerHTML || "";
-      const body = htmlToMarkdown(bodyHtml);
-      const slug = slugify(name) || genId("rt").slice(-6);
-      result.push({
-        id: genId("rt"),
-        slug,
-        name,
-        time,
-        icon,
-        color: "",
-        description,
-        body,
-        updatedAt: new Date().toISOString().slice(0, 10),
-      });
-    });
-    routines = result;
-    originalRoutines = deepClone(result);
-  }
+function collectFromDOM() {
+	const result: RoutineItem[] = [];
+	document.querySelectorAll(".routine-card").forEach((card) => {
+		const iconEl = card.querySelector(".routine-icon-wrap span");
+		const icon = iconEl?.textContent?.trim() || "📌";
+		const nameEl = card.querySelector(".routine-title");
+		const name = nameEl?.textContent?.trim() || "";
+		const timeEl = card.querySelector(".routine-time");
+		const time = timeEl?.textContent?.trim() || "";
+		const descEl = card.querySelector(".routine-desc");
+		const description = descEl?.textContent?.trim() || "";
+		const contentEl = card.querySelector(".routine-content");
+		const bodyHtml = contentEl?.innerHTML || "";
+		const body = htmlToMarkdown(bodyHtml);
+		const slug = slugify(name) || genId("rt").slice(-6);
+		result.push({
+			id: genId("rt"),
+			slug,
+			name,
+			time,
+			icon,
+			color: "",
+			description,
+			body,
+			updatedAt: new Date().toISOString().slice(0, 10),
+		});
+	});
+	routines = result;
+	originalRoutines = deepClone(result);
+}
 
-  function hideSSRContent() {
-    document.querySelectorAll(".routine-card").forEach(c => (c as HTMLElement).style.display = "none");
-    const grids = document.querySelectorAll(".routines-grid");
-    grids.forEach(g => (g as HTMLElement).style.display = "none");
-    const empty = document.querySelector(".w-full.p-12.text-center");
-    if (empty) (empty as HTMLElement).style.display = "none";
-    const stats = document.querySelector(".stat-pill")?.parentElement;
-    if (stats) (stats as HTMLElement).style.display = "none";
-  }
+function hideSSRContent() {
+	document
+		.querySelectorAll(".routine-card")
+		.forEach((c) => ((c as HTMLElement).style.display = "none"));
+	const grids = document.querySelectorAll(".routines-grid");
+	grids.forEach((g) => ((g as HTMLElement).style.display = "none"));
+	const empty = document.querySelector(".w-full.p-12.text-center");
+	if (empty) (empty as HTMLElement).style.display = "none";
+	const stats = document.querySelector(".stat-pill")?.parentElement;
+	if (stats) (stats as HTMLElement).style.display = "none";
+}
 
-  function showSSRContent() {
-    document.querySelectorAll(".routine-card").forEach(c => (c as HTMLElement).style.display = "");
-    const grids = document.querySelectorAll(".routines-grid");
-    grids.forEach(g => (g as HTMLElement).style.display = "");
-    const empty = document.querySelector(".w-full.p-12.text-center");
-    if (empty) (empty as HTMLElement).style.display = "";
-    const stats = document.querySelector(".stat-pill")?.parentElement;
-    if (stats) (stats as HTMLElement).style.display = "";
-  }
+function showSSRContent() {
+	document
+		.querySelectorAll(".routine-card")
+		.forEach((c) => ((c as HTMLElement).style.display = ""));
+	const grids = document.querySelectorAll(".routines-grid");
+	grids.forEach((g) => ((g as HTMLElement).style.display = ""));
+	const empty = document.querySelector(".w-full.p-12.text-center");
+	if (empty) (empty as HTMLElement).style.display = "";
+	const stats = document.querySelector(".stat-pill")?.parentElement;
+	if (stats) (stats as HTMLElement).style.display = "";
+}
 
-  function handleModeChange(e: CustomEvent) {
-    editMode = e.detail.editing;
-    if (editMode) { hideSSRContent(); editingIndex = -1; }
-    else { showSSRContent(); }
-  }
+function handleModeChange(e: CustomEvent) {
+	editMode = e.detail.editing;
+	if (editMode) {
+		hideSSRContent();
+		editingIndex = -1;
+	} else {
+		showSSRContent();
+	}
+}
 
-  function handleCancel() {
-    routines = deepClone(originalRoutines);
-    hasChanges = false; editingIndex = -1; showSSRContent();
-  }
+function handleCancel() {
+	routines = deepClone(originalRoutines);
+	hasChanges = false;
+	editingIndex = -1;
+	showSSRContent();
+}
 
-  function startEdit(index: number) { editingIndex = index; updatePreview(index); }
+function startEdit(index: number) {
+	editingIndex = index;
+	updatePreview(index);
+}
 
-  function updatePreview(index: number) {
-    const r = routines[index];
-    if (!r) { editPreview = ""; return; }
-    try { editPreview = marked.parse(r.body || "", { gfm: true, breaks: true }) as string; }
-    catch { editPreview = r.body || ""; }
-  }
+function updatePreview(index: number) {
+	const r = routines[index];
+	if (!r) {
+		editPreview = "";
+		return;
+	}
+	try {
+		editPreview = marked.parse(r.body || "", {
+			gfm: true,
+			breaks: true,
+		}) as string;
+	} catch {
+		editPreview = r.body || "";
+	}
+}
 
-  function updateField(index: number, field: keyof RoutineItem, value: string | number) {
-    routines[index] = { ...routines[index], [field]: value };
-    routines = [...routines];
-    if (field === "body") updatePreview(index);
-    hasChanges = true;
-  }
+function updateField(
+	index: number,
+	field: keyof RoutineItem,
+	value: string | number,
+) {
+	routines[index] = { ...routines[index], [field]: value };
+	routines = [...routines];
+	if (field === "body") updatePreview(index);
+	hasChanges = true;
+}
 
-  function finishEdit(index: number) {
-    const r = routines[index];
-    if (!r.name.trim()) { showToast("名称不能为空", "warning"); return; }
-    editingIndex = -1; hasChanges = true;
-    showToast("已修改，记得点击保存", "info");
-  }
+function finishEdit(index: number) {
+	const r = routines[index];
+	if (!r.name.trim()) {
+		showToast("名称不能为空", "warning");
+		return;
+	}
+	editingIndex = -1;
+	hasChanges = true;
+	showToast("已修改，记得点击保存", "info");
+}
 
-  function cancelItemEdit(index: number) {
-    const r = routines[index];
-    if (r._draft && !r.name.trim()) {
-      routines = routines.filter((_, i) => i !== index);
-    } else {
-      const orig = originalRoutines.find(o => o.slug === r.slug && !r._draft);
-      if (orig) { routines[index] = deepClone(orig); routines = [...routines]; }
-    }
-    editingIndex = -1;
-  }
+function cancelItemEdit(index: number) {
+	const r = routines[index];
+	if (r._draft && !r.name.trim()) {
+		routines = routines.filter((_, i) => i !== index);
+	} else {
+		const orig = originalRoutines.find((o) => o.slug === r.slug && !r._draft);
+		if (orig) {
+			routines[index] = deepClone(orig);
+			routines = [...routines];
+		}
+	}
+	editingIndex = -1;
+}
 
-  function deleteItem(index: number) {
-    const r = routines[index];
-    if (!confirm(`确定要删除「${r.name}」吗？`)) return;
-    if (r._draft) { routines = routines.filter((_, i) => i !== index); }
-    else { routines[index] = { ...routines[index], _deleted: true }; routines = [...routines]; }
-    hasChanges = true;
-    if (editingIndex === index) editingIndex = -1;
-    else if (editingIndex > index) editingIndex--;
-    showToast("已标记删除，记得点击保存", "info");
-  }
+function deleteItem(index: number) {
+	const r = routines[index];
+	if (!confirm(`确定要删除「${r.name}」吗？`)) return;
+	if (r._draft) {
+		routines = routines.filter((_, i) => i !== index);
+	} else {
+		routines[index] = { ...routines[index], _deleted: true };
+		routines = [...routines];
+	}
+	hasChanges = true;
+	if (editingIndex === index) editingIndex = -1;
+	else if (editingIndex > index) editingIndex--;
+	showToast("已标记删除，记得点击保存", "info");
+}
 
-  function moveUp(index: number) {
-    if (index <= 0) return;
-    const arr = [...routines]; [arr[index-1], arr[index]] = [arr[index], arr[index-1]];
-    routines = arr; hasChanges = true;
-    if (editingIndex === index) editingIndex = index-1;
-    else if (editingIndex === index-1) editingIndex = index;
-  }
+function moveUp(index: number) {
+	if (index <= 0) return;
+	const arr = [...routines];
+	[arr[index - 1], arr[index]] = [arr[index], arr[index - 1]];
+	routines = arr;
+	hasChanges = true;
+	if (editingIndex === index) editingIndex = index - 1;
+	else if (editingIndex === index - 1) editingIndex = index;
+}
 
-  function moveDown(index: number) {
-    if (index >= routines.length - 1) return;
-    const arr = [...routines]; [arr[index], arr[index+1]] = [arr[index+1], arr[index]];
-    routines = arr; hasChanges = true;
-    if (editingIndex === index) editingIndex = index+1;
-    else if (editingIndex === index+1) editingIndex = index;
-  }
+function moveDown(index: number) {
+	if (index >= routines.length - 1) return;
+	const arr = [...routines];
+	[arr[index], arr[index + 1]] = [arr[index + 1], arr[index]];
+	routines = arr;
+	hasChanges = true;
+	if (editingIndex === index) editingIndex = index + 1;
+	else if (editingIndex === index + 1) editingIndex = index;
+}
 
-  function restoreItem(index: number) {
-    routines[index] = { ...routines[index], _deleted: false };
-    routines = [...routines]; hasChanges = true;
-  }
+function restoreItem(index: number) {
+	routines[index] = { ...routines[index], _deleted: false };
+	routines = [...routines];
+	hasChanges = true;
+}
 
-  function handleAdd() {
-    routines = [{
-      id: genId("rt"), slug: "", name: "", time: "", icon: "📌", color: "",
-      description: "", body: "", updatedAt: new Date().toISOString().slice(0,10), _draft: true,
-    }, ...routines];
-    editingIndex = 0; hasChanges = true; editPreview = "";
-  }
+function handleAdd() {
+	routines = [
+		{
+			id: genId("rt"),
+			slug: "",
+			name: "",
+			time: "",
+			icon: "📌",
+			color: "",
+			description: "",
+			body: "",
+			updatedAt: new Date().toISOString().slice(0, 10),
+			_draft: true,
+		},
+		...routines,
+	];
+	editingIndex = 0;
+	hasChanges = true;
+	editPreview = "";
+}
 
-  function slugify(text: string): string {
-    return text.toLowerCase().trim().replace(/[\s]+/g,"-").replace(/[^\w\u4e00-\u9fa5-]/g,"").replace(/-+/g,"-").replace(/^-|-$/g,"") || "routine";
-  }
+function slugify(text: string): string {
+	return (
+		text
+			.toLowerCase()
+			.trim()
+			.replace(/[\s]+/g, "-")
+			.replace(/[^\w\u4e00-\u9fa5-]/g, "")
+			.replace(/-+/g, "-")
+			.replace(/^-|-$/g, "") || "routine"
+	);
+}
 
-  function buildRoutineMd(r: RoutineItem): string {
-    const lines = ["---"];
-    lines.push(`name: "${r.name.replace(/"/g, '\\"')}"`);
-    if (r.time) lines.push(`time: "${r.time.replace(/"/g, '\\"')}"`);
-    if (r.icon) lines.push(`icon: "${r.icon}"`);
-    if (r.color) lines.push(`color: "${r.color}"`);
-    if (r.description) lines.push(`description: "${r.description.replace(/"/g, '\\"')}"`);
-    lines.push(`updatedAt: ${r.updatedAt}`);
-    lines.push("---");
-    lines.push("");
-    lines.push(r.body.trim());
-    lines.push("");
-    return lines.join("\n");
-  }
+function buildRoutineMd(r: RoutineItem): string {
+	const lines = ["---"];
+	lines.push(`name: "${r.name.replace(/"/g, '\\"')}"`);
+	if (r.time) lines.push(`time: "${r.time.replace(/"/g, '\\"')}"`);
+	if (r.icon) lines.push(`icon: "${r.icon}"`);
+	if (r.color) lines.push(`color: "${r.color}"`);
+	if (r.description)
+		lines.push(`description: "${r.description.replace(/"/g, '\\"')}"`);
+	lines.push(`updatedAt: ${r.updatedAt}`);
+	lines.push("---");
+	lines.push("");
+	lines.push(r.body.trim());
+	lines.push("");
+	return lines.join("\n");
+}
 
-  function handleSaveDraft() {
-    saveDraft({
-      pageKey: "routines",
-      pageName: "日常规划",
-      description: `共 ${routines.length} 条规划`,
-      operation: "update",
-      payload: { routines },
-    });
-    showToast("日常规划草稿已保存", "success");
-  }
-  async function handleBatchSubmit() {
-    const draft = getDraft<any>("routines");
-    if (draft?.routines) { routines = draft.routines; await handleSave(); if (!saving) deleteDraft("routines"); }
-  }
+function handleSaveDraft() {
+	saveDraft({
+		pageKey: "routines",
+		pageName: "日常规划",
+		description: `共 ${routines.length} 条规划`,
+		operation: "update",
+		payload: { routines },
+	});
+	showToast("日常规划草稿已保存", "success");
+}
+async function handleBatchSubmit() {
+	const draft = getDraft<any>("routines");
+	if (draft?.routines) {
+		routines = draft.routines;
+		await handleSave();
+		if (!saving) deleteDraft("routines");
+	}
+}
 
-  async function handleSave(): Promise<boolean> {
-    if (!hasValidToken()) { showToast("GitHub 代理未配置，请联系管理员", "warning"); return false; }
-    saving = true;
-    try {
-      let allOk = true;
-      for (let i = 0; i < routines.length; i++) {
-        const r = routines[i];
-        if (r._deleted) {
-          if (r.slug && !r._draft) {
-            const filePath = `src/content/life/routines/${r.slug}.md`;
-            const file = await getRepoFile(filePath, repoConfig);
-            if (file && file.sha) {
-              const ok = await deleteRepoFile(filePath, file.sha, `chore(routines): remove ${r.slug}`, repoConfig);
-              if (!ok) allOk = false;
-            }
-          }
-          continue;
-        }
-        const md = buildRoutineMd(r);
-        let slug = r.slug;
-        if (r._draft || !slug) {
-          slug = slugify(r.name);
-          const ok = await createRepoFile(`src/content/life/routines/${slug}.md`, md, `chore(routines): add ${slug}`, repoConfig);
-          if (!ok) allOk = false;
-        } else {
-          const filePath = `src/content/life/routines/${slug}.md`;
-          let sha = r.sha;
-          if (!sha) { const f = await getRepoFile(filePath, repoConfig); if (f) sha = f.sha; }
-          if (sha) { const ok = await updateRepoFile(filePath, md, sha, `chore(routines): update ${slug}`, repoConfig); if (!ok) allOk = false; }
-          else { const ok = await createRepoFile(filePath, md, `chore(routines): create ${slug}`, repoConfig); if (!ok) allOk = false; }
-        }
-      }
-      if (allOk) {
-        showToast("保存成功！页面将刷新以应用更改", "success");
-        hasChanges = false;
-        setTimeout(() => window.location.reload(), 1200);
-      } else { showToast("部分操作失败，请检查 GitHub App 权限配置", "error"); }
-      return allOk;
-    } catch (err) { showToast("保存出错：" + (err as Error).message, "error"); return false; }
-    finally { saving = false; }
-  }
+async function handleSave(): Promise<boolean> {
+	if (!hasValidToken()) {
+		showToast("GitHub 代理未配置，请联系管理员", "warning");
+		return false;
+	}
+	saving = true;
+	try {
+		let allOk = true;
+		for (let i = 0; i < routines.length; i++) {
+			const r = routines[i];
+			if (r._deleted) {
+				if (r.slug && !r._draft) {
+					const filePath = `src/content/life/routines/${r.slug}.md`;
+					const file = await getRepoFile(filePath, repoConfig);
+					if (file && file.sha) {
+						const ok = await deleteRepoFile(
+							filePath,
+							file.sha,
+							`chore(routines): remove ${r.slug}`,
+							repoConfig,
+						);
+						if (!ok) allOk = false;
+					}
+				}
+				continue;
+			}
+			const md = buildRoutineMd(r);
+			let slug = r.slug;
+			if (r._draft || !slug) {
+				slug = slugify(r.name);
+				const ok = await createRepoFile(
+					`src/content/life/routines/${slug}.md`,
+					md,
+					`chore(routines): add ${slug}`,
+					repoConfig,
+				);
+				if (!ok) allOk = false;
+			} else {
+				const filePath = `src/content/life/routines/${slug}.md`;
+				let sha = r.sha;
+				if (!sha) {
+					const f = await getRepoFile(filePath, repoConfig);
+					if (f) sha = f.sha;
+				}
+				if (sha) {
+					const ok = await updateRepoFile(
+						filePath,
+						md,
+						sha,
+						`chore(routines): update ${slug}`,
+						repoConfig,
+					);
+					if (!ok) allOk = false;
+				} else {
+					const ok = await createRepoFile(
+						filePath,
+						md,
+						`chore(routines): create ${slug}`,
+						repoConfig,
+					);
+					if (!ok) allOk = false;
+				}
+			}
+		}
+		if (allOk) {
+			showToast("保存成功！页面将刷新以应用更改", "success");
+			hasChanges = false;
+			setTimeout(() => window.location.reload(), 1200);
+		} else {
+			showToast("部分操作失败，请检查 GitHub App 权限配置", "error");
+		}
+		return allOk;
+	} catch (err) {
+		showToast("保存出错：" + (err as Error).message, "error");
+		return false;
+	} finally {
+		saving = false;
+	}
+}
 
-  // 注册批量提交处理程序
-  registerSubmitHandler("routines", async (draft) => {
-    if (draft.payload?.type === "gist") return false; // routines 不使用 gist
-    if (draft.payload?.routines) {
-      routines = draft.payload.routines;
-      const ok = await handleSave();
-      return ok;
-    }
-    return false;
-  });
+// 注册批量提交处理程序
+registerSubmitHandler("routines", async (draft) => {
+	if (draft.payload?.type === "gist") return false; // routines 不使用 gist
+	if (draft.payload?.routines) {
+		routines = draft.payload.routines;
+		const ok = await handleSave();
+		return ok;
+	}
+	return false;
+});
 </script>
 
 <EditToast />

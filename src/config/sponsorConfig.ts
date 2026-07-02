@@ -40,13 +40,15 @@ export const sponsorConfig: SponsorConfig = {
 		},
 		{
 			name: "214556787",
-			avatar: "https://weavatar.com/avatar/d252655d40d6874417a720bad0a6c5f77f8f6a1fd2f882f8f338402dc37e4190?s=640",
+			avatar:
+				"https://weavatar.com/avatar/d252655d40d6874417a720bad0a6c5f77f8f6a1fd2f882f8f338402dc37e4190?s=640",
 			amount: "¥1",
 			date: "10/1/2025",
 		},
 		{
 			name: "哈基墩",
-			avatar: "https://i.stardots.io/784774835/StarDots-2026060803504474780.png",
+			avatar:
+				"https://i.stardots.io/784774835/StarDots-2026060803504474780.png",
 			amount: "¥0.01",
 			date: "1/1/2026",
 		},

@@ -417,7 +417,6 @@ enum I18nKey {
 	welcomeCardLearnMore = "welcomeCardLearnMore",
 	welcomeCardRecentLabel = "welcomeCardRecentLabel",
 
-
 	books = "books",
 	moviesGames = "moviesGames",
 	musicPage = "musicPage",
